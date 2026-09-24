@@ -49,3 +49,25 @@ impl Event {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn constructors_build_the_matching_kind() {
+        let at = Instant::from_millis(1_000);
+        assert_eq!(Event::deadline(at).kind, EventKind::Deadline);
+
+        let point = Point::new(160, 110);
+        let touch = Event::touch(at, TouchPhase::Down, point);
+        assert_eq!(touch.at, at);
+        assert_eq!(
+            touch.kind,
+            EventKind::Touch(Touch {
+                phase: TouchPhase::Down,
+                point
+            })
+        );
+    }
+}

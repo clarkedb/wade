@@ -162,3 +162,57 @@ impl App {
         self.screen
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use embedded_graphics::geometry::Point;
+
+    use super::*;
+    use crate::event::TouchPhase;
+
+    const SEED: u64 = 42;
+
+    fn ms(ms: u64) -> Instant {
+        Instant::from_millis(ms)
+    }
+
+    #[test]
+    fn starts_on_buddy_at_the_given_time() {
+        let app = App::new(ms(500), SEED);
+        assert_eq!(app.now(), ms(500));
+        assert_eq!(app.screen(), Screen::Buddy);
+    }
+
+    #[test]
+    fn handle_moves_now_to_the_event_time() {
+        let mut app = App::new(ms(0), SEED);
+        let _ = app.handle(Event::deadline(ms(1_000)));
+        assert_eq!(app.now(), ms(1_000));
+        let _ = app.handle(Event::touch(ms(1_500), TouchPhase::Down, Point::zero()));
+        assert_eq!(app.now(), ms(1_500));
+    }
+
+    #[test]
+    fn late_event_does_not_move_now_backwards() {
+        let mut app = App::new(ms(0), SEED);
+        let _ = app.handle(Event::deadline(ms(1_000)));
+        let _ = app.handle(Event::touch(ms(400), TouchPhase::Down, Point::zero()));
+        assert_eq!(app.now(), ms(1_000));
+    }
+
+    #[test]
+    fn idle_deadline_has_no_effects_and_no_redraw() {
+        // Nothing is due or moving 1 ms after startup.
+        let mut app = App::new(ms(0), SEED);
+        assert_eq!(app.handle(Event::deadline(ms(1))), Output::default());
+    }
+
+    #[test]
+    fn no_deadline_once_time_runs_out() {
+        // Schedules saturate at Instant::MAX, where no deadline can be later than now.
+        let mut app = App::new(ms(u64::MAX - 10_000), SEED);
+        let _ = app.handle(Event::deadline(Instant::MAX));
+        assert_eq!(app.now(), Instant::MAX);
+        assert_eq!(app.next_deadline(), None);
+    }
+}

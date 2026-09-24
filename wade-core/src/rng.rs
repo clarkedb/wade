@@ -54,6 +54,15 @@ mod tests {
     }
 
     #[test]
+    fn sequence_matches_reference_xorshift64_star() {
+        // A recording stores only its seed, so changing the generator changes every replay.
+        let mut r = Rng::new(42);
+        assert_eq!(r.next_u64(), 0x56ce_4ab7_719b_a3a0);
+        assert_eq!(r.next_u64(), 0xc841_eb53_ebbb_2dda);
+        assert_eq!(r.next_u64(), 0xca46_6be0_c998_0276);
+    }
+
+    #[test]
     fn zero_seed_is_not_stuck() {
         let mut r = Rng::new(0);
         assert_ne!(r.next_u64(), r.next_u64());
@@ -68,5 +77,7 @@ mod tests {
         }
         assert_eq!(r.range_inclusive(5, 5), 5);
         assert_eq!(r.range_inclusive(9, 3), 9);
+        // The full span does not fit in a u64.
+        let _ = r.range_inclusive(0, u64::MAX);
     }
 }
