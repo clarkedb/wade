@@ -6,7 +6,9 @@ my desk buddy
 
 Wade is an animated desk companion for the M5Stack CoreS3 Lite, developed and tested on desktop first. Design docs live in [docs/](docs/README.md); the plan is in [docs/roadmap.md](docs/roadmap.md).
 
-![Wade in the desktop simulator, moving through his expressions and falling asleep](docs/assets/demo.gif)
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="Wade in the desktop simulator, moving through his expressions and falling asleep" width="400">
+</p>
 
 ## Layout
 
