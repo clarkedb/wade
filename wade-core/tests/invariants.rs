@@ -2,7 +2,8 @@
 
 use embedded_graphics::geometry::Point;
 use proptest::prelude::*;
-use wade_core::{App, Event, EventKind, Instant, Touch, TouchPhase};
+use wade_core::app::STALL_LIMIT;
+use wade_core::{App, Event, EventKind, Instant, Touch, TouchPhase, View};
 
 fn phase() -> impl Strategy<Value = TouchPhase> {
     prop_oneof![
@@ -77,6 +78,41 @@ fn assert_deadline_later(app: &App) -> Result<(), TestCaseError> {
     Ok(())
 }
 
+/// Handle `event`, checking the redraw contract: when `redraw` is false, the
+/// view must still be the one last drawn.
+fn handle_checked(app: &mut App, drawn: &mut View, event: Event) -> Result<(), TestCaseError> {
+    if app.handle(event).redraw {
+        *drawn = app.view();
+    } else {
+        prop_assert_eq!(
+            app.view(),
+            *drawn,
+            "view changed at {:?} without redraw",
+            event.at
+        );
+    }
+    Ok(())
+}
+
+/// A single `Deadline` just short of `STALL_LIMIT` late replays the gap exactly.
+#[test]
+fn a_stall_within_the_limit_does_not_change_the_view() {
+    let tap = Instant::from_millis(1_000);
+    let late = Instant::from_millis(1_000) + STALL_LIMIT;
+    let mut punctual = App::new(Instant::from_millis(0), 7);
+    let mut stalled = App::new(Instant::from_millis(0), 7);
+    for app in [&mut punctual, &mut stalled] {
+        deliver(
+            app,
+            Event::touch(tap, TouchPhase::Down, Point::new(160, 120)),
+        );
+        deliver(app, Event::touch(tap, TouchPhase::Up, Point::new(160, 120)));
+    }
+    deliver(&mut punctual, Event::deadline(late));
+    let _ = stalled.handle(Event::deadline(late));
+    assert_eq!(punctual.view(), stalled.view());
+}
+
 proptest! {
     #[test]
     fn next_deadline_is_later_than_last_event(seed: u64, events in ordered_events()) {
@@ -118,6 +154,22 @@ proptest! {
             deliver(&mut noisy, *event);
             // The whole view, pose included: animation must depend on elapsed time only.
             prop_assert_eq!(plain.view(), noisy.view());
+        }
+    }
+
+    #[test]
+    fn redraw_is_set_whenever_the_view_changes(
+        seed: u64,
+        events in ordered_events(),
+        punctual in prop::collection::vec(any::<bool>(), 60),
+    ) {
+        let mut app = App::new(Instant::from_millis(0), seed);
+        let mut drawn = app.view();
+        for (event, &punctual) in events.iter().zip(&punctual) {
+            while let Some(d) = app.next_deadline().filter(|&d| punctual && d < event.at) {
+                handle_checked(&mut app, &mut drawn, Event::deadline(d))?;
+            }
+            handle_checked(&mut app, &mut drawn, *event)?;
         }
     }
 

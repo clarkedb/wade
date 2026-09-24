@@ -47,9 +47,11 @@ A screen change cancels any tap in progress. If the core switches screens while 
 
 All geometry (element rectangles, Wade's hit area, button positions) is defined once in `wade_core::layout` and used by both drawing and hit-testing, so what you see is always what you can tap.
 
+The four 48×48 corners are reserved for navigation on every screen: back top-left, apps bottom-right, and the other two kept free. Nothing else takes touches there, Wade included.
+
 ## Buddy screen
 
-Wade fills the screen. The apps button is a 48×48 hit area in the bottom-right corner with a small, low-contrast icon. Wade's hit area is his head. In M1 through M3, touches elsewhere do nothing; M4 adds gaze-following (see [character.md](character.md#behavior-rules)).
+Wade fills the screen. The apps button is a 48×48 hit area in the bottom-right corner with a small, low-contrast icon. Wade's hit area is a rectangle around his eyes, clear of the corners. In M1 through M3, touches elsewhere do nothing; M4 adds gaze-following (see [character.md](character.md#behavior-rules)).
 
 ## Timer
 
@@ -136,8 +138,9 @@ The platform keeps the last drawn `View`, calls `damage` when `redraw` is set, d
 
 | Change | Rectangle | Flush time |
 |---|---|---|
-| Blink | about 160×40 (the eyes) | about 3 ms |
-| Expression change | about 200×180 (the face) | about 14 ms |
+| Blink | about 210×90 (the eyes) | about 8 ms |
+| Expression change | about 260×150 (the eyes and accents) | about 16 ms |
+| A step of Thinking's dots | the dots | under 1 ms |
 | Timer tick | the changed digits | a few ms |
 | Screen change | full screen | about 31 ms |
 

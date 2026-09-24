@@ -15,24 +15,21 @@ For now Wade communicates only through expression, gaze, and small actions. He h
 
 ## Appearance
 
-Wade is an original character design, drawn entirely from shapes in code with `embedded-graphics` primitives: circles, ellipses, arcs, polylines, triangles, and rounded rectangles. The style is flat color with thick outlines and a small palette.
+Wade is a pair of eyes: light, flat shapes on black, like a small robot's OLED face. He has no head or mouth, so the eyes carry every expression. He is drawn entirely from shapes in code with `embedded-graphics` primitives: rounded rectangles, circles, triangles, lines, and polylines.
 
-His final look is designed in M4 on the real screen. M1 through M3 use placeholder geometry (a round head, two eyes, two brows, and a mouth) driven by the same pose rig, so replacing the look later changes only the drawing code.
+Each eye is a rounded rectangle. Expressions reshape it by cutting parts away in the background color: a flat lid droops from above, a wide disc risen from below leaves a smiling crescent, and a triangle cut across the top slants the eye, from the outer corner for worry and the inner corner for anger. Small accents beside the eyes finish some expressions. Blush, tears and sweat, and the sparkle carry the only color: pink, blue, and yellow.
 
-The eyes carry most of the expression: each expression should read from the eyes and brows alone, with the mouth reinforcing it. Eyes are shaped by covering parts of them with shapes in the skin color, then outlining the cut edge. A lid lowers from above, a disc rising from below pushes the lower lid into a smiling crescent, and a triangle cut from one top corner slants the eye. Each pupil carries a small highlight that moves only part as far as the pupil, so the eye reads as round.
-
-The screen is 2.0" at about 200 pixels per inch, which constrains the design.
+The look is tuned on the real screen in M4. The screen is 2.0" at about 200 pixels per inch, which constrains the design.
 
 | Constraint | Value |
 |---|---|
-| Face height | At least 160 px |
-| Eye size | At least 24 px |
+| Eye size | At least 24 px, except while closed |
 | Line width | At least 3 px |
 | Smallest detail | 4 px or larger |
 | Color | Flat fills. No gradients, which band visibly in Rgb565. |
-| Transforms | None. `embedded-graphics` cannot rotate shapes, so the rig moves, reshapes, and covers features instead of rotating them. |
+| Transforms | None. `embedded-graphics` cannot rotate shapes, so the rig moves, reshapes, and cuts features instead of rotating them. |
 
-Props are part of the character. A keyboard and a cup with a straw appear during idle activities (M4).
+Props are part of the character. A keyboard and a cup appear during idle activities (M4).
 
 ## Pose rig
 
@@ -40,21 +37,30 @@ Every expression and animation reduces to a `Pose`. The drawing code reads only 
 
 ```rust
 pub struct Pose {
-    pub eye_open: f32,            // 0.0 closed … 1.0 open; the upper lid lowers
-    pub eye_scale: f32,           // 1.0 normal … 1.3 widest (surprise)
-    pub lower_lid: f32,           // 0.0 flat … 1.0 pushed up into a crescent (smile)
-    pub gaze: (f32, f32),         // pupil offset, −1.0 … 1.0 on each axis
-    pub brow_raise: f32,          // −1.0 lowered … 1.0 raised
-    pub brow_tilt: f32,           // −1.0 worried … 1.0 determined
-    pub brow_asymmetry: f32,      // 0.0 even … 1.0 one brow fully raised (skeptical)
-    pub mouth_curve: f32,         // −1.0 frown … 1.0 smile
-    pub mouth_open: f32,          // 0.0 closed … 1.0 open
-    pub mouth_skew: f32,          // −1.0 … 1.0, lopsided (smirk)
-    pub head_offset: (f32, f32),  // small bob or lean, in pixels
-    pub prop: Prop,
-    pub prop_phase: f32,          // 0.0 … 1.0 through the prop's motion
+    pub eye_size: (f32, f32),     // width and height of each eye in pixels, before blinking
+    pub eye_radius: f32,          // corner radius in pixels
+    pub eye_open: f32,            // 0.0 closed … 1.0 open; closing collapses each eye to a line
+    pub upper_lid: f32,           // 0.0 … 1.0 of each eye covered from above (droop)
+    pub lower_lid: f32,           // 0.0 … 1.0 pushed up from below into a crescent (smile)
+    pub brow_tilt: f32,           // −1.0 outer corners cut (worried) … 1.0 inner corners cut (angry)
+    pub asymmetry: f32,           // −1.0 right eye shorter … 1.0 right eye taller (smug)
+    pub gaze: (f32, f32),         // where both eyes look, −1.0 … 1.0 on each axis
+    pub face_offset: (f32, f32),  // whole-face offset in pixels: shaking
     pub accent: Accent,
     pub accent_phase: f32,        // 0.0 … 1.0 through the accent's motion
+    pub prop: Prop,
+    pub prop_phase: f32,          // 0.0 … 1.0 through the prop's motion
+}
+
+pub enum Accent {
+    None,
+    Blush,      // pink marks under the outer corners (Happy)
+    Exclaim,    // a "!" beside the face (Surprised)
+    Tear,       // a tear falls from the right eye (Sad)
+    Dots,       // up to three dots (Thinking)
+    Steam,      // steam marks above the outer corners (Angry)
+    Sparkle,    // one twinkle beside the right eye (Proud)
+    SweatDrop,  // a drop slides down beside the left eye (Flustered)
 }
 
 pub enum Prop {
@@ -62,16 +68,9 @@ pub enum Prop {
     Keyboard,
     Cup,
 }
-
-pub enum Accent {
-    None,
-    Sparkle,    // one twinkle beside an eye (Proud)
-    SweatDrop,  // a drop slides down the side of the head (Flustered)
-    Zs,         // Z's rise from the head (asleep)
-}
 ```
 
-An accent is a small secondary action beside the face. It stays inside a small region, so it costs only a small flush (see [ui.md](ui.md#partial-flush)).
+An accent is a small secondary action beside the eyes. It stays inside a small region, so it costs only a small flush (see [ui.md](ui.md#partial-flush)).
 
 The ESP32-S3 has a single-precision FPU, so `f32` is cheap on the device. Trigonometric and similar functions come from `libm`.
 
@@ -79,15 +78,18 @@ The ESP32-S3 has a single-precision FPU, so `f32` is cheap on the device. Trigon
 
 An expression is a named target pose.
 
-| Expression | Used for | Key pose traits | First milestone |
+| Expression | Used for | Pose traits | Accent |
 |---|---|---|---|
-| Neutral | Default | Eyes open, slight smile | M1 |
-| Happy | Being tapped | Wide smile, raised brows, lower lids pushed up into crescents | M1 |
-| Proud | Successes, repeated attention | Smirk, half-closed eyes, one brow raised, gaze up and to one side; Sparkle | M2 (placeholder), M4 (final) |
-| Focused | Typing | Eyes down, brows slightly lowered | M4 |
-| Flustered | Hubris backfire | Eyes wide, brows worried, mouth open and uneven; SweatDrop | M4 |
-| Surprised | Woken suddenly | Eyes wide and enlarged, brows high, mouth open | M6 |
-| Sleepy | Long inactivity | Eyes mostly closed, head lowered | M6 |
+| Neutral | Default | Rounded squares, level | |
+| Happy | Being tapped | Slightly larger; lower lids pushed up into crescents | Blush |
+| Sad | No trigger yet | Smaller and drooping, outer corners cut | Tear, every few seconds |
+| Angry | No trigger yet | Short, inner corners cut deep; a tremble | Steam, flashing |
+| Surprised | Woken suddenly (M6) | Tall and wide | Exclaim, briefly |
+| Sleepy | Long inactivity (M6) | Upper lids half down | |
+| Thinking | No trigger yet | Smaller, lids slightly down, looking up and to the side | Dots counting up |
+| Proud | Successes, repeated attention (M2, M4) | Half-lidded and smug, right eye taller, looking up and to one side | Sparkle |
+| Focused | Typing (M4) | Flattened, inner corners slightly cut, looking down | |
+| Flustered | Hubris backfire (M4) | Wide, worried, uneven | SweatDrop |
 
 An expression that sets gaze holds it: glances pause until the expression ends. An expression's accent starts when the transition into it finishes, so it never appears on a half-formed face.
 
@@ -95,22 +97,24 @@ An expression that sets gaze holds it: glances pause until the expression ends. 
 
 The rendered pose is built in layers, applied in this order, each computed from elapsed time.
 
-| Layer | Behavior | First milestone |
-|---|---|---|
-| Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out. | M1 |
-| Pop | On an expression change, `eye_scale` jumps up by 10% (25% into Surprised) and eases back over 300 ms. | M4 |
-| Activity | An idle activity overrides some parameters: gaze, prop, and prop phase for typing or sipping. | M4 |
-| Glance | While nothing else sets gaze, the gaze jumps every 3 to 8 s to a small random offset (up to 0.3 on each axis), or back to center half the time. Each jump takes 50 ms. | M4 |
-| Accent | The current accent runs its motion once, or loops for Zs. | M4 |
-| Blink | Closes the eyes over 50 ms and reopens them over 70 ms by scaling `eye_open`: a fast shut and a slower open read as natural. Applied last, so Wade can blink during any expression. | M1 |
+| Layer | Behavior |
+|---|---|
+| Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out: 300 ms as the eyes open at startup. |
+| Pop | On an expression change, the eyes jump 12% taller (30% into Surprised) and ease back over 400 ms. |
+| Squint | In Neutral, every 8 to 16 s, the eyes narrow by 40% and relax over 400 ms. |
+| Activity (M4) | An idle activity overrides some parameters: gaze, prop, and prop phase for typing or sipping. |
+| Glance | While nothing else sets gaze, the gaze jumps every 1.2 to 4 s to a random offset (up to 1.0 across and 0.8 up or down), or back to center 40% of the time. Each jump takes 80 ms. |
+| Shake | Angry trembles by up to 2 px every 100 ms. |
+| Accent | The current accent holds (Blush), shows once (Exclaim, Sparkle, SweatDrop), or repeats (Tear, Dots, Steam). |
+| Blink | Closes the eyes over 50 ms and reopens them over 70 ms by scaling `eye_open`: a fast shut and a slower open read as natural. Applied last, so Wade can blink during any expression. |
 
-Blinks occur at random intervals of 2 to 6 seconds. From M4, one blink in five is followed by a second 300 ms later.
+Blinks occur at random intervals of 2 to 6 seconds, and one in five is followed by a second 300 ms after it ends.
 
-Every layer has a fixed end, never an easing that only approaches its target, so the end of each animation is a transition (see [D18](decisions.md#d18-animations-have-fixed-ends-lasting-motion-is-stepped)). Motion that lasts, such as rising Z's or a sleeping breath, moves in whole-pixel steps at scheduled instants, so each step costs one frame instead of a stream of them.
+Every layer has a fixed end, never an easing that only approaches its target, so the end of each animation is a transition (see [D18](decisions.md#d18-animations-have-fixed-ends-lasting-motion-is-stepped)). Motion that lasts moves in steps at scheduled instants, so each step costs one frame instead of a stream of them: Angry's tremble and steam, and Thinking's dots.
 
-While a transition, blink, glance, or activity is in progress, the character requests a deadline every frame (see [architecture.md](architecture.md#deadlines-and-frames)). When Wade is still, his only deadline is the next scheduled blink, glance, step, or activity.
+While any motion is in progress, the character requests a deadline every frame (see [architecture.md](architecture.md#deadlines-and-frames)). When Wade is still, his only deadline is the next scheduled change, such as a blink, a step, or an expression expiring.
 
-Wade animates only while the Buddy screen is visible. On other screens his schedule keeps moving forward but he requests no frames: blinks that fall due are skipped, and idle activities do not start (see [architecture.md](architecture.md#hidden-features)).
+Wade animates only while the Buddy screen is visible. On other screens his schedule keeps moving forward but he requests no frames: blinks and other motions that fall due are skipped, and idle activities do not start (see [architecture.md](architecture.md#hidden-features)).
 
 Idle activities (M4):
 
@@ -126,7 +130,7 @@ Idle activities (M4):
 
 | Trigger | Result |
 |---|---|
-| Start | Neutral |
+| Start | Eyes open from closed over 300 ms, then Neutral |
 | Every 2 to 6 s, at random | Blink |
 | Tap on Wade | Happy for 2 s, then Neutral. Another tap restarts the 2 s. |
 | Tap elsewhere on the Buddy screen | Nothing |
@@ -141,7 +145,6 @@ Idle activities (M4):
 
 | Trigger | Result |
 |---|---|
-| Start | Eyes open from closed over 300 ms, then Neutral |
 | 20 to 60 s without a touch on any screen, at random, while the Buddy screen is visible | Start a random idle activity |
 | Tap during an activity | The activity stops; Happy |
 | Three or more taps on Wade within 2 s | Proud for 3 s |
@@ -153,6 +156,4 @@ Idle activities (M4):
 | Trigger | Result |
 |---|---|
 | Inactivity past the sleep threshold | Sleepy, then asleep, then the display turns off (see [roadmap.md](roadmap.md#m6-power)) |
-| Touch or someone approaching while Sleepy or asleep | Display on, eyes spring open with a pop, Surprised for 1 s, then Neutral |
-
-Asleep is a state, not an expression. The eyes close over 1 s, much slower than a blink. A slow breath moves the head a pixel or two, and Zs loop. Both are stepped, so sleeping costs a few frames a second until the display turns off.
+| Touch while Sleepy, or someone approaching while Sleepy or asleep | Display on, eyes spring open with a pop, Surprised for 1 s, then Neutral |
