@@ -36,8 +36,8 @@ impl Expression {
                 ..Pose::REST
             },
             Expression::Happy => Pose {
-                eye_open: 0.8,
-                brow_raise: 0.5,
+                eye_open: 0.75,
+                brow_raise: 1.0,
                 mouth_curve: 1.0,
                 ..Pose::REST
             },

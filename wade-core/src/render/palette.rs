@@ -7,5 +7,5 @@ use embedded_graphics::prelude::RgbColor;
 pub const BACKGROUND: Rgb565 = Rgb565::new(3, 8, 6);
 pub const OUTLINE: Rgb565 = Rgb565::BLACK;
 pub const SKIN: Rgb565 = Rgb565::new(30, 50, 10);
-pub const EYE_WHITE: Rgb565 = Rgb565::WHITE;
-pub const PUPIL: Rgb565 = Rgb565::BLACK;
+pub const EYE: Rgb565 = Rgb565::new(4, 8, 8);
+pub const EYE_HIGHLIGHT: Rgb565 = Rgb565::WHITE;

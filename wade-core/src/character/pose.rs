@@ -3,7 +3,7 @@
 pub struct Pose {
     /// 0.0 closed … 1.0 open.
     pub eye_open: f32,
-    /// Pupil offset, −1.0 … 1.0 on each axis
+    /// Where Wade looks, −1.0 … 1.0 on each axis
     pub gaze: (f32, f32),
     /// −1.0 lowered … 1.0 raised
     pub brow_raise: f32,
