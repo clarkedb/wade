@@ -1,8 +1,12 @@
 /// Every expression and animation reduces to a `Pose`. Drawing reads only a `Pose`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
-    /// 0.0 closed … 1.0 open.
+    /// 0.0 closed … 1.0 open; the upper lid lowers.
     pub eye_open: f32,
+    /// 1.0 normal … 1.3 widest (surprise)
+    pub eye_scale: f32,
+    /// 0.0 flat … 1.0 pushed up into a crescent (smile)
+    pub lower_lid: f32,
     /// Pupil offset, −1.0 … 1.0 on each axis
     pub gaze: (f32, f32),
     /// −1.0 lowered … 1.0 raised
@@ -22,12 +26,17 @@ pub struct Pose {
     pub prop: Prop,
     /// 0.0 … 1.0 through the prop's motion
     pub prop_phase: f32,
+    pub accent: Accent,
+    /// 0.0 … 1.0 through the accent's motion
+    pub accent_phase: f32,
 }
 
 impl Pose {
     /// Eyes open, everything else centred.
     pub const REST: Pose = Pose {
         eye_open: 1.0,
+        eye_scale: 1.0,
+        lower_lid: 0.0,
         gaze: (0.0, 0.0),
         brow_raise: 0.0,
         brow_tilt: 0.0,
@@ -38,6 +47,8 @@ impl Pose {
         head_offset: (0.0, 0.0),
         prop: Prop::None,
         prop_phase: 0.0,
+        accent: Accent::None,
+        accent_phase: 0.0,
     };
 }
 
@@ -53,4 +64,17 @@ pub enum Prop {
     None,
     Keyboard,
     Cup,
+}
+
+/// A small secondary action beside the face.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Accent {
+    #[default]
+    None,
+    /// One twinkle beside an eye (Proud)
+    Sparkle,
+    /// A drop slides down the side of the head (Flustered)
+    SweatDrop,
+    /// Z's rise from the head (asleep)
+    Zs,
 }

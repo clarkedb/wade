@@ -2,7 +2,7 @@
 
 mod pose;
 
-pub use pose::{Pose, Prop};
+pub use pose::{Accent, Pose, Prop};
 
 use crate::rng::Rng;
 use crate::time::{Duration, Instant};
