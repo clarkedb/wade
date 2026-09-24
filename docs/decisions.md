@@ -139,3 +139,9 @@ Rejected: a desktop-only call into Wade, which bypasses recordings; a command ev
 Reason: pupils make gaze easy to read and let each expression set a pupil size; plain eyes are the cleaner robot look. Both are worth keeping, and the choice changes only drawing, so it is a setting carried in the view rather than part of Wade's behavior. It joins the M5 settings; until then the desktop P key switches it.
 
 Rejected: a single fixed style, which gives up one of two looks worth keeping; desk-robot's dark glint square in place of a pupil, which reads as a pupil stuck off-center on a color screen.
+
+## D24. Eye style belongs in the recording hash
+
+Reason: the P key changes a discrete setting in the view. Including it makes replay catch a broken toggle while leaving pose and pixels outside the hash, as in D16.
+
+Rejected: excluding eye style, which would let a recording with P replay successfully even if P stopped working.
