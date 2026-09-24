@@ -33,7 +33,7 @@ Flags: `--seed <n>`, `--time-scale <x>`. `--record <file>` and `--replay <file>`
 
 ## Checks
 
-Run before every commit; CI runs the same ones.
+CI runs these on every push. The pre-commit hook runs all but the tests, applying format and clippy fixes; enable it with `git config core.hooksPath .githooks`.
 
 ```sh
 cargo fmt --all --check

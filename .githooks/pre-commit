@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# The CI checks from docs/testing.md#checks, minus tests. Formatting and
+# machine-applicable clippy fixes are applied and re-staged when that is safe.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.rs$|(^|/)Cargo\.(toml|lock)$|^rust-toolchain\.toml$'; then
+  exit 0
+fi
+
+if [[ "$(uname -s)" == Darwin ]] && command -v brew >/dev/null; then
+  export LIBRARY_PATH="${LIBRARY_PATH:+$LIBRARY_PATH:}$(brew --prefix)/lib"
+fi
+
+step() { printf '\033[1mpre-commit:\033[0m %s\n' "$*"; }
+
+# Fixing rewrites whole files, so only do it when nothing is partially staged;
+# otherwise unstaged work would be swept into the commit.
+if git diff --quiet; then
+  step "applying cargo fmt and clippy --fix"
+  cargo clippy --workspace --all-targets --locked --fix --allow-dirty --allow-staged --quiet 2>/dev/null || true
+  cargo fmt --all
+  if ! git diff --quiet; then
+    git diff --name-only | sed 's/^/  fixed: /'
+    git add -u
+  fi
+else
+  step "unstaged changes present; checking without fixing"
+fi
+
+step "cargo fmt --check"
+cargo fmt --all --check
+
+step "clippy (workspace)"
+cargo clippy --workspace --all-targets --locked --quiet -- -D warnings
+
+step "clippy (wade-core, no_std)"
+cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf --locked --quiet -- -D warnings
+
+step "wade-core does not use alloc"
+if grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src; then
+  echo "wade-core must not use alloc" >&2
+  exit 1
+fi
