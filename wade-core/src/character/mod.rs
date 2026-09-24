@@ -27,6 +27,7 @@ pub enum Expression {
 
 impl Expression {
     /// The target pose for this expression.
+    #[must_use]
     pub const fn pose(self) -> Pose {
         match self {
             // TODO(M1): tune the placeholder poses.
@@ -66,6 +67,7 @@ impl Wade {
     /// Must be strictly later than the last instant passed to `advance`, unless
     /// the schedule has saturated at `Instant::MAX`. Frames are not transitions:
     /// they come from [`Wade::animating`].
+    #[must_use]
     pub fn next_transition(&self) -> Option<Instant> {
         // TODO(M1)
         None
@@ -84,6 +86,7 @@ impl Wade {
     /// True while the pose is changing with time (a blink or an expression
     /// transition), so a frame is needed every `FRAME`. The end of each
     /// animation must also be a transition, so its final frame is drawn.
+    #[must_use]
     pub fn animating(&self, _now: Instant) -> bool {
         // TODO(M1)
         false
@@ -96,16 +99,19 @@ impl Wade {
         false
     }
 
+    #[must_use]
     pub fn expression(&self) -> Expression {
         self.expression
     }
 
+    #[must_use]
     pub fn blinking(&self, _now: Instant) -> bool {
         // TODO(M1)
         false
     }
 
     /// The rendered pose at `now`: base expression, then blink.
+    #[must_use]
     pub fn pose(&self, _now: Instant) -> Pose {
         // TODO(M1): ease between expressions and apply the blink layer.
         self.expression.pose()

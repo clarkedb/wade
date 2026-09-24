@@ -24,6 +24,7 @@ pub enum Target {
 
 /// The target under `point` on the Buddy screen, if any.
 // TODO(M1): if Wade's head moves (Pose::head_offset), hit-test the drawn position.
+#[must_use]
 pub fn hit_buddy(point: Point) -> Option<Target> {
     WADE_HEAD.contains(point).then_some(Target::Wade)
 }

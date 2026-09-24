@@ -88,6 +88,7 @@ pub struct Replay {
 }
 
 impl Recording {
+    #[must_use]
     pub const fn new(seed: u64) -> Self {
         Self {
             seed,
@@ -98,11 +99,13 @@ impl Recording {
     /// Run every entry through a fresh harness, recomputing each state hash.
     /// Compare with [`Recording::first_mismatch`], or write the new hashes back
     /// for `UPDATE_RECORDINGS=1`.
+    #[must_use]
     pub fn replay(&self) -> Replay {
         todo!("M1: replay each entry with Harness::touch and collect state hashes")
     }
 
     /// The first entry whose recorded hash differs from `hashes`.
+    #[must_use]
     pub fn first_mismatch(&self, hashes: &[u32]) -> Option<Mismatch> {
         self.entries
             .iter()

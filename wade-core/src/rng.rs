@@ -8,6 +8,7 @@ pub struct Rng {
 }
 
 impl Rng {
+    #[must_use]
     pub const fn new(seed: u64) -> Self {
         // xorshift has a fixed point at zero, so remap a zero seed.
         let state = if seed == 0 {

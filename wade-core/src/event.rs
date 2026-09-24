@@ -33,6 +33,7 @@ pub enum TouchPhase {
 }
 
 impl Event {
+    #[must_use]
     pub const fn deadline(at: Instant) -> Self {
         Event {
             at,
@@ -40,6 +41,7 @@ impl Event {
         }
     }
 
+    #[must_use]
     pub const fn touch(at: Instant, phase: TouchPhase, point: Point) -> Self {
         Event {
             at,

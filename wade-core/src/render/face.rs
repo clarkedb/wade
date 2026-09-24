@@ -23,14 +23,20 @@ where
         .stroke_color(palette::OUTLINE)
         .stroke_width(LINE)
         .build();
-    let offset = Point::new(
-        libm::roundf(pose.head_offset.0) as i32,
-        libm::roundf(pose.head_offset.1) as i32,
-    );
+    let offset = point(pose.head_offset.0, pose.head_offset.1);
     Circle::with_center(layout::WADE_CENTER + offset, layout::WADE_HEAD_DIAMETER)
         .into_styled(head_style)
         .draw(target)?;
 
     // TODO(M1): eyes (eye_open, gaze), brows, and mouth (mouth_curve, mouth_open).
     Ok(())
+}
+
+/// The nearest pixel to `(x, y)`.
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "float-to-int `as` saturates, and pixel coordinates are far inside i32"
+)]
+fn point(x: f32, y: f32) -> Point {
+    Point::new(libm::roundf(x) as i32, libm::roundf(y) as i32)
 }

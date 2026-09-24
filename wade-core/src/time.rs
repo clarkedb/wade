@@ -12,10 +12,12 @@ impl Instant {
     /// The latest representable instant. Schedules saturate here.
     pub const MAX: Instant = Instant(u64::MAX);
 
+    #[must_use]
     pub const fn from_millis(ms: u64) -> Self {
         Instant(ms)
     }
 
+    #[must_use]
     pub const fn as_millis(self) -> u64 {
         self.0
     }

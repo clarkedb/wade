@@ -23,6 +23,7 @@ pub struct Harness {
 }
 
 impl Harness {
+    #[must_use]
     pub fn new(seed: u64) -> Self {
         Self {
             app: App::new(Instant::from_millis(0), seed),
@@ -86,6 +87,7 @@ impl Harness {
     }
 
     /// The current view, which must be the Buddy screen.
+    #[must_use]
     pub fn buddy(&self) -> BuddyView {
         match self.app.view() {
             View::Buddy(b) => b,
@@ -93,6 +95,7 @@ impl Harness {
     }
 
     /// Hash of the app's discrete state; see [`state_hash`].
+    #[must_use]
     pub fn state_hash(&self) -> u32 {
         state_hash(&self.app)
     }
@@ -107,6 +110,7 @@ impl Harness {
 /// A hash of discrete state only: the screen and the expression (later also the
 /// activity and the timer). Excludes `Pose` and pixels, so tuning animation does
 /// not invalidate recordings (D16). FNV-1a, so it is stable across platforms.
+#[must_use]
 pub fn state_hash(app: &App) -> u32 {
     let View::Buddy(buddy) = app.view();
     // Explicit codes, not `as u8`: reordering or inserting variants must not

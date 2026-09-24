@@ -7,6 +7,11 @@ use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 
 use crate::view::View;
 
+/// Draw a complete frame for `view` into `target`.
+///
+/// # Errors
+///
+/// Returns the first error from `target`.
 pub fn draw<D>(view: &View, target: &mut D) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565>,

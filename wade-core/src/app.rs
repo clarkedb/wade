@@ -47,6 +47,7 @@ pub struct App {
 }
 
 impl App {
+    #[must_use]
     pub fn new(now: Instant, seed: u64) -> App {
         let mut rng = Rng::new(seed);
         let wade = Wade::new(now, &mut rng);
@@ -139,6 +140,7 @@ impl App {
     }
 
     /// What is on screen, as plain data, as of the last handled event.
+    #[must_use]
     pub fn view(&self) -> View {
         match self.screen {
             Screen::Buddy => View::Buddy(BuddyView {
@@ -150,10 +152,12 @@ impl App {
     }
 
     /// The latest timestamp the core has seen.
+    #[must_use]
     pub const fn now(&self) -> Instant {
         self.now
     }
 
+    #[must_use]
     pub const fn screen(&self) -> Screen {
         self.screen
     }

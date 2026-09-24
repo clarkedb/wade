@@ -16,6 +16,7 @@ pub struct TouchTracker {
 }
 
 impl TouchTracker {
+    #[must_use]
     pub const fn new() -> Self {
         TouchTracker { pressed: None }
     }
@@ -33,6 +34,7 @@ impl TouchTracker {
     }
 
     /// The target currently pressed, for drawing a pressed style.
+    #[must_use]
     pub const fn pressed(&self) -> Option<Target> {
         self.pressed
     }

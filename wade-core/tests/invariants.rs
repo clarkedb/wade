@@ -40,7 +40,7 @@ fn ordered_events() -> impl Strategy<Value = Vec<Event>> {
     })
 }
 
-/// Events with arbitrary timestamps, including ones that go backwards and near u64::MAX.
+/// Events with arbitrary timestamps, including ones that go backwards and near `u64::MAX`.
 fn wild_events() -> impl Strategy<Value = Vec<Event>> {
     let at = prop_oneof![any::<u64>(), 0u64..10_000, (u64::MAX - 10_000)..=u64::MAX];
     prop::collection::vec((at, kind()), 0..60).prop_map(|v| {

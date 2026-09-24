@@ -22,6 +22,11 @@ impl Clock {
     }
 
     /// The current core time.
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "float-to-int `as` saturates, and elapsed time is non-negative"
+    )]
     pub fn now(&self) -> Instant {
         let ms = self.start.elapsed().as_secs_f64() * 1_000.0 * self.scale;
         Instant::from_millis(ms as u64)
