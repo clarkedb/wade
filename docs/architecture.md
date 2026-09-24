@@ -138,7 +138,7 @@ Events report raw facts, never interpretations. A platform never sends "open the
 
 `App::handle` processes an event in two steps. First it advances `now` to the event's timestamp, applying every timed transition that became due along the way (an expression expiring, a timer finishing) in chronological order across all features. Then it applies the event itself. For a `Deadline` event, the first step is the whole job.
 
-Chronological order across features matters because features interact: a timer finishing switches the screen, which changes whether Wade is visible and which deadlines apply, and all features draw from one RNG. So `App` does not simply call each feature's `advance(now)` in turn. It loops:
+Chronological order across features matters because features interact: a timer finishing switches the screen, which changes whether Wade is visible and which deadlines apply, and behavior draws from one RNG. So `App` does not simply call each feature's `advance(now)` in turn. It loops:
 
 ```text
 advance_to(target):
@@ -216,7 +216,7 @@ pub struct App {
     wade: Wade,          // character state; kept on every screen
     timer: TimerState,   // keeps running on every screen
     touch: TouchTracker, // turns raw touch samples into taps
-    rng: Rng,            // seeded PRNG
+    rng: Rng,            // seeded PRNG for behavior
 }
 
 enum Screen {
@@ -233,19 +233,19 @@ Touches are global input. Any tap, on any screen, counts as activity for feature
 
 ### Hidden features
 
-A feature whose screen is not visible still keeps time but costs nothing. While Wade is hidden, his schedule (blinks, and idle activities from M4) keeps moving forward, but he requests no frame deadlines and never sets `redraw`. A blink that falls due while he is hidden is skipped and the next one is scheduled; an idle activity never starts while he is hidden. When the Buddy screen returns, Wade resumes from his current schedule with no burst of catch-up animation. The same rule covers any future feature with animation.
+A feature whose screen is not visible still keeps time but costs nothing. While Wade is hidden, his schedule (blinks and other idle motions, and idle activities from M4) keeps moving forward, but he requests no frame deadlines and never sets `redraw`. A blink that falls due while he is hidden is skipped and the next one is scheduled; an idle activity never starts while he is hidden. When the Buddy screen returns, Wade resumes from his current schedule with no burst of catch-up animation. The same rule covers any future feature with animation.
 
 ## Deadlines and frames
 
 Deadlines replace a periodic tick. Each feature reports when it will next change without input: Wade's next blink or the next frame of a running animation, the moment the timer ends, the next second at which the timer's digits change, the next chime repeat. `App::next_deadline` returns the earliest.
 
-The platform guarantees a `Deadline` event at or after that time. It may arrive late (after a slow frame), and extra `Deadline` events may arrive (after a spurious wakeup). The core must produce the same result either way: behavior depends on elapsed time, never on how many events arrived. An invariant test checks this (see [testing.md](testing.md#invariants)).
+The platform guarantees a `Deadline` event at or after that time. It may arrive late (after a slow frame), and extra `Deadline` events may arrive (after a spurious wakeup). The core must produce the same result either way: behavior depends on elapsed time, never on how many events arrived. An invariant test checks this (see [testing.md](testing.md#invariants)). One bound: past a gap of `STALL_LIMIT` (an hour), Wade restarts his idle schedule instead of replaying it ([D20](decisions.md#d20-a-gap-over-an-hour-restarts-wades-idle-schedule)).
 
 While something is moving, the moving feature requests a deadline one frame ahead. The frame interval is `FRAME = 33 ms`, about 30 frames per second. When nothing is moving, the only deadlines are scheduled changes, so a still screen costs no CPU time. Animations are computed from elapsed time, so a slow platform drops frames rather than slowing the animation down.
 
 ## Randomness
 
-Wade's blink timing and idle activities are random. The core uses a small seeded pseudo-random generator (xorshift64* or similar, about ten lines) stored in `App`. The platform supplies the seed: the hardware random number generator on the device, and OS entropy or a `--seed` flag on desktop. Tests use fixed seeds, and recordings store the seed so replays are exact.
+Wade's motion (blinks, glances, squints, tears) and behavior (which idle activity starts, the hubris beat) are random. The core uses a small seeded pseudo-random generator (xorshift64*, about ten lines), in two streams from one seed: motion's lives in Wade, behavior's in `App` ([D21](decisions.md#d21-motion-and-behavior-draw-from-separate-random-streams)). The platform supplies the seed: the hardware random number generator on the device, and OS entropy or a `--seed` flag on desktop. Tests use fixed seeds, and recordings store the seed so replays are exact.
 
 ## Planned additions
 

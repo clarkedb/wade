@@ -2,11 +2,11 @@
 
 | Milestone | Target | Summary | Requires |
 |---|---|---|---|
-| [M1 Desktop skeleton](#m1-desktop-skeleton) | Desktop | Core types, placeholder Wade who blinks and reacts to taps, test harness, record and replay | Nothing |
+| [M1 Desktop skeleton](#m1-desktop-skeleton) | Desktop | Core types, Wade's eyes with every expression, test harness, record and replay | Nothing |
 | [M2 Timer](#m2-timer) | Desktop | Timer screen, navigation, chime | M1 |
 | [Hardware spike](#hardware-spike) | Device | Throwaway firmware proving display, touch, audio, and timing | The device |
 | [M3 Device port](#m3-device-port) | Device | `wade-cores3` runs everything from M2 | M2, spike |
-| [M4 Character](#m4-character) | Both | Final original look, full expression set, idle activities, personality | M3 |
+| [M4 Character](#m4-character) | Both | Look and motion tuned on the device, props and idle activities, personality | M3 |
 | [M5 Settings](#m5-settings) | Both | Launcher, settings screen, persistent settings | M3 |
 | [M6 Power](#m6-power) | Both | Display sleep, wake on approach, battery status | M5 |
 | [M7 Weather](#m7-weather) | Both | Wi-Fi, weather fetch, weather screen | M5 |
@@ -21,7 +21,7 @@ Scope:
 |---|---|
 | Workspace | `wade-core` and `wade-desktop` crates; `wade-cores3` excluded (see [architecture.md](architecture.md#crates)) |
 | Core | `Instant`, `Event`, `App`, `Output`, `View`, `render::draw`, `TouchTracker` (taps), `layout`, seeded PRNG |
-| Wade | Placeholder face on the pose rig; Neutral and Happy; blinking; M1 behavior rules from [character.md](character.md#m1) |
+| Wade | Eyes on the pose rig; every expression; the animation layers; M1 behavior rules from [character.md](character.md#m1) |
 | Desktop | Window, mouse-to-touch mapping, deadline-driven loop, `--seed`, `--record`, `--replay`, `--time-scale` |
 | Tests | Harness; behavior, invariant, and snapshot tests; the `no_std` and no-`alloc` checks; recordings with state hashes |
 | CI | GitHub Actions workspace job (see [testing.md](testing.md#ci)) |
@@ -38,13 +38,15 @@ Behavior tests:
 | Tap outside Wade | No change |
 | Touch down on Wade, move off, lift | No tap, no change |
 | Blinking | With a fixed seed, a blink starts within 6 s of startup and lasts 120 ms |
+| Blink rhythm | Blinks are 2 to 6 s apart, or doubled 300 ms after one ends |
+| Still | No frame requests while nothing moves |
 
 Done when:
 
 | # | Criterion |
 |---|---|
 | 1 | All [checks](testing.md#checks) pass |
-| 2 | `cargo run -p wade-desktop` shows Wade, who blinks every 2 to 6 s and is Happy for 2 s when clicked |
+| 2 | `cargo run -p wade-desktop` shows Wade, who blinks every 2 to 6 s, is Happy for 2 s when clicked |
 | 3 | The desktop process uses negligible CPU while Wade is still |
 | 4 | A session recorded with `--record` replays with `--replay` with every state hash matching |
 | 5 | CI runs the checks on every push |
@@ -93,7 +95,7 @@ A throwaway firmware in `spikes/cores3-spike/`, outside both workspaces. `spikes
 | 2 | Install the toolchain; flash a program that logs over USB serial |
 | 3 | Configure the PMIC and IO expander; turn the display on |
 | 4 | Fill the screen with solid colors; measure full-frame flush time |
-| 5 | Measure the flush time of partial windows (a 160×40 and a 200×180 rectangle), and try SPI clocks above 40 MHz |
+| 5 | Measure the flush time of partial windows (the blink and expression-change rectangles in [ui.md](ui.md#partial-flush)), and try SPI clocks above 40 MHz |
 | 6 | Draw `embedded-graphics` shapes and text |
 | 7 | Read touch points; confirm they match display coordinates and orientation. Check whether the interrupt line is usable (believed to be routed through the AW9523B). |
 | 8 | Play a tone through the amplifier and speaker |
@@ -119,9 +121,9 @@ Done when:
 
 ## M4 Character
 
-Scope: design Wade's final original look within the pose rig on the real screen; implement the full expression set, the M4 animation layers, and idle activities from [character.md](character.md); finalize and implement the M4 behavior rules. On desktop, a viewer that plays every expression change and accent in turn, for tuning motion on screen; snapshots show only end poses.
+Scope: tune Wade's look and motion on the real screen; implement props and idle activities from [character.md](character.md); finalize and implement the M4 behavior rules.
 
-Tests: behavior tests for the activity scheduler, the multi-tap Proud rule, the hubris beat, glances, and double blinks, using fixed seeds; a snapshot of each expression, each accent, and each activity's key frame.
+Tests: behavior tests for the activity scheduler, the multi-tap Proud rule, and the hubris beat, using fixed seeds; a snapshot of each activity's key frame.
 
 Done when:
 

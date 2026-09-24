@@ -34,9 +34,13 @@ impl core::ops::Add<Duration> for Instant {
 
     fn add(self, d: Duration) -> Instant {
         // Saturates rather than overflowing, so no timestamp can make `handle` panic.
-        let ms = u64::try_from(d.as_millis()).unwrap_or(u64::MAX);
-        Instant(self.0.saturating_add(ms))
+        Instant(self.0.saturating_add(millis(d)))
     }
+}
+
+/// `d` in whole milliseconds, saturating at `u64::MAX`.
+pub(crate) fn millis(d: Duration) -> u64 {
+    u64::try_from(d.as_millis()).unwrap_or(u64::MAX)
 }
 
 #[cfg(test)]

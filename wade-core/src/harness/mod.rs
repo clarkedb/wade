@@ -100,11 +100,22 @@ impl Harness {
         state_hash(&self.app)
     }
 
-    /// Discrete state that must only change at a requested deadline or an input.
-    fn discrete(&self) -> (Screen, Expression, bool) {
+    fn discrete(&self) -> Discrete {
         let View::Buddy(buddy) = self.app.view();
-        (self.app.screen(), buddy.expression, buddy.blinking)
+        Discrete {
+            screen: self.app.screen(),
+            expression: buddy.expression,
+            blinking: buddy.blinking,
+        }
     }
+}
+
+/// Discrete state that must only change at a requested deadline or an input.
+#[derive(Debug, PartialEq, Eq)]
+struct Discrete {
+    screen: Screen,
+    expression: Expression,
+    blinking: bool,
 }
 
 /// A hash of discrete state only: the screen and the expression (later also the
@@ -121,6 +132,14 @@ pub fn state_hash(app: &App) -> u32 {
     let expression = match buddy.expression {
         Expression::Neutral => 0u8,
         Expression::Happy => 1,
+        Expression::Sad => 2,
+        Expression::Angry => 3,
+        Expression::Surprised => 4,
+        Expression::Sleepy => 5,
+        Expression::Thinking => 6,
+        Expression::Proud => 7,
+        Expression::Focused => 8,
+        Expression::Flustered => 9,
     };
     fnv1a(&[screen, expression])
 }

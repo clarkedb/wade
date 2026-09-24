@@ -4,12 +4,15 @@ use crate::character::Wade;
 use crate::event::{Event, EventKind};
 use crate::input::TouchTracker;
 use crate::layout::{self, Target};
-use crate::rng::Rng;
 use crate::time::{Duration, Instant};
 use crate::view::{BuddyView, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
+
+/// A gap between events longer than this is beyond any platform's lateness.
+/// Rather than replay every blink in it, Wade restarts his idle schedule.
+pub const STALL_LIMIT: Duration = Duration::from_hours(1);
 
 /// Maximum effects per `Output`; extras are dropped, never a panic (D17).
 pub const MAX_EFFECTS: usize = 4;
@@ -43,20 +46,16 @@ pub struct App {
     screen: Screen,
     wade: Wade,
     touch: TouchTracker,
-    rng: Rng,
 }
 
 impl App {
     #[must_use]
     pub fn new(now: Instant, seed: u64) -> App {
-        let mut rng = Rng::new(seed);
-        let wade = Wade::new(now, &mut rng);
         App {
             now,
             screen: Screen::Buddy,
-            wade,
+            wade: Wade::new(now, seed),
             touch: TouchTracker::new(),
-            rng,
         }
     }
 
@@ -70,21 +69,24 @@ impl App {
         self.advance_to(target, &mut out);
         out.redraw |= self.animating();
 
-        if let EventKind::Touch(touch) = event.kind {
-            let screen = self.screen;
-            let tap = self.touch.handle(touch, |p| match screen {
-                Screen::Buddy => layout::hit_buddy(p),
-            });
-            if let Some(Target::Wade) = tap {
-                out.redraw |= self.wade.on_tap(self.now);
+        match event.kind {
+            EventKind::Touch(touch) => {
+                let screen = self.screen;
+                let tap = self.touch.handle(touch, |p| match screen {
+                    Screen::Buddy => layout::hit_buddy(p),
+                });
+                if let Some(Target::Wade) = tap {
+                    out.redraw |= self.wade.on_tap(self.now);
+                }
             }
+            EventKind::Deadline => {}
         }
         out
     }
 
     /// The earliest scheduled transition across all features.
     fn next_transition(&self) -> Option<Instant> {
-        self.wade.next_transition()
+        self.wade.next_transition(self.wade_visible())
     }
 
     /// True while a visible feature's pose is changing with time.
@@ -99,6 +101,13 @@ impl App {
     /// Advance `now` to `target`, applying every timed transition that became due
     /// along the way in chronological order across features (docs/architecture.md#events).
     fn advance_to(&mut self, target: Instant, out: &mut Output) {
+        if self
+            .next_transition()
+            .is_some_and(|t| target.saturating_since(t) > STALL_LIMIT)
+        {
+            self.wade.fast_forward(target);
+            out.redraw |= self.wade_visible();
+        }
         let mut last = None;
         while let Some(t) = self.next_transition() {
             if t > target {
@@ -119,7 +128,7 @@ impl App {
             // Visibility is re-read each step: a transition can switch screens (M2).
             // Features are applied in a fixed order to break ties at the same instant.
             let visible = self.wade_visible();
-            out.redraw |= self.wade.advance(self.now, &mut self.rng, visible);
+            out.redraw |= self.wade.advance(self.now, visible);
         }
         self.now = target;
     }
@@ -202,9 +211,10 @@ mod tests {
 
     #[test]
     fn idle_deadline_has_no_effects_and_no_redraw() {
-        // Nothing is due or moving 1 ms after startup.
+        // Once the eyes have opened, nothing moves until the first glance, at least 1.2 s in.
         let mut app = App::new(ms(0), SEED);
-        assert_eq!(app.handle(Event::deadline(ms(1))), Output::default());
+        let _ = app.handle(Event::deadline(ms(500)));
+        assert_eq!(app.handle(Event::deadline(ms(600))), Output::default());
     }
 
     #[test]

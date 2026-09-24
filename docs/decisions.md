@@ -82,7 +82,7 @@ Rejected: a single workspace with per-crate target configuration, which is fragi
 
 ## D14. Partial flush via a damage rectangle
 
-Reason: a full-frame flush takes about 31 ms at 40 MHz, nearly a whole 33 ms frame, and a single framebuffer cannot be drawn into while it is being sent. Drawing the full frame and sending only the changed rectangle cuts a blink to about 3 ms. `render::damage(prev, next)` is a pure function in the core, so its correctness is a desktop property test. This refines D10: it is built in M3 only if the spike's measurements call for it.
+Reason: a full-frame flush takes about 31 ms at 40 MHz, nearly a whole 33 ms frame, and a single framebuffer cannot be drawn into while it is being sent. Drawing the full frame and sending only the changed rectangle cuts a blink to a few milliseconds. `render::damage(prev, next)` is a pure function in the core, so its correctness is a desktop property test. This refines D10: it is built in M3 only if the spike's measurements call for it.
 
 Rejected: double buffering, which needs a second 150 KB framebuffer and still sends every pixel; dirty-rectangle tracking inside the drawing code, which couples every widget to damage bookkeeping.
 
@@ -106,6 +106,24 @@ Rejected: blocking sends, which let a playing chime freeze the UI; a larger or g
 
 ## D18. Animations have fixed ends; lasting motion is stepped
 
-Reason: an animation that ends at a known instant can report that instant as a transition, so its final frame is drawn and the device goes still afterwards. Motion that lasts, such as breathing or rising Z's, changes in whole-pixel steps at scheduled instants, so it costs one frame per step rather than a frame every 33 ms.
+Reason: an animation that ends at a known instant can report that instant as a transition, so its final frame is drawn and the device goes still afterwards. Motion that lasts, such as breathing or rising Z's, changes in steps on a fixed time grid, so it costs one frame per step rather than a frame every 33 ms.
 
 Rejected: per-frame easing that moves a fixed fraction toward the target each frame, which runs slower when frames are slow, never arrives, and keeps requesting frames; continuous sub-pixel loops, which redraw every frame for motion that is only visible when a pixel changes.
+
+## D19. Wade is a pair of eyes
+
+Reason: lids, crescents, and slanted cuts let the eyes alone carry every expression, each eye a few primitives. The look follows the OLED face of [cgro00/desk-robot](https://github.com/cgro00/desk-robot).
+
+Rejected: a head with brows and a mouth, which spreads each expression over more shapes; keeping placeholder geometry until M4 as first planned, which leaves the expressions and accents unbuilt and untested until then.
+
+## D20. A gap over an hour restarts Wade's idle schedule
+
+Reason: blinks and glances recur every few seconds, so catching up on a gap replays one transition for each. That takes milliseconds for an hour, but is unbounded for the arbitrary timestamps the never-panics invariant feeds the core. No platform is an hour late, so past `STALL_LIMIT` Wade applies any due expiry and restarts his idle schedule at the new time; every motion is computed from elapsed time and has long ended. Within the limit, results never depend on how deadlines were delivered.
+
+Rejected: replaying every transition, which is unbounded for arbitrary timestamps; a closed-form schedule, which rules out random intervals drawn in order.
+
+## D21. Motion and behavior draw from separate random streams
+
+Reason: recordings hash behavior, not motion (D16). If both drew from one stream, tuning how often Wade glances would shift every later behavior draw, such as which idle activity starts, and invalidate every recording. Motion's stream is the seed mixed with a constant, so it never touches behavior's.
+
+Rejected: one shared stream, which ties behavior to animation tuning; drawing motion from a hash of the time, which cannot express random intervals drawn in order.
