@@ -5,7 +5,7 @@ use crate::event::{Event, EventKind, Key};
 use crate::input::TouchTracker;
 use crate::layout::{self, Target};
 use crate::time::{Duration, Instant};
-use crate::view::{BuddyView, View};
+use crate::view::{BuddyView, EyeStyle, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
@@ -46,6 +46,7 @@ pub struct App {
     screen: Screen,
     wade: Wade,
     touch: TouchTracker,
+    eye_style: EyeStyle,
 }
 
 impl App {
@@ -56,6 +57,7 @@ impl App {
             screen: Screen::Buddy,
             wade: Wade::new(now, seed),
             touch: TouchTracker::new(),
+            eye_style: EyeStyle::default(),
         }
     }
 
@@ -93,6 +95,10 @@ impl App {
                 .wade
                 .show(Expression::ALL[usize::from(digit.get())], self.now),
             Key::Z => self.wade.sleep(self.now),
+            Key::P => {
+                self.eye_style = self.eye_style.toggled();
+                true
+            }
         }
     }
 
@@ -169,6 +175,7 @@ impl App {
                 asleep: self.wade.asleep(),
                 blinking: self.wade.blinking(self.now),
                 pose: self.wade.pose(self.now),
+                eye_style: self.eye_style,
             }),
         }
     }

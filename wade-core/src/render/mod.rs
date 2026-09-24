@@ -18,6 +18,6 @@ where
 {
     target.clear(palette::BACKGROUND)?;
     match view {
-        View::Buddy(buddy) => face::draw(&buddy.pose, target),
+        View::Buddy(buddy) => face::draw(&buddy.pose, buddy.eye_style, target),
     }
 }

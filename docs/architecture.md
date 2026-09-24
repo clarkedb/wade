@@ -138,6 +138,7 @@ pub enum TouchPhase {
 pub enum Key {
     Digit(Digit), // 0–9: show that expression
     Z,            // put Wade to sleep
+    P,            // switch Wade's eye style
 }
 ```
 
@@ -224,6 +225,7 @@ pub struct App {
     timer: TimerState,   // keeps running on every screen
     touch: TouchTracker, // turns raw touch samples into taps
     rng: Rng,            // seeded PRNG for behavior
+    eye_style: EyeStyle, // how Wade's eyes are drawn; a setting
 }
 
 enum Screen {

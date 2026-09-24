@@ -17,6 +17,8 @@ pub struct Pose {
     pub asymmetry: f32,
     /// Where both eyes look, −1.0 … 1.0 on each axis
     pub gaze: (f32, f32),
+    /// Pupil diameter in pixels, when the eyes have pupils
+    pub pupil: f32,
     /// Whole-face offset in pixels: shaking and breathing
     pub face_offset: (f32, f32),
     pub accent: Accent,
@@ -38,6 +40,7 @@ impl Pose {
         brow_tilt: 0.0,
         asymmetry: 0.0,
         gaze: (0.0, 0.0),
+        pupil: 31.0,
         face_offset: (0.0, 0.0),
         accent: Accent::None,
         accent_phase: 0.0,
@@ -60,6 +63,7 @@ impl Pose {
             brow_tilt: mix(self.brow_tilt, to.brow_tilt),
             asymmetry: mix(self.asymmetry, to.asymmetry),
             gaze: mix2(self.gaze, to.gaze),
+            pupil: mix(self.pupil, to.pupil),
             face_offset: mix2(self.face_offset, to.face_offset),
             accent: to.accent,
             accent_phase: mix(self.accent_phase, to.accent_phase),

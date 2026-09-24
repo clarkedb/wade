@@ -17,4 +17,24 @@ pub struct BuddyView {
     pub blinking: bool,
     /// The continuous pose that drawing reads. Behavior tests do not compare it.
     pub pose: Pose,
+    pub eye_style: EyeStyle,
+}
+
+/// How Wade's eyes are drawn: a setting, not part of his behavior.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum EyeStyle {
+    #[default]
+    Pupils,
+    Plain,
+}
+
+impl EyeStyle {
+    /// The other style.
+    #[must_use]
+    pub const fn toggled(self) -> EyeStyle {
+        match self {
+            EyeStyle::Pupils => EyeStyle::Plain,
+            EyeStyle::Plain => EyeStyle::Pupils,
+        }
+    }
 }

@@ -10,6 +10,7 @@ use wade_core::character::{
 };
 use wade_core::harness::Harness;
 use wade_core::layout::WADE_CENTER;
+use wade_core::view::EyeStyle;
 use wade_core::{Event, Instant, Key, TouchPhase};
 
 #[test]
@@ -116,6 +117,16 @@ fn number_keys_hold_each_expression() {
         assert_eq!(h.buddy().expression, expression, "{expression:?} expired");
         assert!(!h.buddy().asleep, "{expression:?} fell asleep");
     }
+}
+
+#[test]
+fn p_switches_between_pupils_and_plain_eyes() {
+    let mut h = Harness::new(SEED);
+    assert_eq!(h.buddy().eye_style, EyeStyle::Pupils);
+    h.key(ms(1_000), Key::P);
+    assert_eq!(h.buddy().eye_style, EyeStyle::Plain);
+    h.key(ms(2_000), Key::P);
+    assert_eq!(h.buddy().eye_style, EyeStyle::Pupils);
 }
 
 #[test]

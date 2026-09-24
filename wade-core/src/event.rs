@@ -29,6 +29,8 @@ pub enum Key {
     Digit(Digit),
     /// Z puts Wade to sleep.
     Z,
+    /// P switches between eyes with pupils and plain eyes.
+    P,
 }
 
 /// A number key, 0–9.

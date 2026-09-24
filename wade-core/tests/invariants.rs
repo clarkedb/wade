@@ -20,7 +20,8 @@ fn point() -> impl Strategy<Value = Point> {
 fn key() -> impl Strategy<Value = Key> {
     prop_oneof![
         (0u8..10).prop_map(|n| Key::Digit(Digit::new(n).unwrap())),
-        Just(Key::Z)
+        Just(Key::Z),
+        Just(Key::P)
     ]
 }
 

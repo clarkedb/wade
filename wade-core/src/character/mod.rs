@@ -78,8 +78,9 @@ const TWITCH_FIRST_MAX: Duration = Duration::from_millis(9_000);
 const TWITCH_INTERVAL_MIN: Duration = Duration::from_millis(6_000);
 const TWITCH_INTERVAL_MAX: Duration = Duration::from_secs(12);
 const TWITCH_DURATION: Duration = Duration::from_millis(300);
-/// As a twitch starts, the eyes open this much taller, as a fraction, then settle.
-const TWITCH: f32 = 2.5;
+/// As a twitch starts, the eyes open this much taller, as a fraction, then
+/// settle: a flicker too small to show his pupils.
+const TWITCH: f32 = 0.35;
 
 /// A named target pose.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -120,6 +121,7 @@ impl Expression {
             Expression::Happy => Pose {
                 eye_size: (90.0, 90.0),
                 lower_lid: 0.44,
+                pupil: 38.0,
                 ..Pose::REST
             },
             Expression::Sad => Pose {
@@ -127,17 +129,20 @@ impl Expression {
                 eye_radius: 25.0,
                 upper_lid: 0.15,
                 brow_tilt: -0.77,
+                pupil: 35.0,
                 ..Pose::REST
             },
             Expression::Angry => Pose {
                 eye_size: (85.0, 60.0),
                 eye_radius: 20.0,
                 brow_tilt: 0.93,
+                pupil: 24.0,
                 ..Pose::REST
             },
             Expression::Surprised => Pose {
                 eye_size: (95.0, 110.0),
                 eye_radius: 47.0,
+                pupil: 22.0,
                 ..Pose::REST
             },
             Expression::Sleepy => Pose {
@@ -151,6 +156,7 @@ impl Expression {
                 eye_radius: 27.0,
                 upper_lid: 0.17,
                 gaze: (0.875, -1.0),
+                pupil: 28.0,
                 ..Pose::REST
             },
             Expression::Proud => Pose {
@@ -160,6 +166,7 @@ impl Expression {
                 lower_lid: 0.22,
                 asymmetry: 0.8,
                 gaze: (-0.6, -0.5),
+                pupil: 33.0,
                 ..Pose::REST
             },
             Expression::Focused => Pose {
@@ -168,6 +175,7 @@ impl Expression {
                 upper_lid: 0.12,
                 brow_tilt: 0.35,
                 gaze: (0.0, 0.9),
+                pupil: 26.0,
                 ..Pose::REST
             },
             Expression::Flustered => Pose {
@@ -175,6 +183,7 @@ impl Expression {
                 eye_radius: 40.0,
                 brow_tilt: -0.5,
                 asymmetry: -0.6,
+                pupil: 22.0,
                 ..Pose::REST
             },
         }
