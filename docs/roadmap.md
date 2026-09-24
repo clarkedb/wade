@@ -119,9 +119,9 @@ Done when:
 
 ## M4 Character
 
-Scope: design Wade's final original look within the pose rig on the real screen; implement the full expression set and idle activities from [character.md](character.md); finalize and implement the M4 behavior rules.
+Scope: design Wade's final original look within the pose rig on the real screen; implement the full expression set, the M4 animation layers, and idle activities from [character.md](character.md); finalize and implement the M4 behavior rules. On desktop, a viewer that plays every expression change and accent in turn, for tuning motion on screen; snapshots show only end poses.
 
-Tests: behavior tests for the activity scheduler, the multi-tap Proud rule, and the hubris beat, using fixed seeds; a snapshot of each expression and of each activity's key frame.
+Tests: behavior tests for the activity scheduler, the multi-tap Proud rule, the hubris beat, glances, and double blinks, using fixed seeds; a snapshot of each expression, each accent, and each activity's key frame.
 
 Done when:
 
@@ -149,7 +149,7 @@ Scope:
 |---|---|
 | Events | `Power(PowerStatus)` with battery percentage, charging, and external power; `Proximity(Near \| Far)` |
 | Effects | `DisplayPower(bool)`, plus the existing `SetBrightness` |
-| Behavior | After a period without touch or proximity (a setting), Wade becomes Sleepy and then the display turns off. A touch or an approach turns it back on, with Surprised then Neutral. |
+| Behavior | After a period without touch or proximity (a setting), Wade becomes Sleepy, falls asleep, and then the display turns off. A touch or an approach turns it back on, with Surprised then Neutral. |
 | Timer | Keeps running with the display off. On completion the chime plays and the display turns on. |
 | Battery | Battery level on the Settings screen. A small indicator on the Buddy screen when running on battery. |
 | Desktop | Keyboard keys simulate power and proximity events |

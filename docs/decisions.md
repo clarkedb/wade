@@ -103,3 +103,9 @@ Rejected: hashing the rendered frame, which would break every recording whenever
 Reason: `Output` holds at most four effects and drops extras, and the device app task sends effects with `try_send`, dropping them if a consumer is busy. Losing a chime is better than stalling touch and rendering, and a panic would violate the "`handle` never panics" invariant.
 
 Rejected: blocking sends, which let a playing chime freeze the UI; a larger or growable effect list, which adds memory for a case that should not occur.
+
+## D18. Animations have fixed ends; lasting motion is stepped
+
+Reason: an animation that ends at a known instant can report that instant as a transition, so its final frame is drawn and the device goes still afterwards. Motion that lasts, such as breathing or rising Z's, changes in whole-pixel steps at scheduled instants, so it costs one frame per step rather than a frame every 33 ms.
+
+Rejected: per-frame easing that moves a fixed fraction toward the target each frame, which runs slower when frames are slow, never arrives, and keeps requesting frames; continuous sub-pixel loops, which redraw every frame for motion that is only visible when a pixel changes.
