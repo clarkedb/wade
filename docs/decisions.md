@@ -133,3 +133,9 @@ Rejected: one shared stream, which ties behavior to animation tuning; drawing mo
 Reason: showing any expression or sleep on demand is how looks are reviewed on desktop. As `Key` events, key presses take the same path as touches: they are recorded, replayed, and covered by the invariant tests. They are raw, like touches (D5); the core decides what each key does.
 
 Rejected: a desktop-only call into Wade, which bypasses recordings; a command event such as "show Angry", which puts interpretation in the platform.
+
+## D23. Eye style is a setting
+
+Reason: pupils make gaze easy to read and let each expression set a pupil size; plain eyes are the cleaner robot look. Both are worth keeping, and the choice changes only drawing, so it is a setting carried in the view rather than part of Wade's behavior. It joins the M5 settings; until then the desktop P key switches it.
+
+Rejected: a single fixed style, which gives up one of two looks worth keeping; desk-robot's dark glint square in place of a pupil, which reads as a pupil stuck off-center on a color screen.

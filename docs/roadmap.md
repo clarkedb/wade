@@ -22,7 +22,7 @@ Scope:
 | Workspace | `wade-core` and `wade-desktop` crates; `wade-cores3` excluded (see [architecture.md](architecture.md#crates)) |
 | Core | `Instant`, `Event`, `App`, `Output`, `View`, `render::draw`, `TouchTracker` (taps), `layout`, seeded PRNG |
 | Wade | Eyes on the pose rig; every expression and sleep; the animation layers; M1 behavior rules from [character.md](character.md#m1) |
-| Desktop | Window, mouse-to-touch mapping, number keys and Z, deadline-driven loop, `--seed`, `--record`, `--replay`, `--time-scale` |
+| Desktop | Window, mouse-to-touch mapping, number keys, Z, and P, deadline-driven loop, `--seed`, `--record`, `--replay`, `--time-scale` |
 | Tests | Harness; behavior, invariant, and snapshot tests; the `no_std` and no-`alloc` checks; recordings with state hashes |
 | CI | GitHub Actions workspace job (see [testing.md](testing.md#ci)) |
 
@@ -139,7 +139,7 @@ Done when:
 
 Scope: the Launcher screen; a Settings screen; persistence.
 
-Planned settings: display brightness (4 levels), chime on or off (off silences the first chime and every repeat), and the default timer duration. Confirm this list at the start of the milestone.
+Planned settings: display brightness (4 levels), chime on or off (off silences the first chime and every repeat), the default timer duration, and Wade's eye style (pupils or plain). Confirm this list at the start of the milestone.
 
 Persistence: the core defines `Settings` with `encode` and `decode` for a fixed binary layout that starts with a version byte. `decode` falls back to defaults for missing, corrupt, or unknown-version data. The core emits `Effect::SaveSettings(settings)` once settings have stopped changing for 2 s, so stepping through brightness levels writes flash once, not on every tap. The debounce is an ordinary core deadline; leaving the Settings screen saves at once. The platform stores the bytes (desktop: a file in the user's config directory; device: flash through `esp-storage` and `sequential-storage`). At startup the platform loads the bytes, decodes them, and passes the result to `App::new`.
 

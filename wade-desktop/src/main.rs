@@ -63,7 +63,7 @@ fn main() {
         .seed
         .unwrap_or_else(|| getrandom::u64().expect("OS entropy"));
     eprintln!("seed {seed}");
-    eprintln!("keys: 0–9 show an expression, z sleeps; click Wade to tap him");
+    eprintln!("keys: 0–9 show an expression, z sleeps, p toggles pupils; click Wade to tap him");
 
     let clock = Clock::new(args.time_scale);
     let mut app = App::new(clock.now(), seed);
@@ -137,6 +137,7 @@ fn main() {
 fn key(keycode: Keycode) -> Option<Key> {
     let n = match keycode {
         Keycode::Z => return Some(Key::Z),
+        Keycode::P => return Some(Key::P),
         Keycode::NUM_0 => 0,
         Keycode::NUM_1 => 1,
         Keycode::NUM_2 => 2,

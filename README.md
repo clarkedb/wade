@@ -6,6 +6,8 @@ my desk buddy
 
 Wade is an animated desk companion for the M5Stack CoreS3 Lite, developed and tested on desktop first. Design docs live in [docs/](docs/README.md); the plan is in [docs/roadmap.md](docs/roadmap.md).
 
+![Wade in the desktop simulator, moving through his expressions and falling asleep](docs/assets/demo.gif)
+
 ## Layout
 
 | Path | Contents |
@@ -31,7 +33,7 @@ export LIBRARY_PATH="$LIBRARY_PATH:$(brew --prefix)/lib"
 cargo run -p wade-desktop -- --seed 42
 ```
 
-Click Wade to tap him; number keys 0–9 show each expression and Z puts him to sleep. Flags: `--seed <n>`, `--time-scale <x>`. `--record <file>` and `--replay <file>` are accepted but not implemented yet (M1).
+Click Wade to tap him; number keys 0–9 show each expression, Z puts him to sleep, and P switches between pupils and plain eyes. Flags: `--seed <n>`, `--time-scale <x>`. `--record <file>` and `--replay <file>` are accepted but not implemented yet (M1).
 
 ## Checks
 

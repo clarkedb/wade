@@ -19,6 +19,13 @@ Wade is a pair of eyes: light, flat shapes on black, like a small robot's OLED f
 
 Each eye is a rounded rectangle. Expressions reshape it by cutting parts away in the background color: a flat lid droops from above, a wide disc risen from below leaves a smiling crescent, and a triangle cut across the top slants the eye, from the outer corner for worry and the inner corner for anger. Small accents beside the eyes finish some expressions. Blush, tears and sweat, and the sparkle carry the only color: pink, blue, and yellow.
 
+The eyes come in two styles, a setting ([D23](decisions.md#d23-eye-style-is-a-setting)):
+
+| Style | Look |
+|---|---|
+| Pupils (default) | A round black pupil in each eye with a small highlight, up and to the left. The pupils do most of the looking: they travel inside the eye while the eyes move less than plain ones. Each expression sets its pupil size, from small for shock to large for warmth. Each pupil sits in the opening between the lids, and a nearly shut eye hides it. |
+| Plain | Blank eyes. The whole eye moves to look. |
+
 The look is tuned on the real screen in M4. The screen is 2.0" at about 200 pixels per inch, which constrains the design.
 
 | Constraint | Value |
@@ -45,6 +52,7 @@ pub struct Pose {
     pub brow_tilt: f32,           // −1.0 outer corners cut (worried) … 1.0 inner corners cut (angry)
     pub asymmetry: f32,           // −1.0 right eye shorter … 1.0 right eye taller (smug)
     pub gaze: (f32, f32),         // where both eyes look, −1.0 … 1.0 on each axis
+    pub pupil: f32,               // pupil diameter in pixels, when the eyes have pupils
     pub face_offset: (f32, f32),  // whole-face offset in pixels: shaking and breathing
     pub accent: Accent,
     pub accent_phase: f32,        // 0.0 … 1.0 through the accent's motion; Zs runs to 2.0
@@ -92,7 +100,7 @@ An expression is a named target pose, numbered for the desktop keys (see [platfo
 | 8 | Focused | Typing (M4) | Flattened, inner corners slightly cut, looking down | |
 | 9 | Flustered | Hubris backfire (M4) | Wide, worried, uneven | SweatDrop |
 
-An expression that sets gaze holds it: glances pause until the expression ends. An expression's accent starts when the transition into it finishes, so it never appears on a half-formed face.
+His pupils widen visibly when he is tapped. An expression that sets gaze holds it: glances pause until the expression ends. An expression's accent starts when the transition into it finishes, so it never appears on a half-formed face.
 
 Asleep is a state, not an expression; the expression is Sleepy. He does not blink, glance, or squint while asleep.
 
@@ -105,7 +113,7 @@ The rendered pose is built in layers, applied in this order, each computed from 
 | Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out: 300 ms as the eyes open at startup, 1 s into sleep. |
 | Pop | On an expression change, the eyes jump 12% taller (30% into Surprised) and ease back over 400 ms. |
 | Squint | In Neutral, every 8 to 16 s, the eyes narrow by 40% and relax over 400 ms. |
-| Twitch | Asleep, 5 to 9 s after he falls asleep and then every 6 to 12 s, the eyes flutter open a crack for 300 ms. |
+| Twitch | Asleep, 5 to 9 s after he falls asleep and then every 6 to 12 s, the eyes flicker open slightly for 300 ms, too little to show his pupils. |
 | Activity (M4) | An idle activity overrides some parameters: gaze, prop, and prop phase for typing or sipping. |
 | Glance | While nothing else sets gaze, the gaze jumps every 1.2 to 4 s to a random offset (up to 1.0 across and 0.8 up or down), or back to center 40% of the time. Each jump takes 80 ms. |
 | Shake | Angry trembles by up to 2 px every 100 ms. Asleep, the face breathes 5 px up and down over 6 s. |
@@ -141,6 +149,7 @@ Idle activities (M4):
 | Tap elsewhere on the Buddy screen | Nothing |
 | Desktop number key 0–9 | That expression, held until a tap or another key changes it |
 | Desktop Z | Asleep, until a tap or a number key |
+| Desktop P | Switch between pupils and plain eyes |
 
 ### M2 adds
 
