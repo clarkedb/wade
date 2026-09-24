@@ -1,0 +1,19 @@
+[package]
+name = "wade-desktop"
+description = "Desktop simulator for Wade"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+wade-core = { workspace = true, features = ["harness"] }
+clap.workspace = true
+embedded-graphics.workspace = true
+embedded-graphics-simulator.workspace = true
+getrandom.workspace = true
+
+[lints]
+workspace = true

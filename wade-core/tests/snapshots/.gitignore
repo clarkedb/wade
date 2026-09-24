@@ -1,0 +1,2 @@
+# Written by failing snapshot tests; never commit.
+*.actual.png

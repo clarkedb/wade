@@ -1,0 +1,29 @@
+[package]
+name = "wade-core"
+description = "Platform-independent core for Wade: behavior, layout, and drawing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# Enables std and the test harness (Harness, recordings). Used by tests and wade-desktop.
+harness = []
+
+[dependencies]
+# Keep this list to embedded-graphics, heapless, and libm (docs/architecture.md#rules-for-wade-core).
+embedded-graphics.workspace = true
+heapless.workspace = true
+libm.workspace = true
+
+[dev-dependencies]
+# Integration tests in tests/ link the library without cfg(test), so they get the
+# harness through this self-dependency (docs/testing.md#layers).
+wade-core = { path = ".", features = ["harness"] }
+png.workspace = true
+proptest.workspace = true
+
+[lints]
+workspace = true
