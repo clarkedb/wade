@@ -79,3 +79,27 @@ Reason: the CoreS3 Lite has no vibration motor.
 Reason: it needs a different toolchain and target. Inside the workspace it would break `cargo test` at the root.
 
 Rejected: a single workspace with per-crate target configuration, which is fragile with the Xtensa toolchain.
+
+## D14. Partial flush via a damage rectangle
+
+Reason: a full-frame flush takes about 31 ms at 40 MHz, nearly a whole 33 ms frame, and a single framebuffer cannot be drawn into while it is being sent. Drawing the full frame and sending only the changed rectangle cuts a blink to about 3 ms. `render::damage(prev, next)` is a pure function in the core, so its correctness is a desktop property test. This refines D10: it is built in M3 only if the spike's measurements call for it.
+
+Rejected: double buffering, which needs a second 150 KB framebuffer and still sends every pixel; dirty-rectangle tracking inside the drawing code, which couples every widget to damage bookkeeping.
+
+## D15. Hidden features keep time but request no frames
+
+Reason: a blink nobody can see should not wake the device. Wade's schedule keeps advancing while he is off screen, so returning to Buddy shows no catch-up burst, and deadlines stay a function of elapsed time.
+
+Rejected: animating Wade on every screen, which wastes power; freezing his schedule while hidden, which makes his behavior depend on navigation history.
+
+## D16. Recordings carry a hash of discrete state
+
+Reason: a hash after each input event makes "replays identically" checkable and pinpoints the first divergence. Hashing only discrete state (screen, expression, activity, timer) keeps recordings valid when animation or artwork changes.
+
+Rejected: hashing the rendered frame, which would break every recording whenever Wade's look or animation timing changes; no hash, which leaves replay fidelity checked by eye.
+
+## D17. Effects are never waited on
+
+Reason: `Output` holds at most four effects and drops extras, and the device app task sends effects with `try_send`, dropping them if a consumer is busy. Losing a chime is better than stalling touch and rendering, and a panic would violate the "`handle` never panics" invariant.
+
+Rejected: blocking sends, which let a playing chime freeze the UI; a larger or growable effect list, which adds memory for a case that should not occur.

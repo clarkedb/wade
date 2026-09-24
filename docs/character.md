@@ -86,6 +86,8 @@ The rendered pose is built in layers, each computed from elapsed time.
 
 Blinks occur at random intervals of 2 to 6 seconds. While a transition, blink, or activity is in progress, the character requests a deadline every frame (see [architecture.md](architecture.md#deadlines-and-frames)). When Wade is still, his only deadline is the next scheduled blink or activity.
 
+Wade animates only while the Buddy screen is visible. On other screens his schedule keeps moving forward but he requests no frames: blinks that fall due are skipped, and idle activities do not start (see [architecture.md](architecture.md#hidden-features)).
+
 Idle activities (M4):
 
 | Activity | Duration | Motion |
@@ -109,13 +111,13 @@ Idle activities (M4):
 
 | Trigger | Result |
 |---|---|
-| Returning to the Buddy screen after dismissing a finished timer | Proud for 2 s, then Neutral |
+| Returning to the Buddy screen after dismissing a finished timer (with Dismiss or back) | Proud for 2 s, then Neutral |
 
 ### M4 (proposed; finalized at the start of M4)
 
 | Trigger | Result |
 |---|---|
-| 20 to 60 s without a touch, at random | Start a random idle activity |
+| 20 to 60 s without a touch on any screen, at random, while the Buddy screen is visible | Start a random idle activity |
 | Tap during an activity | The activity stops; Happy |
 | Three or more taps on Wade within 2 s | Proud for 3 s |
 | Tap on Wade while Proud | One time in four, the hubris beat: Flustered for 1.5 s, then Neutral. Otherwise Proud restarts. |

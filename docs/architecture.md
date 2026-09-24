@@ -34,16 +34,26 @@ Its dependencies are limited to `embedded-graphics` (drawing), `heapless` (fixed
 
 ```text
 wade/
-├── Cargo.toml       workspace: wade-core, wade-desktop; excludes wade-cores3
+├── Cargo.toml       workspace: wade-core, wade-desktop; excludes wade-cores3 and spikes/
 ├── wade-core/       no_std library: behavior, layout, drawing
 ├── wade-desktop/    std binary: simulator window, audio, record and replay
 ├── wade-cores3/     no_std firmware for the CoreS3 Lite
+├── spikes/          throwaway experiments, such as the hardware spike
+├── .github/         CI workflows (see testing.md)
 └── docs/
 ```
 
 Platforms depend on the core. The core depends on no platform.
 
 `wade-cores3` is excluded from the root workspace because it needs Espressif's Xtensa toolchain and its own build target; inside the workspace it would break `cargo test` at the root. It has its own `rust-toolchain.toml` and `.cargo/config.toml` and depends on `wade-core` by path.
+
+Any package that sits under the root directory but is not a workspace member must be listed in the root `Cargo.toml`'s `workspace.exclude`, or Cargo refuses to build it. This applies to `wade-cores3` and to everything under `spikes/`:
+
+```toml
+[workspace]
+members = ["wade-core", "wade-desktop"]
+exclude = ["wade-cores3", "spikes"]
+```
 
 Module layout inside `wade-core`:
 
@@ -57,8 +67,8 @@ wade-core/src/
 ├── layout.rs    screen geometry shared by drawing and hit-testing
 ├── rng.rs       seeded pseudo-random number generator
 ├── sound.rs     tone sequences (the chime)
-├── wade/        character: state, expressions, animation, pose rig
-├── timer.rs     timer state machine
+├── character/   Wade: state, expressions, animation, pose rig
+├── timer.rs     TimerState machine
 ├── view.rs      View types
 └── render/      drawing: palette, face, screens, widgets, digits
 ```
@@ -83,7 +93,9 @@ impl Instant {
 impl core::ops::Add<Duration> for Instant {
     type Output = Instant;
     fn add(self, d: Duration) -> Instant {
-        Instant(self.0 + d.as_millis() as u64)
+        // Saturates rather than overflowing, so no timestamp can make `handle` panic.
+        let ms = u64::try_from(d.as_millis()).unwrap_or(u64::MAX);
+        Instant(self.0.saturating_add(ms))
     }
 }
 ```
@@ -124,7 +136,21 @@ pub enum TouchPhase {
 
 Events report raw facts, never interpretations. A platform never sends "open the timer" or "go back"; it sends touch samples, and the core decides what they mean because the core owns the layout. The platform tracks one touch point and ignores additional fingers.
 
-`App::handle` processes an event in two steps. First it advances `now` to the event's timestamp, applying every timed transition that became due along the way (an expression expiring, a timer finishing) in chronological order. Then it applies the event itself. For a `Deadline` event, the first step is the whole job.
+`App::handle` processes an event in two steps. First it advances `now` to the event's timestamp, applying every timed transition that became due along the way (an expression expiring, a timer finishing) in chronological order across all features. Then it applies the event itself. For a `Deadline` event, the first step is the whole job.
+
+Chronological order across features matters because features interact: a timer finishing switches the screen, which changes whether Wade is visible and which deadlines apply, and all features draw from one RNG. So `App` does not simply call each feature's `advance(now)` in turn. It loops:
+
+```text
+advance_to(target):
+    loop:
+        t = the earliest pending transition across all features
+        if t is None or t > target: break
+        now = t
+        apply the transitions due at t, in a fixed feature order
+    now = target
+```
+
+The fixed feature order breaks ties between transitions due at the same instant, so the result never depends on iteration order.
 
 ## Core API
 
@@ -147,7 +173,8 @@ impl App {
 }
 
 pub struct Output {
-    /// Side effects for the platform to carry out, in order.
+    /// Side effects for the platform to carry out, in order. If more than four
+    /// are produced by one event, the extras are dropped (never a panic).
     pub effects: heapless::Vec<Effect, 4>,
     /// The view may have changed since the last render. A false positive costs
     /// one redundant frame; a false negative is a bug.
@@ -156,6 +183,7 @@ pub struct Output {
 
 pub enum Effect {
     /// Play the timer-finished chime, defined as a tone sequence in `wade_core::sound::CHIME`.
+    /// Emitted when the timer finishes and repeated while it stays Done (see ui.md).
     Chime,
 }
 
@@ -186,7 +214,7 @@ pub struct App {
     now: Instant,
     screen: Screen,      // which screen is displayed and receives touch
     wade: Wade,          // character state; kept on every screen
-    timer: Timer,        // keeps running on every screen
+    timer: TimerState,   // keeps running on every screen
     touch: TouchTracker, // turns raw touch samples into taps
     rng: Rng,            // seeded PRNG
 }
@@ -199,11 +227,17 @@ enum Screen {
 
 `Screen` records only what is displayed. Long-lived state lives in its own `App` fields, so navigation never discards it: a running timer keeps running while Wade is shown, and Wade's state survives a visit to the timer.
 
-Each feature module follows one pattern: a state type with `advance(now)` to apply transitions that have come due, `next_deadline()` to report its next scheduled change, and, for features with a screen, a tap handler and a `view()` method. `App` composes them; its `next_deadline` is the earliest of theirs.
+Each feature module follows one pattern: a state type with `next_transition()` to report its next scheduled change, a method to apply the transitions due at a given instant, and, for features with a screen, a tap handler and a `view()` method. `App` composes them with the loop in [Events](#events); its `next_deadline` is the earliest of theirs.
+
+Touches are global input. Any tap, on any screen, counts as activity for features that care about inactivity (Wade's idle activities in M4, display sleep in M6).
+
+### Hidden features
+
+A feature whose screen is not visible still keeps time but costs nothing. While Wade is hidden, his schedule (blinks, and idle activities from M4) keeps moving forward, but he requests no frame deadlines and never sets `redraw`. A blink that falls due while he is hidden is skipped and the next one is scheduled; an idle activity never starts while he is hidden. When the Buddy screen returns, Wade resumes from his current schedule with no burst of catch-up animation. The same rule covers any future feature with animation.
 
 ## Deadlines and frames
 
-Deadlines replace a periodic tick. Each feature reports when it will next change without input: Wade's next blink or the next frame of a running animation, the moment the timer ends, the next second at which the timer's digits change. `App::next_deadline` returns the earliest.
+Deadlines replace a periodic tick. Each feature reports when it will next change without input: Wade's next blink or the next frame of a running animation, the moment the timer ends, the next second at which the timer's digits change, the next chime repeat. `App::next_deadline` returns the earliest.
 
 The platform guarantees a `Deadline` event at or after that time. It may arrive late (after a slow frame), and extra `Deadline` events may arrive (after a spurious wakeup). The core must produce the same result either way: behavior depends on elapsed time, never on how many events arrived. An invariant test checks this (see [testing.md](testing.md#invariants)).
 
@@ -220,6 +254,7 @@ New event kinds, effects, and constructor arguments are added only when a milest
 | Milestone | Events | Effects | Other |
 |---|---|---|---|
 | M2 Timer | none | `Chime` | none |
+| M3 Device port | none | none | `render::damage`, only if the spike's flush measurements require it (see [ui.md](ui.md#rendering)) |
 | M5 Settings | none | `SaveSettings(Settings)`, `SetBrightness(u8)` | `App::new` takes loaded `Settings` |
 | M6 Power | `Power(PowerStatus)`, `Proximity(Proximity)` | `DisplayPower(bool)` | none |
 | M7 Weather | `Weather(WeatherUpdate)` | `FetchWeather` | none |

@@ -49,3 +49,4 @@ Camera, microphones, motion sensors, text or speech from Wade, deep sleep, over-
 | Framebuffer | An in-memory image of the whole screen. Drawing goes into it, then it is sent to the display.                                       |
 | Deadline    | The next time the core needs to run even if no input arrives. Reported by `App::next_deadline`.                                     |
 | View        | Plain data describing what is on screen. The core produces it; `wade_core::render::draw` turns it into pixels.                      |
+| Damage      | The rectangle of the screen that changed between two views. Lets the device send only that part of the frame (see ui.md).          |

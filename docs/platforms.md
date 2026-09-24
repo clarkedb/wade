@@ -8,7 +8,7 @@ Both platforms run the loop in [architecture.md](architecture.md#core-api): stam
 |---|---|
 | Window | `embedded-graphics-simulator`: a 320×240 Rgb565 display shown at 2× scale. Requires SDL2. |
 | Clock | `std::time::Instant` captured at startup; `Instant::from_millis(elapsed_ms)`. |
-| Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. Confirm whether the simulator already reports them that way, and divide by the scale if not. |
+| Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. The simulator's mouse events should already be in display coordinates (it undoes the window scale); confirm this in M1 and divide by the scale only if not. |
 | Loop | The simulator offers only non-blocking event polling. The loop polls window events, then sleeps until the next deadline or for 10 ms, whichever is sooner. This polling stays inside the desktop crate. |
 | Audio | `rodio`, synthesizing the tone sequence in `wade_core::sound::CHIME`. No audio files. |
 | Seed | OS entropy, or `--seed <n>`. |
@@ -32,8 +32,8 @@ macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homeb
 |---|---|---|
 | ESP32-S3: dual-core Xtensa LX7 at 240 MHz, 512 KB internal SRAM, 16 MB flash, 8 MB PSRAM | Runs everything | Xtensa requires Espressif's Rust toolchain |
 | ILI9342C 320×240 IPS LCD over SPI | Display | |
-| Capacitive touch controller on I²C | Touch | Shares the internal I²C bus |
-| AXP2101 PMIC | Power to the display and peripherals; battery and charging status | Must be configured before the display works |
+| Capacitive touch controller on I²C | Touch | Shares the internal I²C bus. Its interrupt line is believed to be routed through the AW9523B (unverified). |
+| AXP2101 PMIC | Power to the display and peripherals; battery and charging status | Must be configured before the display works. The backlight is believed to be one of its LDO outputs (DLDO1 in M5Unified), which would make brightness a PMIC voltage setting (unverified). |
 | AW9523B IO expander on I²C | Reset and enable lines for the display, touch, and audio | Must be configured before those parts work |
 | AW88298 amplifier over I²S, 1 W speaker | Chime | |
 | LTR-553ALS proximity and ambient-light sensor | M6: wake on approach, possibly auto-brightness | |
@@ -42,6 +42,8 @@ macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homeb
 | BMI270 IMU, BMM150 magnetometer, GC0308 camera, ES7210 microphone codec | Unused | |
 
 The device has no vibration motor, so there is no vibration effect.
+
+M5Stack sells cut-down CoreS3 variants that drop some of these parts. The spike's first job is to confirm this unit has the parts listed above, especially the proximity sensor and battery that M6 depends on. If it does not, the project moves to the standard CoreS3, which the rest of this document also describes.
 
 M5Stack's C++ library M5Unified is the reference for the board's initialization sequences (PMIC rails, IO expander pins, display and audio setup). Port only the parts Wade needs, and record them in `docs/hardware-notes.md` during the hardware spike.
 
@@ -64,11 +66,15 @@ M5Stack's C++ library M5Unified is the reference for the board's initialization 
 |---|---|---|
 | App | Owns `App`. Waits for an event or the next deadline, handles it, renders into the framebuffer, and flushes it to the display. | (it is the app task) |
 | Touch | Reads the touch controller and sends `Touch` events | Event channel |
-| Audio | Receives effects and plays the chime over I²S | Effect channel |
+| Audio | Receives chime requests and plays the chime over I²S | Audio channel |
 | Power (M6) | Reads the PMIC and proximity sensor | Event channel |
-| Network (M7) | Wi-Fi connection and weather requests | Effect and event channels |
+| Network (M7) | Wi-Fi connection and weather requests | Network channel, event channel |
 
 Channels are fixed-capacity `embassy-sync` channels. Each producing task stamps its events with the current time when it creates them.
+
+There is one event channel into the app task, but one channel per consuming task out of it. An `embassy-sync` channel delivers each message to only one receiver, so a shared effect channel would let the network task receive a chime. The app task routes each effect to its consumer, or carries it out directly when it is cheap (brightness and display power over I²C, for example).
+
+The app task never waits on an outgoing channel. It uses `try_send`, and if a consumer's channel is full the effect is dropped and logged. Waiting would stall touch handling and rendering behind a chime that is still playing.
 
 App task loop, in outline:
 
@@ -83,18 +89,20 @@ loop {
     };
     let output = app.handle(event);
     for effect in output.effects {
-        effects.send(effect).await;
+        route(effect); // try_send to the consumer's channel; drop and log if full
     }
     if output.redraw {
-        wade_core::render::draw(&app.view(), &mut framebuffer).ok();
-        display.flush(&framebuffer).await;
+        let view = app.view();
+        wade_core::render::draw(&view, &mut framebuffer).ok();
+        display.flush(&framebuffer).await; // or only render::damage(&last_view, &view); see ui.md
+        last_view = view;
     }
 }
 ```
 
 Touch input: if the touch controller's interrupt line is usable (on this board it may be routed through the IO expander), the touch task waits on it. Otherwise it polls at 50 Hz while the display is on. Either way, polling stays inside the platform and the core sees only events.
 
-Memory: the framebuffer is 153,600 bytes. It goes in internal SRAM if it fits alongside everything else, including the Wi-Fi stack later; otherwise in PSRAM. The hardware spike confirms that DMA from the chosen memory to the display works and measures the flush time.
+Memory: the framebuffer is 153,600 bytes. It fits in internal SRAM today, but in M7 the Wi-Fi stack, its heap, and TLS all need internal RAM too, and moving the framebuffer to PSRAM then would reopen the flush-time measurements. The hardware spike therefore makes the placement decision with M7's needs in mind: it measures flush time from both internal SRAM and PSRAM, and records the choice and the reasoning in `docs/hardware-notes.md`.
 
 ### Boot sequence
 

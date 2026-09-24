@@ -23,7 +23,8 @@ Scope:
 | Core | `Instant`, `Event`, `App`, `Output`, `View`, `render::draw`, `TouchTracker` (taps), `layout`, seeded PRNG |
 | Wade | Placeholder face on the pose rig; Neutral and Happy; blinking; M1 behavior rules from [character.md](character.md#m1) |
 | Desktop | Window, mouse-to-touch mapping, deadline-driven loop, `--seed`, `--record`, `--replay`, `--time-scale` |
-| Tests | Harness; behavior, invariant, and snapshot tests; the `no_std` build check |
+| Tests | Harness; behavior, invariant, and snapshot tests; the `no_std` and no-`alloc` checks; recordings with state hashes |
+| CI | GitHub Actions workspace job (see [testing.md](testing.md#ci)) |
 
 Behavior tests:
 
@@ -45,7 +46,8 @@ Done when:
 | 1 | All [checks](testing.md#checks) pass |
 | 2 | `cargo run -p wade-desktop` shows Wade, who blinks every 2 to 6 s and is Happy for 2 s when clicked |
 | 3 | The desktop process uses negligible CPU while Wade is still |
-| 4 | A session recorded with `--record` replays identically with `--replay` |
+| 4 | A session recorded with `--record` replays with `--replay` with every state hash matching |
+| 5 | CI runs the checks on every push |
 
 ## M2 Timer
 
@@ -58,13 +60,18 @@ Behavior tests:
 | Start | Running with `ends_at = now + set` |
 | Rounding | With 299,001 ms remaining the display shows 05:00; with 500 ms remaining it shows 00:01 |
 | Pause, then resume | Remaining time is preserved across the pause |
-| Completion | At `ends_at`: Done, exactly one `Chime`, screen switches to Timer |
+| Completion | At `ends_at`: Done, one `Chime`, screen switches to Timer |
+| Chime repeats | While Done, a `Chime` at `ends_at + 10 s`, `+ 20 s`, …, 10 in total; none after that |
+| Dismiss stops chimes | Dismissing after the third chime: no further `Chime` |
 | Completion while on Buddy | Same as above; the timer completes on time without the Timer screen being visible |
+| Completion mid-touch | Touch down on Wade, the timer completes, lift: no tap on the Timer screen, no change |
+| Wade while hidden | On the Timer screen, Wade requests no frame deadlines and never sets `redraw` |
 | Navigation | Leaving and returning to the Timer screen does not change the timer |
 | Deadlines on Timer screen while Running | The next deadline is the next second boundary or `ends_at`, whichever is sooner |
 | Deadlines on Buddy while Running | The timer contributes only `ends_at` |
 | Bounds | −1m does nothing at 1:00; +1m does nothing at 99:00 |
 | Dismiss | Ready with the same `set`; screen returns to Buddy; Wade is Proud for 2 s |
+| Back while Done | Same as Dismiss |
 
 Snapshots: the Timer screen in each state, and each button pressed.
 
@@ -78,24 +85,26 @@ Done when:
 
 ## Hardware spike
 
-A throwaway firmware in `spikes/cores3-spike/`, outside both workspaces. Its purpose is to retire hardware risk before the port.
+A throwaway firmware in `spikes/cores3-spike/`, outside both workspaces. `spikes/` must be listed in the root workspace's `exclude` (see [architecture.md](architecture.md#crates)). Its purpose is to retire hardware risk before the port.
 
 | # | Goal |
 |---|---|
-| 1 | Install the toolchain; flash a program that logs over USB serial |
-| 2 | Configure the PMIC and IO expander; turn the display on |
-| 3 | Fill the screen with solid colors; measure full-frame flush time |
-| 4 | Draw `embedded-graphics` shapes and text |
-| 5 | Read touch points; confirm they match display coordinates and orientation |
-| 6 | Play a tone through the amplifier and speaker |
-| 7 | Find how display brightness is controlled |
-| 8 | Decide where the framebuffer lives (internal SRAM or PSRAM) and confirm DMA from it works |
+| 1 | Confirm the unit has the parts in [platforms.md](platforms.md#hardware), especially the proximity sensor and battery. If not, switch to the standard CoreS3. |
+| 2 | Install the toolchain; flash a program that logs over USB serial |
+| 3 | Configure the PMIC and IO expander; turn the display on |
+| 4 | Fill the screen with solid colors; measure full-frame flush time |
+| 5 | Measure the flush time of partial windows (a 160×40 and a 200×180 rectangle), and try SPI clocks above 40 MHz |
+| 6 | Draw `embedded-graphics` shapes and text |
+| 7 | Read touch points; confirm they match display coordinates and orientation. Check whether the interrupt line is usable (believed to be routed through the AW9523B). |
+| 8 | Play a tone through the amplifier and speaker |
+| 9 | Find how display brightness is controlled (believed to be an AXP2101 LDO voltage) |
+| 10 | Decide where the framebuffer lives (internal SRAM or PSRAM), with M7's Wi-Fi and TLS memory needs in mind, and confirm DMA from it works |
 
-Output: `docs/hardware-notes.md`, recording initialization sequences, pin and register details, and measured numbers (flush time, memory use). Done when all eight goals are demonstrated and written up.
+Output: `docs/hardware-notes.md`, recording initialization sequences, pin and register details, and measured numbers (flush times, memory use). It ends with a decision on whether M3 needs `render::damage`. Done when all ten goals are demonstrated and written up.
 
 ## M3 Device port
 
-Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); framebuffer rendering and flushing; seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`.
+Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); framebuffer rendering and flushing, with `render::damage` and partial flushes if the spike calls for them ([ui.md](ui.md#partial-flush)); seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`; the CI firmware job.
 
 Done when:
 
@@ -106,6 +115,7 @@ Done when:
 | 3 | The time from touch to visible response is under 100 ms (measured) |
 | 4 | The device runs for 1 hour without panicking or drifting (a 60:00 timer finishes within a second of a phone stopwatch) |
 | 5 | `wade-core` needed no changes for the port, or every change is also covered by desktop tests |
+| 6 | CI builds the firmware on every push |
 
 ## M4 Character
 
@@ -125,9 +135,9 @@ Done when:
 
 Scope: the Launcher screen; a Settings screen; persistence.
 
-Planned settings: display brightness (4 levels), chime on or off, and the default timer duration. Confirm this list at the start of the milestone.
+Planned settings: display brightness (4 levels), chime on or off (off silences the first chime and every repeat), and the default timer duration. Confirm this list at the start of the milestone.
 
-Persistence: the core defines `Settings` with `encode` and `decode` for a fixed binary layout that starts with a version byte. `decode` falls back to defaults for missing, corrupt, or unknown-version data. The core emits `Effect::SaveSettings(settings)` when a setting changes; the platform stores the bytes (desktop: a file in the user's config directory; device: flash through `esp-storage` and `sequential-storage`). At startup the platform loads the bytes, decodes them, and passes the result to `App::new`.
+Persistence: the core defines `Settings` with `encode` and `decode` for a fixed binary layout that starts with a version byte. `decode` falls back to defaults for missing, corrupt, or unknown-version data. The core emits `Effect::SaveSettings(settings)` once settings have stopped changing for 2 s, so stepping through brightness levels writes flash once, not on every tap. The debounce is an ordinary core deadline; leaving the Settings screen saves at once. The platform stores the bytes (desktop: a file in the user's config directory; device: flash through `esp-storage` and `sequential-storage`). At startup the platform loads the bytes, decodes them, and passes the result to `App::new`.
 
 Done when: settings survive a restart on both platforms, and corrupt stored data yields defaults rather than a crash (tested).
 
@@ -164,7 +174,9 @@ Scope:
 
 No wall-clock time is needed; "updated N min ago" uses `Instant`.
 
-Risk: the API uses HTTPS, and TLS on `no_std` means an additional crate (such as `esp-mbedtls` or `embedded-tls`) and extra memory. Spike this first, before building the screen.
+Risk: the API uses HTTPS, and TLS on `no_std` means an additional crate (such as `esp-mbedtls` or `embedded-tls`) and extra memory. Spike this first, before building the screen. Fallback: Open-Meteo is believed to also serve plain HTTP, which avoids TLS entirely at the cost of an unencrypted request (it carries only a location). Confirm before relying on it.
+
+Risk: memory. The Wi-Fi stack, its heap, and TLS all need internal RAM, competing with the framebuffer if it lives there. The spike's framebuffer decision should already account for this; if it does not, M7 starts by re-measuring.
 
 Open questions: units (a setting, °C or °F); which weather conditions get icons.
 
