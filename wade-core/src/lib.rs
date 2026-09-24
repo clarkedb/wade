@@ -26,6 +26,6 @@ pub mod view;
 pub mod harness;
 
 pub use app::{App, Effect, Output};
-pub use event::{Event, EventKind, Touch, TouchPhase};
+pub use event::{Digit, Event, EventKind, Key, Touch, TouchPhase};
 pub use time::{Duration, Instant};
 pub use view::View;

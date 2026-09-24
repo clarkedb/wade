@@ -141,6 +141,7 @@ The platform keeps the last drawn `View`, calls `damage` when `redraw` is set, d
 | Blink | about 210×90 (the eyes) | about 8 ms |
 | Expression change | about 260×150 (the eyes and accents) | about 16 ms |
 | A step of Thinking's dots | the dots | under 1 ms |
+| A step asleep (breath, Z's) | the eye lines and Z's | up to about 10 ms |
 | Timer tick | the changed digits | a few ms |
 | Screen change | full screen | about 31 ms |
 

@@ -1,7 +1,7 @@
 //! `App`: the core's entry point. Owns all state and routes events to features.
 
-use crate::character::Wade;
-use crate::event::{Event, EventKind};
+use crate::character::{Expression, Wade};
+use crate::event::{Event, EventKind, Key};
 use crate::input::TouchTracker;
 use crate::layout::{self, Target};
 use crate::time::{Duration, Instant};
@@ -79,9 +79,21 @@ impl App {
                     out.redraw |= self.wade.on_tap(self.now);
                 }
             }
+            EventKind::Key(key) => match self.screen {
+                Screen::Buddy => out.redraw |= self.on_key(key),
+            },
             EventKind::Deadline => {}
         }
         out
+    }
+
+    fn on_key(&mut self, key: Key) -> bool {
+        match key {
+            Key::Digit(digit) => self
+                .wade
+                .show(Expression::ALL[usize::from(digit.get())], self.now),
+            Key::Z => self.wade.sleep(self.now),
+        }
     }
 
     /// The earliest scheduled transition across all features.
@@ -154,6 +166,7 @@ impl App {
         match self.screen {
             Screen::Buddy => View::Buddy(BuddyView {
                 expression: self.wade.expression(),
+                asleep: self.wade.asleep(),
                 blinking: self.wade.blinking(self.now),
                 pose: self.wade.pose(self.now),
             }),

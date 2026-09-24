@@ -20,7 +20,7 @@ pub struct Pose {
     /// Whole-face offset in pixels: shaking and breathing
     pub face_offset: (f32, f32),
     pub accent: Accent,
-    /// 0.0 … 1.0 through the accent's motion (see [`Accent`])
+    /// 0.0 … 1.0 through the accent's motion; Zs runs to 2.0 (see [`Accent`])
     pub accent_phase: f32,
     pub prop: Prop,
     /// 0.0 … 1.0 through the prop's motion
@@ -102,4 +102,7 @@ pub enum Accent {
     Sparkle,
     /// A drop slides down beside the left eye (Flustered)
     SweatDrop,
+    /// Z's rise and grow (asleep). 0.0 … 1.0 while the first rises; from 1.0,
+    /// the fraction is the newest Z's rise, with an older one still in the air.
+    Zs,
 }

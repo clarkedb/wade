@@ -6,6 +6,7 @@
 //! seed 8127364512
 //! 1000 down 160 110 #3f9a1c02
 //! 1080 up 160 110 #b7e0442d
+//! 2400 key 3 #5d21a7c4
 //! ```
 //!
 //! `Deadline` events are not recorded; replay regenerates them from `next_deadline`.
@@ -16,7 +17,7 @@ use core::str::FromStr;
 use std::string::String;
 use std::vec::Vec;
 
-use crate::event::Touch;
+use crate::event::{EventKind, Key, Touch};
 use crate::time::Instant;
 
 use super::Harness;
@@ -36,9 +37,25 @@ pub struct Recording {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Entry {
     pub at: Instant,
-    pub touch: Touch,
+    pub input: Input,
     /// State hash after the event was handled.
     pub hash: u32,
+}
+
+/// A recorded input: every event kind except `Deadline`, which replay regenerates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Input {
+    Touch(Touch),
+    Key(Key),
+}
+
+impl From<Input> for EventKind {
+    fn from(input: Input) -> EventKind {
+        match input {
+            Input::Touch(touch) => EventKind::Touch(touch),
+            Input::Key(key) => EventKind::Key(key),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -101,7 +118,7 @@ impl Recording {
     /// for `UPDATE_RECORDINGS=1`.
     #[must_use]
     pub fn replay(&self) -> Replay {
-        todo!("M1: replay each entry with Harness::touch and collect state hashes")
+        todo!("M1: replay each entry through the harness and collect state hashes")
     }
 
     /// The first entry whose recorded hash differs from `hashes`.

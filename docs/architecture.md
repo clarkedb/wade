@@ -117,6 +117,8 @@ pub struct Event {
 pub enum EventKind {
     /// A raw touch sample in logical screen coordinates (320×240, origin top-left).
     Touch(Touch),
+    /// A key press from the desktop keyboard, for trying out Wade's looks.
+    Key(Key),
     /// A deadline requested through `App::next_deadline` has been reached.
     /// Carries no other meaning. May arrive late, or more often than requested.
     Deadline,
@@ -132,9 +134,14 @@ pub enum TouchPhase {
     Move,
     Up,
 }
+
+pub enum Key {
+    Digit(Digit), // 0–9: show that expression
+    Z,            // put Wade to sleep
+}
 ```
 
-Events report raw facts, never interpretations. A platform never sends "open the timer" or "go back"; it sends touch samples, and the core decides what they mean because the core owns the layout. The platform tracks one touch point and ignores additional fingers.
+Events report raw facts, never interpretations. A platform never sends "open the timer" or "go back"; it sends touch samples, and the core decides what they mean because the core owns the layout. The platform tracks one touch point and ignores additional fingers. Key events are raw too: the platform reports which key, and the core decides what it does. Only the desktop has keys, and they act only on the Buddy screen ([D22](decisions.md#d22-desktop-keys-are-core-events)).
 
 `App::handle` processes an event in two steps. First it advances `now` to the event's timestamp, applying every timed transition that became due along the way (an expression expiring, a timer finishing) in chronological order across all features. Then it applies the event itself. For a `Deadline` event, the first step is the whole job.
 
@@ -245,7 +252,7 @@ While something is moving, the moving feature requests a deadline one frame ahea
 
 ## Randomness
 
-Wade's motion (blinks, glances, squints, tears) and behavior (which idle activity starts, the hubris beat) are random. The core uses a small seeded pseudo-random generator (xorshift64*, about ten lines), in two streams from one seed: motion's lives in Wade, behavior's in `App` ([D21](decisions.md#d21-motion-and-behavior-draw-from-separate-random-streams)). The platform supplies the seed: the hardware random number generator on the device, and OS entropy or a `--seed` flag on desktop. Tests use fixed seeds, and recordings store the seed so replays are exact.
+Wade's motion (blinks, glances, squints, tears, twitches) and behavior (which idle activity starts, the hubris beat) are random. The core uses a small seeded pseudo-random generator (xorshift64*, about ten lines), in two streams from one seed: motion's lives in Wade, behavior's in `App` ([D21](decisions.md#d21-motion-and-behavior-draw-from-separate-random-streams)). The platform supplies the seed: the hardware random number generator on the device, and OS entropy or a `--seed` flag on desktop. Tests use fixed seeds, and recordings store the seed so replays are exact.
 
 ## Planned additions
 

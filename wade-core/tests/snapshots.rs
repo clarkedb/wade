@@ -5,7 +5,7 @@
 mod common;
 
 use common::framebuffer::{Framebuffer, assert_snapshot};
-use wade_core::character::{Accent, Expression, Pose};
+use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
 use wade_core::view::{BuddyView, View};
 use wade_core::{App, Instant, render};
@@ -16,9 +16,10 @@ fn snapshot(name: &str, view: &View) {
     assert_snapshot(name, &fb);
 }
 
-fn buddy(expression: Expression, pose: Pose) -> View {
+fn buddy(expression: Expression, asleep: bool, pose: Pose) -> View {
     View::Buddy(BuddyView {
         expression,
+        asleep,
         blinking: false,
         pose,
     })
@@ -31,6 +32,7 @@ fn still_phase(accent: Accent) -> f32 {
         Accent::Exclaim | Accent::Sparkle => 0.5,
         Accent::Tear => 0.3,
         Accent::SweatDrop => 0.4,
+        Accent::Zs => 1.3,
     }
 }
 
@@ -59,7 +61,7 @@ fn each_expression_at_rest() {
         let name = format!("{expression:?}").to_lowercase();
         snapshot(
             &format!("expression_{number}_{name}"),
-            &buddy(expression, pose),
+            &buddy(expression, false, pose),
         );
     }
 }
@@ -70,7 +72,17 @@ fn glancing() {
         gaze: (-0.8, 0.5),
         ..Expression::Neutral.pose()
     };
-    snapshot("glancing", &buddy(Expression::Neutral, pose));
+    snapshot("glancing", &buddy(Expression::Neutral, false, pose));
+}
+
+#[test]
+fn asleep() {
+    let pose = Pose {
+        accent: Accent::Zs,
+        accent_phase: still_phase(Accent::Zs),
+        ..ASLEEP
+    };
+    snapshot("asleep", &buddy(Expression::Sleepy, true, pose));
 }
 
 #[test]
@@ -79,5 +91,5 @@ fn mid_blink() {
         eye_open: 0.3,
         ..Expression::Neutral.pose()
     };
-    snapshot("mid_blink", &buddy(Expression::Neutral, pose));
+    snapshot("mid_blink", &buddy(Expression::Neutral, false, pose));
 }

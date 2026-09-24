@@ -4,6 +4,8 @@ mod pose;
 
 pub use pose::{Accent, Pose, Prop};
 
+use core::f32::consts::TAU;
+
 use crate::rng::Rng;
 use crate::time::{Duration, Instant, millis};
 
@@ -13,6 +15,8 @@ const MOTION_STREAM: u64 = 0x6D6F_7469_6F6E_5EED;
 
 /// How long Wade stays Happy after a tap on him.
 pub const HAPPY_DURATION: Duration = Duration::from_millis(2_000);
+/// How long Wade stays Surprised after a tap wakes him.
+pub const WAKE_DURATION: Duration = Duration::from_millis(1_000);
 /// How long a blink takes, closing and reopening.
 pub const BLINK_DURATION: Duration = Duration::from_millis(120);
 /// A blink shuts fast and reopens slower; together they make `BLINK_DURATION`.
@@ -28,6 +32,8 @@ pub const DOUBLE_BLINK_GAP: Duration = Duration::from_millis(300);
 pub const EXPRESSION_TRANSITION: Duration = Duration::from_millis(200);
 /// How long the eyes take to open at startup.
 const START_TRANSITION: Duration = Duration::from_millis(300);
+/// How long the eyes take to shut when he falls asleep.
+const SLEEP_TRANSITION: Duration = Duration::from_millis(1_000);
 
 /// On an expression change the eyes jump this much taller, then settle.
 const POP: f32 = 0.12;
@@ -59,6 +65,22 @@ const EXCLAIM_DURATION: Duration = Duration::from_millis(700);
 const SPARKLE_DURATION: Duration = Duration::from_millis(500);
 const SWEAT_DURATION: Duration = Duration::from_millis(900);
 
+/// Asleep, breathing and Z's move on this tick, one frame per step (D18).
+const SLEEP_STEP: Duration = Duration::from_millis(150);
+/// A new Z starts every cycle and rises for two.
+const ZS_CYCLE: Duration = Duration::from_millis(1_500);
+const BREATH_PERIOD: Duration = Duration::from_millis(6_000);
+const BREATH_PX: f32 = 5.0;
+
+/// Asleep, the eyes now and then flutter open a crack.
+const TWITCH_FIRST_MIN: Duration = Duration::from_millis(5_000);
+const TWITCH_FIRST_MAX: Duration = Duration::from_millis(9_000);
+const TWITCH_INTERVAL_MIN: Duration = Duration::from_millis(6_000);
+const TWITCH_INTERVAL_MAX: Duration = Duration::from_secs(12);
+const TWITCH_DURATION: Duration = Duration::from_millis(300);
+/// As a twitch starts, the eyes open this much taller, as a fraction, then settle.
+const TWITCH: f32 = 2.5;
+
 /// A named target pose.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Expression {
@@ -76,7 +98,7 @@ pub enum Expression {
 }
 
 impl Expression {
-    /// Every expression.
+    /// Every expression, numbered as on the desktop keys 0–9.
     pub const ALL: [Expression; 10] = [
         Expression::Neutral,
         Expression::Happy,
@@ -182,6 +204,13 @@ impl Expression {
     }
 }
 
+/// Asleep: the eyes shut to thin lines.
+pub const ASLEEP: Pose = Pose {
+    eye_size: (75.0, 8.0),
+    eye_radius: 3.0,
+    ..Pose::REST
+};
+
 /// Wade's character state. Kept on every screen; animates only while visible.
 ///
 /// Every scheduled instant is stored, so the pose at any time is a function of
@@ -190,9 +219,10 @@ impl Expression {
 pub(crate) struct Wade {
     /// The latest instant Wade was advanced to or given input at.
     now: Instant,
-    /// Randomness for motion only: blinks, glances, squints, and tears.
+    /// Randomness for motion only: blinks, glances, squints, tears, and twitches.
     motion: Rng,
     expression: Expression,
+    asleep: bool,
     /// When a timed expression returns to Neutral.
     expires_at: Option<Instant>,
     /// The base pose eases from `from` to the current target over `transition`,
@@ -215,6 +245,8 @@ pub(crate) struct Wade {
     squint_at: Option<Instant>,
     next_tear: Option<Instant>,
     tear_at: Option<Instant>,
+    next_twitch: Option<Instant>,
+    twitch_at: Option<Instant>,
 }
 
 impl Wade {
@@ -224,6 +256,7 @@ impl Wade {
             now,
             motion: Rng::new(seed ^ MOTION_STREAM),
             expression: Expression::Neutral,
+            asleep: false,
             expires_at: None,
             from: Pose {
                 eye_open: 0.0,
@@ -243,6 +276,8 @@ impl Wade {
             squint_at: None,
             next_tear: None,
             tear_at: None,
+            next_twitch: None,
+            twitch_at: None,
         };
         wade.schedule_idle(now);
         wade
@@ -271,6 +306,8 @@ impl Wade {
             end(self.squint_at, SQUINT_DURATION),
             self.next_tear,
             end(self.tear_at, TEAR_FALL),
+            self.next_twitch,
+            end(self.twitch_at, TWITCH_DURATION),
             self.next_step().filter(|_| visible),
         ]
         .into_iter()
@@ -291,17 +328,18 @@ impl Wade {
         let mut changed = self.next_step() == Some(now)
             || self.accent_end() == Some(now) && !self.accent().moves();
         self.now = now;
+        let idle = visible && !self.asleep;
         if self.expires_at.is_some_and(|t| t <= now) {
             self.expires_at = None;
             self.change(now, Expression::Neutral);
             changed = true;
         }
         if self.next_blink <= now {
-            if visible {
+            if idle {
                 self.blink_at = Some(now);
                 changed = true;
             }
-            let double = visible
+            let double = idle
                 && !self.second_blink
                 && self.motion.range_inclusive(1, DOUBLE_BLINK_ONE_IN) == 1;
             self.second_blink = double;
@@ -312,7 +350,7 @@ impl Wade {
             };
         }
         if self.next_glance <= now {
-            if visible && !self.expression.holds_gaze() {
+            if idle && !self.expression.holds_gaze() {
                 let x = random_unit(&mut self.motion, 8);
                 let y = random_unit(&mut self.motion, 4) * 0.8;
                 let recenter = self.motion.range_inclusive(1, 100) <= GLANCE_RECENTER_PERCENT;
@@ -327,7 +365,7 @@ impl Wade {
                 now + random(&mut self.motion, GLANCE_INTERVAL_MIN, GLANCE_INTERVAL_MAX);
         }
         if self.next_squint <= now {
-            if visible && self.expression == Expression::Neutral {
+            if idle && self.expression == Expression::Neutral {
                 self.squint_at = Some(now);
                 changed = true;
             }
@@ -341,6 +379,14 @@ impl Wade {
             }
             self.next_tear =
                 Some(now + TEAR_FALL + random(&mut self.motion, TEAR_GAP_MIN, TEAR_GAP_MAX));
+        }
+        if self.next_twitch.is_some_and(|t| t <= now) {
+            if visible {
+                self.twitch_at = Some(now);
+                changed = true;
+            }
+            self.next_twitch =
+                Some(now + random(&mut self.motion, TWITCH_INTERVAL_MIN, TWITCH_INTERVAL_MAX));
         }
         visible && changed
     }
@@ -357,6 +403,9 @@ impl Wade {
         self.now = now;
         self.schedule_idle(now);
         self.next_tear = self.next_tear.map(|_| now + TEAR_DELAY);
+        self.next_twitch = self
+            .next_twitch
+            .map(|_| now + random(&mut self.motion, TWITCH_INTERVAL_MIN, TWITCH_INTERVAL_MAX));
     }
 
     /// True while the pose is changing with time, so a frame is needed every
@@ -372,18 +421,49 @@ impl Wade {
             || during(self.glance_at, GLANCE_DURATION)
             || during_opt(self.squint_at, SQUINT_DURATION)
             || during_opt(self.tear_at, TEAR_FALL)
+            || during_opt(self.twitch_at, TWITCH_DURATION)
             || (self.accent().moves() && self.accent_end().is_some_and(|end| now < end))
     }
 
     /// A tap landed on Wade: Happy for `HAPPY_DURATION`, restarted by another
-    /// tap. Returns true if the view may have changed.
+    /// tap, or, if asleep, Surprised for `WAKE_DURATION`.
+    /// Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]
     pub fn on_tap(&mut self, now: Instant) -> bool {
         self.now = now;
-        if self.expression != Expression::Happy {
-            self.change(now, Expression::Happy);
+        if self.asleep {
+            self.change(now, Expression::Surprised);
+            self.expires_at = Some(now + WAKE_DURATION);
+        } else {
+            if self.expression != Expression::Happy {
+                self.change(now, Expression::Happy);
+            }
+            self.expires_at = Some(now + HAPPY_DURATION);
         }
-        self.expires_at = Some(now + HAPPY_DURATION);
+        true
+    }
+
+    /// Show `expression` until something else changes it, waking him if
+    /// asleep. Returns true if the view may have changed.
+    #[must_use = "a true result means the view must be redrawn"]
+    pub fn show(&mut self, expression: Expression, now: Instant) -> bool {
+        self.now = now;
+        if self.asleep || expression != self.expression {
+            self.change(now, expression);
+        }
+        self.expires_at = None;
+        true
+    }
+
+    /// Fall asleep until a tap or [`Wade::show`] wakes him.
+    /// Returns true if the view may have changed.
+    #[must_use = "a true result means the view must be redrawn"]
+    pub fn sleep(&mut self, now: Instant) -> bool {
+        self.now = now;
+        if self.asleep {
+            return false;
+        }
+        self.fall_asleep(now);
         true
     }
 
@@ -393,21 +473,30 @@ impl Wade {
     }
 
     #[must_use]
+    pub const fn asleep(&self) -> bool {
+        self.asleep
+    }
+
+    #[must_use]
     pub fn blinking(&self, now: Instant) -> bool {
         self.blink_at
             .is_some_and(|t| running(t, BLINK_DURATION, now).is_some())
     }
 
-    /// The rendered pose at `now`: the base expression, then pop and squint on
-    /// eye height, glances, the shake, the accent, and the blink.
+    /// The rendered pose at `now`: the base expression, then pop, squint, and
+    /// twitch on eye height, glances, shake and breath, the accent, and the blink.
     #[must_use]
     pub fn pose(&self, now: Instant) -> Pose {
         let mut pose = self.base(now);
         let squint = self
             .squint_at
             .map_or(0.0, |t| falloff(t, SQUINT_DURATION, now));
+        let twitch = self
+            .twitch_at
+            .map_or(0.0, |t| falloff(t, TWITCH_DURATION, now));
         pose.eye_size.1 *= (1.0 + self.pop * falloff(self.changed_at, POP_DURATION, now))
-            * (1.0 - SQUINT_DEPTH * squint);
+            * (1.0 - SQUINT_DEPTH * squint)
+            * (1.0 + TWITCH * twitch);
         let glance = self.glance(now);
         pose.gaze = (pose.gaze.0 + glance.0, pose.gaze.1 + glance.1);
         let shake = self.shake(now);
@@ -433,12 +522,15 @@ impl Wade {
         self.changed_at = now;
         self.tear_at = None;
         self.next_tear = None;
+        self.twitch_at = None;
+        self.next_twitch = None;
     }
 
-    /// Move to `expression`.
+    /// Move to `expression`, awake.
     fn change(&mut self, now: Instant, expression: Expression) {
         self.begin_change(now);
         self.expression = expression;
+        self.asleep = false;
         self.transition = EXPRESSION_TRANSITION;
         self.pop = if expression == Expression::Surprised {
             POP_SURPRISED
@@ -453,6 +545,17 @@ impl Wade {
         }
     }
 
+    fn fall_asleep(&mut self, now: Instant) {
+        self.begin_change(now);
+        self.expression = Expression::Sleepy;
+        self.asleep = true;
+        self.expires_at = None;
+        self.transition = SLEEP_TRANSITION;
+        self.pop = 0.0;
+        self.recenter_glance(now);
+        self.next_twitch = Some(now + random(&mut self.motion, TWITCH_FIRST_MIN, TWITCH_FIRST_MAX));
+    }
+
     fn recenter_glance(&mut self, now: Instant) {
         self.glance_from = self.glance(now);
         self.glance_to = (0.0, 0.0);
@@ -464,9 +567,17 @@ impl Wade {
         self.changed_at + self.transition
     }
 
+    fn target(&self) -> Pose {
+        if self.asleep {
+            ASLEEP
+        } else {
+            self.expression.pose()
+        }
+    }
+
     fn base(&self, now: Instant) -> Pose {
         let t = fraction(now.saturating_since(self.changed_at), self.transition);
-        self.from.lerp(&self.expression.pose(), smoothstep(t))
+        self.from.lerp(&self.target(), smoothstep(t))
     }
 
     fn glance(&self, now: Instant) -> (f32, f32) {
@@ -478,10 +589,14 @@ impl Wade {
         (from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t)
     }
 
-    /// Angry trembles.
+    /// Angry trembles; asleep breathes.
     fn shake(&self, now: Instant) -> (f32, f32) {
         let elapsed = now.saturating_since(self.changed_at);
-        if self.expression == Expression::Angry {
+        if self.asleep {
+            let (_, stepped) = on_grid(elapsed, SLEEP_STEP);
+            let t = fraction(modulo(stepped, BREATH_PERIOD), BREATH_PERIOD);
+            (0.0, BREATH_PX * libm::sinf(TAU * t))
+        } else if self.expression == Expression::Angry {
             let (step, _) = on_grid(elapsed, SHAKE_STEP);
             (SHAKE_PX * jitter(step), 0.0)
         } else {
@@ -491,7 +606,11 @@ impl Wade {
 
     /// The accent of the current state.
     const fn accent(&self) -> Accent {
-        self.expression.accent()
+        if self.asleep {
+            Accent::Zs
+        } else {
+            self.expression.accent()
+        }
     }
 
     /// The accent and its phase at `now`.
@@ -524,6 +643,20 @@ impl Wade {
                 let (step, _) = on_grid(since, STEAM_STEP);
                 if step % 2 == 0 { (accent, 1.0) } else { NONE }
             }
+            Accent::Zs => {
+                // Z's move on the sleep tick, which counts from falling asleep.
+                let (_, stepped) = on_grid(now.saturating_since(self.changed_at), SLEEP_STEP);
+                let Some(rising) = stepped.checked_sub(self.transition) else {
+                    return NONE;
+                };
+                let within = fraction(modulo(rising, ZS_CYCLE), ZS_CYCLE);
+                let phase = if rising < ZS_CYCLE {
+                    within
+                } else {
+                    1.0 + within
+                };
+                (accent, phase)
+            }
         }
     }
 
@@ -537,6 +670,9 @@ impl Wade {
     /// The next step of a stepped motion.
     fn next_step(&self) -> Option<Instant> {
         let grid = |origin, period| next_on_grid(origin, period, self.now);
+        if self.asleep {
+            return Some(grid(self.changed_at, SLEEP_STEP));
+        }
         let accent = self
             .accent()
             .step()
@@ -568,7 +704,12 @@ impl Accent {
             Accent::Exclaim => Some(EXCLAIM_DURATION),
             Accent::Sparkle => Some(SPARKLE_DURATION),
             Accent::SweatDrop => Some(SWEAT_DURATION),
-            Accent::None | Accent::Blush | Accent::Tear | Accent::Dots | Accent::Steam => None,
+            Accent::None
+            | Accent::Blush
+            | Accent::Tear
+            | Accent::Dots
+            | Accent::Steam
+            | Accent::Zs => None,
         }
     }
 
@@ -578,6 +719,7 @@ impl Accent {
     }
 
     /// The step of an accent that moves in steps, counted from when it starts.
+    /// Zs step with sleep's breath instead.
     const fn step(self) -> Option<Duration> {
         match self {
             Accent::Dots => Some(DOTS_STEP),
@@ -587,7 +729,8 @@ impl Accent {
             | Accent::Exclaim
             | Accent::Tear
             | Accent::Sparkle
-            | Accent::SweatDrop => None,
+            | Accent::SweatDrop
+            | Accent::Zs => None,
         }
     }
 }
@@ -611,6 +754,10 @@ fn fraction(part: Duration, whole: Duration) -> f32 {
     } else {
         part.div_duration_f32(whole)
     }
+}
+
+fn modulo(d: Duration, period: Duration) -> Duration {
+    Duration::from_millis(millis(d) % millis(period).max(1))
 }
 
 /// Progress 0.0 … 1.0 through a motion from `start` lasting `length`, or

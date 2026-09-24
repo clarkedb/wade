@@ -98,7 +98,7 @@ These are property tests: `proptest` generates random event sequences and checks
 
 A snapshot test builds a `View`, draws it into an in-memory 320×240 test framebuffer, and compares the result with `wade-core/tests/snapshots/<name>.png`. On a mismatch, the test writes `<name>.actual.png` next to the golden image and fails. Running `UPDATE_SNAPSHOTS=1 cargo test` rewrites the golden images, and the diff is reviewed in version control.
 
-Snapshot cases include each expression at rest with its accent, a glance, Wade mid-blink, at startup, and once awake, and each timer state. Golden images are generated on desktop.
+Snapshot cases include each expression at rest with its accent, a glance, Wade asleep, mid-blink, at startup, and once awake, and each timer state. Golden images are generated on desktop.
 
 ## Recording and replay
 
@@ -109,13 +109,14 @@ wade-events 1
 seed 8127364512
 1000 down 160 110 #3f9a1c02
 1080 up 160 110 #b7e0442d
-5400 down 290 210 #b7e0442d
+2400 key 3 #5d21a7c4
+5400 down 290 210 #5d21a7c4
 5460 up 290 210 #51c8d9e0
 ```
 
-Each line after the header is a timestamp in milliseconds, a touch phase (`down`, `move`, or `up`), x and y in display coordinates, and a state hash. The parser and writer live behind the `harness` feature.
+Each line after the header is a timestamp in milliseconds, then either a touch phase (`down`, `move`, or `up`) with x and y in display coordinates or `key` with the key (`0`–`9` or `z`), then a state hash. The parser and writer live behind the `harness` feature.
 
-The state hash is taken after the event is handled. It covers only discrete state: the screen, the expression, the activity, the timer state, and the timer's digits. It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover those. Replay recomputes the hash after each event and reports the first mismatch with its timestamp. This is how "replays identically" is checked.
+The state hash is taken after the event is handled. It covers only discrete state: the screen, the expression, whether Wade is asleep, the activity, the timer state, and the timer's digits. It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover those. Replay recomputes the hash after each event and reports the first mismatch with its timestamp. This is how "replays identically" is checked.
 
 Recordings will need more input kinds as milestones add events: loaded settings (M5), power and proximity (M6), weather updates (M7). Each addition bumps the header version (`wade-events 2`, …). The parser accepts every older version, so existing recordings keep working.
 

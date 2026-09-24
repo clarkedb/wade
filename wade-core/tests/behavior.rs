@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{OUTSIDE_WADE, SEED, ms};
+use common::{OUTSIDE_WADE, SEED, digit, ms};
 use embedded_graphics::geometry::Point;
 use wade_core::app::{FRAME, STALL_LIMIT};
 use wade_core::character::{
@@ -10,7 +10,7 @@ use wade_core::character::{
 };
 use wade_core::harness::Harness;
 use wade_core::layout::WADE_CENTER;
-use wade_core::{Event, Instant, TouchPhase};
+use wade_core::{Event, Instant, Key, TouchPhase};
 
 #[test]
 fn starts_on_buddy_neutral() {
@@ -107,6 +107,58 @@ fn follow_deadlines(h: &mut Harness, t: Instant, mut seen: impl FnMut(&Harness, 
 }
 
 #[test]
+fn number_keys_hold_each_expression() {
+    for (n, expression) in (0u8..).zip(Expression::ALL) {
+        let mut h = Harness::new(SEED);
+        h.key(ms(1_000), digit(n));
+        assert_eq!(h.buddy().expression, expression);
+        h.run_until(ms(60_000));
+        assert_eq!(h.buddy().expression, expression, "{expression:?} expired");
+        assert!(!h.buddy().asleep, "{expression:?} fell asleep");
+    }
+}
+
+#[test]
+fn z_puts_him_to_sleep_and_a_tap_wakes_him_surprised() {
+    let mut h = Harness::new(SEED);
+    h.key(ms(1_000), Key::Z);
+    assert!(h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Sleepy);
+
+    h.run_until(ms(60_000));
+    assert!(h.buddy().asleep);
+
+    h.tap(ms(60_000), WADE_CENTER);
+    assert!(!h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+    h.run_until(ms(60_999));
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+    h.run_until(ms(61_000));
+    assert_eq!(h.buddy().expression, Expression::Neutral);
+}
+
+#[test]
+fn a_number_key_wakes_him_into_that_expression() {
+    let mut h = Harness::new(SEED);
+    h.key(ms(1_000), Key::Z);
+    h.key(ms(5_000), digit(1));
+    assert!(!h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Happy);
+    h.run_until(ms(30_000));
+    assert_eq!(h.buddy().expression, Expression::Happy);
+}
+
+#[test]
+fn tap_during_a_held_expression_is_happy_then_neutral() {
+    let mut h = Harness::new(SEED);
+    h.key(ms(1_000), digit(3));
+    h.tap(ms(2_000), WADE_CENTER);
+    assert_eq!(h.buddy().expression, Expression::Happy);
+    h.run_until(ms(4_000));
+    assert_eq!(h.buddy().expression, Expression::Neutral);
+}
+
+#[test]
 fn blinks_are_two_to_six_seconds_apart_or_one_double() {
     let mut h = Harness::new(SEED);
     let mut starts = Vec::new();
@@ -137,6 +189,15 @@ fn blinks_are_two_to_six_seconds_apart_or_one_double() {
 }
 
 #[test]
+fn he_does_not_blink_while_asleep() {
+    let mut h = Harness::new(SEED);
+    h.key(ms(1_000), Key::Z);
+    follow_deadlines(&mut h, ms(120_000), |h, t| {
+        assert!(!h.buddy().blinking, "blinked at {t:?} while asleep");
+    });
+}
+
+#[test]
 fn a_stall_past_the_limit_applies_expiry_and_restarts_the_idle_schedule() {
     let mut h = Harness::new(SEED);
     h.tap(ms(1_000), WADE_CENTER);
@@ -151,16 +212,26 @@ fn a_stall_past_the_limit_applies_expiry_and_restarts_the_idle_schedule() {
 }
 
 #[test]
-fn a_still_wade_wakes_well_below_the_frame_rate() {
+fn wakeups_stay_well_below_the_frame_rate() {
     // Animating without end would wake the device on every frame.
     let frame_rate = 1_000 / FRAME.as_millis();
-    let mut h = Harness::new(SEED);
-    h.run_until(ms(5_000));
-    let mut wakeups = 0;
-    follow_deadlines(&mut h, ms(65_000), |_, _| wakeups += 1);
-    let per_second = wakeups / 60;
-    assert!(
-        per_second <= 6,
-        "{per_second} wakeups a second in Neutral (frames are {frame_rate})"
-    );
+    let limits = [
+        (digit(0), 6),  // Neutral
+        (digit(2), 16), // Sad: a falling tear every few seconds
+        (digit(3), 16), // Angry: trembles every 100 ms
+        (digit(6), 6),  // Thinking: dots every 420 ms
+        (Key::Z, 10),   // asleep: breath and Z's every 150 ms
+    ];
+    for (key, limit) in limits {
+        let mut h = Harness::new(SEED);
+        h.key(ms(1_000), key);
+        h.run_until(ms(5_000));
+        let mut wakeups = 0;
+        follow_deadlines(&mut h, ms(65_000), |_, _| wakeups += 1);
+        let per_second = wakeups / 60;
+        assert!(
+            per_second <= limit,
+            "{key:?}: {per_second} wakeups a second, over {limit} (frames are {frame_rate})"
+        );
+    }
 }
