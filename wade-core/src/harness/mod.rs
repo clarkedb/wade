@@ -13,7 +13,7 @@ use crate::app::{App, Effect, Output, Screen};
 use crate::character::Expression;
 use crate::event::{Event, Key, TouchPhase};
 use crate::time::Instant;
-use crate::view::{BuddyView, View};
+use crate::view::{BuddyView, EyeStyle, View};
 
 #[derive(Debug)]
 pub struct Harness {
@@ -126,10 +126,10 @@ struct Discrete {
     blinking: bool,
 }
 
-/// A hash of discrete state only: the screen, the expression, and whether Wade
-/// is asleep (later also the activity and the timer). Excludes `Pose` and
-/// pixels, so tuning animation does not invalidate recordings (D16). FNV-1a, so
-/// it is stable across platforms.
+/// A hash of discrete state only: the screen, expression, sleep state, and eye
+/// style (later also the activity and timer). Excludes `Pose` and pixels, so
+/// tuning animation does not invalidate recordings (D16, D24). FNV-1a is stable
+/// across platforms.
 #[must_use]
 pub fn state_hash(app: &App) -> u32 {
     let View::Buddy(buddy) = app.view();
@@ -150,7 +150,11 @@ pub fn state_hash(app: &App) -> u32 {
         Expression::Focused => 8,
         Expression::Flustered => 9,
     };
-    fnv1a(&[screen, expression, u8::from(buddy.asleep)])
+    let eye_style = match buddy.eye_style {
+        EyeStyle::Pupils => 0,
+        EyeStyle::Plain => 1,
+    };
+    fnv1a(&[screen, expression, u8::from(buddy.asleep), eye_style])
 }
 
 fn fnv1a(bytes: &[u8]) -> u32 {
