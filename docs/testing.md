@@ -13,10 +13,13 @@
 `wade-core` declares:
 
 ```rust
-#![cfg_attr(not(any(test, feature = "harness")), no_std)]
+#![no_std]
+
+#[cfg(any(test, feature = "harness"))]
+extern crate std;
 ```
 
-so its unit tests and the harness can use the standard library while the library itself stays `no_std`.
+so its unit tests and the harness can use the standard library while the library itself stays `no_std`. Linking `std` this way, rather than dropping `no_std` under those configurations, keeps the std prelude out of core modules: the harness imports what it uses explicitly.
 
 Tests in `wade-core/tests/` (snapshots, replays, most behavior tests) are separate crates that link the library built *without* `cfg(test)`, so they cannot see anything gated on `test`. They get the harness through a dev-dependency of the crate on itself:
 
@@ -116,7 +119,7 @@ The state hash is taken after the event is handled. It covers only discrete stat
 
 Recordings will need more input kinds as milestones add events: loaded settings (M5), power and proximity (M6), weather updates (M7). Each addition bumps the header version (`wade-events 2`, …). The parser accepts every older version, so existing recordings keep working.
 
-Recordings of interesting sessions go in `wade-core/tests/recordings/`. A replay test runs each one through the harness and checks that it completes without panicking, that every state hash matches, plus any assertions written for that recording, such as the final screen or a snapshot of the final frame. A behavior change that alters a hash on purpose is accepted by re-recording, or by rewriting the hashes with `UPDATE_RECORDINGS=1 cargo test` and reviewing the diff.
+Recordings of interesting sessions go in `wade-core/tests/recordings/` as `*.events` files. A replay test runs each one through the harness and checks that it completes without panicking, that every state hash matches, plus any assertions written for that recording, such as the final screen or a snapshot of the final frame. A behavior change that alters a hash on purpose is accepted by re-recording, or by rewriting the hashes with `UPDATE_RECORDINGS=1 cargo test` and reviewing the diff.
 
 ## Checks
 
@@ -126,8 +129,8 @@ Run before every commit, and in CI:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo build -p wade-core --target thumbv7em-none-eabihf   # proves wade-core builds without std
-! grep -rn "extern crate alloc" wade-core/src              # proves wade-core does not use alloc
+cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf -- -D warnings   # proves wade-core builds without std
+! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src           # proves wade-core does not use alloc
 ```
 
 The bare-metal build needs `rustup target add thumbv7em-none-eabihf` once. It proves `wade-core` is `no_std` but not that it avoids `alloc`, because `alloc` exists on that target too; the `grep` covers that.

@@ -4,7 +4,13 @@
 //! and randomness arrive as arguments, and side effects leave as return values.
 //! See `docs/architecture.md`.
 
-#![cfg_attr(not(any(test, feature = "harness")), no_std)]
+#![no_std]
+#![warn(clippy::std_instead_of_core)]
+
+// std is linked only for tests and the harness. Keeping the crate `no_std` means the
+// std prelude never leaks into core modules; the harness imports what it uses.
+#[cfg(any(test, feature = "harness"))]
+extern crate std;
 
 pub mod app;
 pub mod character;

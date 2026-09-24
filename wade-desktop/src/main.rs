@@ -24,7 +24,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(10);
 #[command(version, about = "Wade desktop simulator")]
 struct Args {
     /// Fixed random seed. Defaults to OS entropy.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "replay")]
     seed: Option<u64>,
 
     /// Write the seed and every input event to a recording.
@@ -35,9 +35,18 @@ struct Args {
     #[arg(long, value_name = "FILE")]
     replay: Option<PathBuf>,
 
-    /// Run the clock this many times faster.
-    #[arg(long, value_name = "X", default_value_t = 1.0)]
+    /// Run the clock this many times faster (0.01 to 1000).
+    #[arg(long, value_name = "X", default_value_t = 1.0, value_parser = parse_time_scale)]
     time_scale: f64,
+}
+
+fn parse_time_scale(s: &str) -> Result<f64, String> {
+    let x: f64 = s.parse().map_err(|e| format!("{e}"))?;
+    if (0.01..=1_000.0).contains(&x) {
+        Ok(x)
+    } else {
+        Err("must be between 0.01 and 1000".into())
+    }
 }
 
 fn main() {
@@ -63,7 +72,7 @@ fn main() {
     // The loop decides when to sleep; don't let the window throttle updates.
     window.set_max_fps(1_000);
 
-    render::draw(&app.view(), &mut display).expect("draw");
+    let Ok(()) = render::draw(&app.view(), &mut display);
     window.update(&display);
 
     let mut mouse_down = false;
@@ -71,7 +80,7 @@ fn main() {
         let mut redraw = false;
 
         for sim_event in window.events() {
-            // TODO(M1): confirm these points are already in 320×240 display coordinates.
+            // The simulator reports points in display coordinates (it undoes the scale).
             let touch = match sim_event {
                 SimulatorEvent::Quit => return,
                 SimulatorEvent::MouseButtonDown {
@@ -99,13 +108,14 @@ fn main() {
             }
         }
 
-        if app.next_deadline().is_some_and(|d| d <= clock.now()) {
-            let output = app.handle(Event::deadline(clock.now()));
+        let now = clock.now();
+        if app.next_deadline().is_some_and(|d| d <= now) {
+            let output = app.handle(Event::deadline(now));
             redraw |= output.redraw;
         }
 
         if redraw {
-            render::draw(&app.view(), &mut display).expect("draw");
+            let Ok(()) = render::draw(&app.view(), &mut display);
             window.update(&display);
         }
 

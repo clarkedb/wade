@@ -11,8 +11,9 @@ use crate::time::{Duration, Instant};
 pub const HAPPY_DURATION: Duration = Duration::from_millis(2_000);
 /// How long a blink takes, closing and reopening.
 pub const BLINK_DURATION: Duration = Duration::from_millis(120);
-/// Blinks start at random intervals in this range (inclusive, in ms).
-pub const BLINK_INTERVAL_MS: (u64, u64) = (2_000, 6_000);
+/// Blinks start at random intervals between these bounds (inclusive).
+pub const BLINK_INTERVAL_MIN: Duration = Duration::from_millis(2_000);
+pub const BLINK_INTERVAL_MAX: Duration = Duration::from_millis(6_000);
 /// How long the pose takes to move to a new expression's target.
 pub const EXPRESSION_TRANSITION: Duration = Duration::from_millis(200);
 
@@ -26,7 +27,7 @@ pub enum Expression {
 
 impl Expression {
     /// The target pose for this expression.
-    pub fn pose(self) -> Pose {
+    pub const fn pose(self) -> Pose {
         match self {
             // TODO(M1): tune the placeholder poses.
             Expression::Neutral => Pose {
@@ -59,20 +60,37 @@ impl Wade {
         }
     }
 
-    /// The next instant at which Wade changes without input: a scheduled change
-    /// (blink, Happy expiring) or, while animating and `visible`, the next frame.
-    pub fn next_transition(&self, _visible: bool) -> Option<Instant> {
+    /// The next scheduled discrete change (a blink starting or ending, Happy
+    /// expiring, an expression transition finishing), or `None`.
+    ///
+    /// Must be strictly later than the last instant passed to `advance`, unless
+    /// the schedule has saturated at `Instant::MAX`. Frames are not transitions:
+    /// they come from [`Wade::animating`].
+    pub fn next_transition(&self) -> Option<Instant> {
         // TODO(M1)
         None
     }
 
-    /// Apply every transition due at `now`. Returns true if the view may have changed.
+    /// Apply every transition due at `now`. `visible` is false while another
+    /// screen is shown: the schedule still moves forward, but due blinks are
+    /// skipped (docs/architecture.md#hidden-features).
+    /// Returns true if the view may have changed.
+    #[must_use = "a true result means the view must be redrawn"]
     pub fn advance(&mut self, _now: Instant, _rng: &mut Rng, _visible: bool) -> bool {
         // TODO(M1)
         false
     }
 
+    /// True while the pose is changing with time (a blink or an expression
+    /// transition), so a frame is needed every `FRAME`. The end of each
+    /// animation must also be a transition, so its final frame is drawn.
+    pub fn animating(&self, _now: Instant) -> bool {
+        // TODO(M1)
+        false
+    }
+
     /// A tap landed on Wade. Returns true if the view may have changed.
+    #[must_use = "a true result means the view must be redrawn"]
     pub fn on_tap(&mut self, _now: Instant) -> bool {
         // TODO(M1): Happy for HAPPY_DURATION; another tap restarts it.
         false

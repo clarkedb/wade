@@ -2,12 +2,12 @@
 
 use crate::character::{Expression, Pose};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum View {
     Buddy(BuddyView),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BuddyView {
     /// The discrete expression, for behavior tests and the state hash.
     pub expression: Expression,

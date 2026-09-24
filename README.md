@@ -29,7 +29,7 @@ export LIBRARY_PATH="$LIBRARY_PATH:$(brew --prefix)/lib"
 cargo run -p wade-desktop -- --seed 42
 ```
 
-Flags: `--seed <n>`, `--record <file>`, `--replay <file>`, `--time-scale <x>`.
+Flags: `--seed <n>`, `--time-scale <x>`. `--record <file>` and `--replay <file>` are accepted but not implemented yet (M1).
 
 ## Checks
 
@@ -39,8 +39,8 @@ Run before every commit; CI runs the same ones.
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo build -p wade-core --target thumbv7em-none-eabihf
-! grep -rn "extern crate alloc" wade-core/src
+cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf -- -D warnings
+! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src
 ```
 
 `UPDATE_SNAPSHOTS=1 cargo test` rewrites golden images in `wade-core/tests/snapshots/`.

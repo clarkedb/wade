@@ -2,7 +2,9 @@
 //! (docs/testing.md#snapshots).
 
 use std::convert::Infallible;
-use std::path::PathBuf;
+use std::fs::{self, File};
+use std::io::{self, BufReader, BufWriter};
+use std::path::{Path, PathBuf};
 
 use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 use wade_core::layout::SCREEN_SIZE;
@@ -10,6 +12,7 @@ use wade_core::layout::SCREEN_SIZE;
 const W: usize = SCREEN_SIZE.width as usize;
 const H: usize = SCREEN_SIZE.height as usize;
 
+#[derive(Debug)]
 pub struct Framebuffer {
     pixels: Vec<Rgb565>,
 }
@@ -62,9 +65,9 @@ fn snapshot_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots")
 }
 
-fn write_png(path: &std::path::Path, rgb: &[u8]) {
-    let file = std::fs::File::create(path).expect("create png");
-    let mut enc = png::Encoder::new(std::io::BufWriter::new(file), W as u32, H as u32);
+fn write_png(path: &Path, rgb: &[u8]) {
+    let file = File::create(path).expect("create png");
+    let mut enc = png::Encoder::new(BufWriter::new(file), SCREEN_SIZE.width, SCREEN_SIZE.height);
     enc.set_color(png::ColorType::Rgb);
     enc.set_depth(png::BitDepth::Eight);
     enc.write_header()
@@ -72,15 +75,33 @@ fn write_png(path: &std::path::Path, rgb: &[u8]) {
         .expect("write png");
 }
 
-fn read_png(path: &std::path::Path) -> Option<Vec<u8>> {
-    let file = std::fs::File::open(path).ok()?;
-    let mut reader = png::Decoder::new(std::io::BufReader::new(file))
-        .read_info()
-        .ok()?;
-    let mut buf = vec![0; reader.output_buffer_size()?];
-    let info = reader.next_frame(&mut buf).ok()?;
+/// Decode a golden image to 8-bit RGB. `Ok(None)` if it does not exist.
+fn read_png(path: &Path) -> Result<Option<Vec<u8>>, String> {
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e.to_string()),
+    };
+    let mut decoder = png::Decoder::new(BufReader::new(file));
+    // Normalize palette and low-bit-depth images, e.g. after a PNG optimizer.
+    decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+    let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
+    let mut buf = vec![0; reader.output_buffer_size().ok_or("image too large")?];
+    let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
+    if (info.width, info.height) != (SCREEN_SIZE.width, SCREEN_SIZE.height) {
+        return Err(format!(
+            "golden image is {}×{}, expected {SCREEN_SIZE}",
+            info.width, info.height
+        ));
+    }
+    if info.color_type != png::ColorType::Rgb {
+        return Err(format!(
+            "golden image is {:?}, expected Rgb",
+            info.color_type
+        ));
+    }
     buf.truncate(info.buffer_size());
-    Some(buf)
+    Ok(Some(buf))
 }
 
 /// Compare `fb` with `tests/snapshots/<name>.png`. On a mismatch, write
@@ -91,26 +112,27 @@ pub fn assert_snapshot(name: &str, fb: &Framebuffer) {
     let actual_path = dir.join(format!("{name}.actual.png"));
     let actual = fb.to_rgb8();
 
-    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+    if std::env::var("UPDATE_SNAPSHOTS").is_ok_and(|v| v == "1") {
         write_png(&golden, &actual);
-        let _ = std::fs::remove_file(&actual_path);
+        let _ = fs::remove_file(&actual_path);
         return;
     }
 
     match read_png(&golden) {
-        Some(expected) if expected == actual => {
-            let _ = std::fs::remove_file(&actual_path);
+        Ok(Some(expected)) if expected == actual => {
+            let _ = fs::remove_file(&actual_path);
         }
-        Some(_) => {
+        Ok(Some(_)) => {
             write_png(&actual_path, &actual);
             panic!("snapshot {name} differs; see {}", actual_path.display());
         }
-        None => {
+        Ok(None) => {
             write_png(&actual_path, &actual);
             panic!(
                 "snapshot {name} missing; run UPDATE_SNAPSHOTS=1 cargo test to create {}",
                 golden.display()
             );
         }
+        Err(e) => panic!("snapshot {name}: cannot read {}: {e}", golden.display()),
     }
 }

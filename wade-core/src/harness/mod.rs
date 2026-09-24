@@ -1,17 +1,21 @@
 //! Test harness: drives `App` exactly as a platform does (docs/testing.md#harness).
 //!
-//! Behind the `harness` feature (which enables std), so both the core's tests and
+//! Behind the `harness` feature (which links std), so both the core's tests and
 //! the desktop's replay mode can use it.
 
 pub mod recording;
 
+use std::vec::Vec;
+
 use embedded_graphics::geometry::Point;
 
 use crate::app::{App, Effect, Output, Screen};
+use crate::character::Expression;
 use crate::event::{Event, TouchPhase};
 use crate::time::Instant;
 use crate::view::{BuddyView, View};
 
+#[derive(Debug)]
 pub struct Harness {
     pub app: App,
     /// Every effect emitted so far.
@@ -20,7 +24,7 @@ pub struct Harness {
 
 impl Harness {
     pub fn new(seed: u64) -> Self {
-        Harness {
+        Self {
             app: App::new(Instant::from_millis(0), seed),
             effects: Vec::new(),
         }
@@ -35,7 +39,19 @@ impl Harness {
 
     /// Deliver a Deadline event at every deadline the app requests up to and
     /// including `t`, exactly as a platform would, then deliver one at `t`.
+    ///
+    /// # Panics
+    ///
+    /// If `t` is before the app's `now`, if a requested deadline is not later
+    /// than `now`, or if the final Deadline at `t` changes discrete state. The
+    /// last means the app changed at or before `t` without requesting a deadline
+    /// for it, which a real platform would never have woken up for.
     pub fn run_until(&mut self, t: Instant) {
+        assert!(
+            t >= self.app.now(),
+            "run_until({t:?}) is before now {:?}",
+            self.app.now()
+        );
         while let Some(deadline) = self.app.next_deadline() {
             if deadline > t {
                 break;
@@ -47,7 +63,13 @@ impl Harness {
             );
             self.handle(Event::deadline(deadline));
         }
+        let before = self.discrete();
         self.handle(Event::deadline(t));
+        assert_eq!(
+            before,
+            self.discrete(),
+            "state changed at {t:?} without a requested deadline"
+        );
     }
 
     /// Run until `t`, then deliver a Down and an Up at `point`.
@@ -74,6 +96,12 @@ impl Harness {
     pub fn state_hash(&self) -> u32 {
         state_hash(&self.app)
     }
+
+    /// Discrete state that must only change at a requested deadline or an input.
+    fn discrete(&self) -> (Screen, Expression, bool) {
+        let View::Buddy(buddy) = self.app.view();
+        (self.app.screen(), buddy.expression, buddy.blinking)
+    }
 }
 
 /// A hash of discrete state only: the screen and the expression (later also the
@@ -81,10 +109,15 @@ impl Harness {
 /// not invalidate recordings (D16). FNV-1a, so it is stable across platforms.
 pub fn state_hash(app: &App) -> u32 {
     let View::Buddy(buddy) = app.view();
+    // Explicit codes, not `as u8`: reordering or inserting variants must not
+    // change the hash of existing recordings. Never renumber these.
     let screen = match app.screen() {
         Screen::Buddy => 0u8,
     };
-    let expression = buddy.expression as u8;
+    let expression = match buddy.expression {
+        Expression::Neutral => 0u8,
+        Expression::Happy => 1,
+    };
     fnv1a(&[screen, expression])
 }
 

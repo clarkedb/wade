@@ -9,6 +9,9 @@ pub use core::time::Duration;
 pub struct Instant(u64);
 
 impl Instant {
+    /// The latest representable instant. Schedules saturate here.
+    pub const MAX: Instant = Instant(u64::MAX);
+
     pub const fn from_millis(ms: u64) -> Self {
         Instant(ms)
     }
@@ -18,7 +21,8 @@ impl Instant {
     }
 
     /// Time elapsed since `earlier`, or zero if `earlier` is later.
-    pub fn saturating_since(self, earlier: Instant) -> Duration {
+    #[must_use]
+    pub const fn saturating_since(self, earlier: Instant) -> Duration {
         Duration::from_millis(self.0.saturating_sub(earlier.0))
     }
 }

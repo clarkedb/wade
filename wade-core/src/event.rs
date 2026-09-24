@@ -4,13 +4,13 @@ use embedded_graphics::geometry::Point;
 
 use crate::time::Instant;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Event {
     pub at: Instant,
     pub kind: EventKind,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EventKind {
     /// A raw touch sample in logical screen coordinates (320×240, origin top-left).
     Touch(Touch),
@@ -19,7 +19,7 @@ pub enum EventKind {
     Deadline,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Touch {
     pub phase: TouchPhase,
     pub point: Point,

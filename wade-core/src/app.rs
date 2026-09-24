@@ -59,11 +59,15 @@ impl App {
         }
     }
 
+    #[must_use = "the platform must carry out the effects and honor redraw"]
     pub fn handle(&mut self, event: Event) -> Output {
         let mut out = Output::default();
+        // Anything animating before or after this event needs a new frame.
+        out.redraw |= self.animating();
         // Clamp: events may arrive slightly out of order.
         let target = self.now.max(event.at);
         self.advance_to(target, &mut out);
+        out.redraw |= self.animating();
 
         if let EventKind::Touch(touch) = event.kind {
             let screen = self.screen;
@@ -77,27 +81,61 @@ impl App {
         out
     }
 
+    /// The earliest scheduled transition across all features.
+    fn next_transition(&self) -> Option<Instant> {
+        self.wade.next_transition()
+    }
+
+    /// True while a visible feature's pose is changing with time.
+    fn animating(&self) -> bool {
+        self.wade_visible() && self.wade.animating(self.now)
+    }
+
+    fn wade_visible(&self) -> bool {
+        self.screen == Screen::Buddy
+    }
+
     /// Advance `now` to `target`, applying every timed transition that became due
     /// along the way in chronological order across features (docs/architecture.md#events).
     fn advance_to(&mut self, target: Instant, out: &mut Output) {
-        let visible = self.screen == Screen::Buddy;
-        while let Some(t) = self.wade.next_transition(visible) {
+        let mut last = None;
+        while let Some(t) = self.next_transition() {
             if t > target {
                 break;
             }
-            self.now = t;
+            if last == Some(t) {
+                // No feature moved past `t`. Legitimate only once schedules saturate.
+                debug_assert!(t == Instant::MAX, "no feature advanced past {t:?}");
+                break;
+            }
+            debug_assert!(
+                t >= self.now,
+                "stale transition {t:?} before now {:?}",
+                self.now
+            );
+            last = Some(t);
+            self.now = self.now.max(t);
+            // Visibility is re-read each step: a transition can switch screens (M2).
             // Features are applied in a fixed order to break ties at the same instant.
-            out.redraw |= self.wade.advance(t, &mut self.rng, visible);
+            let visible = self.wade_visible();
+            out.redraw |= self.wade.advance(self.now, &mut self.rng, visible);
         }
         self.now = target;
     }
 
     /// The earliest time the core needs a `Deadline` event, or `None` if nothing
     /// will change without input. Always later than the last handled event.
+    #[must_use]
     pub fn next_deadline(&self) -> Option<Instant> {
-        self.wade
-            .next_transition(self.screen == Screen::Buddy)
-            .map(|t| t.max(self.now + Duration::from_millis(1)))
+        let frame = self.animating().then(|| self.now + FRAME);
+        let deadline = self.next_transition().into_iter().chain(frame).min()?;
+        debug_assert!(
+            deadline > self.now || self.now == Instant::MAX,
+            "deadline {deadline:?} is not after now {:?}",
+            self.now
+        );
+        // At Instant::MAX nothing can be scheduled later.
+        (deadline > self.now).then_some(deadline)
     }
 
     /// What is on screen, as plain data, as of the last handled event.
@@ -112,11 +150,11 @@ impl App {
     }
 
     /// The latest timestamp the core has seen.
-    pub fn now(&self) -> Instant {
+    pub const fn now(&self) -> Instant {
         self.now
     }
 
-    pub fn screen(&self) -> Screen {
+    pub const fn screen(&self) -> Screen {
         self.screen
     }
 }

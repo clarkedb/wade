@@ -30,6 +30,6 @@ impl Clock {
     /// Real time until the core clock reaches `t`, or zero if it already has.
     pub fn real_until(&self, t: Instant) -> Duration {
         let core = t.saturating_since(self.now());
-        core.div_f64(self.scale)
+        Duration::try_from_secs_f64(core.as_secs_f64() / self.scale).unwrap_or(Duration::MAX)
     }
 }

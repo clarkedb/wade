@@ -1,6 +1,6 @@
 //! Helpers shared by the integration tests.
 
-#![allow(dead_code)] // Each test crate uses a different subset.
+#![allow(dead_code, reason = "each test crate uses a different subset")]
 
 pub mod framebuffer;
 

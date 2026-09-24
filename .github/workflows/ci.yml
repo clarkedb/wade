@@ -9,7 +9,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded runs on branches, but let every commit on main finish.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,6 +19,7 @@ jobs:
   workspace:
     name: Workspace
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,8 +44,10 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
 
-      - name: wade-core builds without std
-        run: cargo build -p wade-core --target thumbv7em-none-eabihf --locked
+      # Clippy above only sees wade-core with std (feature unification); lint the
+      # no_std build too. This also proves wade-core builds without std.
+      - name: wade-core builds and lints without std
+        run: cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf --locked -- -D warnings
 
       - name: wade-core does not use alloc
-        run: "! grep -rn 'extern crate alloc' wade-core/src"
+        run: test -d wade-core/src && ! grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src

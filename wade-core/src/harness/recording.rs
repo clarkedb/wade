@@ -9,8 +9,12 @@
 //! ```
 //!
 //! `Deadline` events are not recorded; replay regenerates them from `next_deadline`.
+//! Parse with `text.parse::<Recording>()`; write with `Display`.
 
-use std::fmt;
+use core::fmt;
+use core::str::FromStr;
+use std::string::String;
+use std::vec::Vec;
 
 use crate::event::Touch;
 use crate::time::Instant;
@@ -19,6 +23,9 @@ use super::Harness;
 
 /// The newest header version this code writes. The parser accepts every older one.
 pub const VERSION: u32 = 1;
+
+/// File extension for recordings in `wade-core/tests/recordings/`.
+pub const EXTENSION: &str = "events";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Recording {
@@ -46,7 +53,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-impl std::error::Error for ParseError {}
+impl core::error::Error for ParseError {}
 
 /// The first entry whose recomputed hash differs from the recorded one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,25 +77,58 @@ impl fmt::Display for Mismatch {
     }
 }
 
+impl core::error::Error for Mismatch {}
+
+/// The result of running a recording: the harness in its final state, and the
+/// state hash recomputed after each entry.
+#[derive(Debug)]
+pub struct Replay {
+    pub harness: Harness,
+    pub hashes: Vec<u32>,
+}
+
 impl Recording {
-    pub fn new(seed: u64) -> Self {
-        Recording {
+    pub const fn new(seed: u64) -> Self {
+        Self {
             seed,
             entries: Vec::new(),
         }
     }
 
-    pub fn parse(_text: &str) -> Result<Recording, ParseError> {
-        todo!("M1: parse the wade-events format")
+    /// Run every entry through a fresh harness, recomputing each state hash.
+    /// Compare with [`Recording::first_mismatch`], or write the new hashes back
+    /// for `UPDATE_RECORDINGS=1`.
+    pub fn replay(&self) -> Replay {
+        todo!("M1: replay each entry with Harness::touch and collect state hashes")
     }
 
-    pub fn write(&self, _out: &mut impl fmt::Write) -> fmt::Result {
-        todo!("M1: write the wade-events format")
+    /// The first entry whose recorded hash differs from `hashes`.
+    pub fn first_mismatch(&self, hashes: &[u32]) -> Option<Mismatch> {
+        self.entries
+            .iter()
+            .zip(hashes)
+            .enumerate()
+            .find_map(|(index, (entry, &actual))| {
+                (entry.hash != actual).then_some(Mismatch {
+                    index,
+                    at: entry.at,
+                    expected: entry.hash,
+                    actual,
+                })
+            })
     }
+}
 
-    /// Run the recording through a fresh harness, checking every state hash.
-    /// Returns the harness in its final state for further assertions.
-    pub fn replay(&self) -> Result<Harness, Mismatch> {
-        todo!("M1: replay each entry with Harness::touch and compare hashes")
+impl FromStr for Recording {
+    type Err = ParseError;
+
+    fn from_str(_text: &str) -> Result<Self, ParseError> {
+        todo!("M1: parse the wade-events format, accepting every version up to VERSION")
+    }
+}
+
+impl fmt::Display for Recording {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!("M1: write the wade-events format at VERSION")
     }
 }

@@ -2,7 +2,7 @@
 
 use embedded_graphics::{
     geometry::{Point, Size},
-    primitives::{Circle, Rectangle},
+    primitives::{Circle, ContainsPoint, Rectangle},
 };
 
 /// Logical screen size: 320×240, landscape, origin top-left.
@@ -23,8 +23,8 @@ pub enum Target {
 }
 
 /// The target under `point` on the Buddy screen, if any.
+// TODO(M1): if Wade's head moves (Pose::head_offset), hit-test the drawn position.
 pub fn hit_buddy(point: Point) -> Option<Target> {
-    use embedded_graphics::primitives::ContainsPoint;
     WADE_HEAD.contains(point).then_some(Target::Wade)
 }
 

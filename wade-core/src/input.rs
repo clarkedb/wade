@@ -33,7 +33,7 @@ impl TouchTracker {
     }
 
     /// The target currently pressed, for drawing a pressed style.
-    pub fn pressed(&self) -> Option<Target> {
+    pub const fn pressed(&self) -> Option<Target> {
         self.pressed
     }
 

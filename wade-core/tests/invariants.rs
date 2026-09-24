@@ -1,11 +1,8 @@
 //! Property tests over random event sequences (docs/testing.md#invariants).
 
-mod common;
-
 use embedded_graphics::geometry::Point;
 use proptest::prelude::*;
-use wade_core::character::Expression;
-use wade_core::{App, Event, EventKind, Instant, Touch, TouchPhase, View};
+use wade_core::{App, Event, EventKind, Instant, Touch, TouchPhase};
 
 fn phase() -> impl Strategy<Value = TouchPhase> {
     prop_oneof![
@@ -26,7 +23,7 @@ fn kind() -> impl Strategy<Value = EventKind> {
     ]
 }
 
-/// Events with non-decreasing timestamps, `gap` ms apart.
+/// Events with non-decreasing timestamps, up to 3 s apart.
 fn ordered_events() -> impl Strategy<Value = Vec<Event>> {
     prop::collection::vec((0u64..3_000, kind()), 0..60).prop_map(|steps| {
         let mut t = 0;
@@ -56,15 +53,28 @@ fn wild_events() -> impl Strategy<Value = Vec<Event>> {
     })
 }
 
-/// Deliver `event` as a platform would: first every deadline the app requested before it.
+/// Deliver `event` as a punctual platform would: first every deadline the app
+/// requested before it, each exactly on time.
 fn deliver(app: &mut App, event: Event) {
     while let Some(d) = app.next_deadline() {
         if d >= event.at {
             break;
         }
-        app.handle(Event::deadline(d));
+        let _ = app.handle(Event::deadline(d));
     }
-    app.handle(event);
+    let _ = app.handle(event);
+}
+
+/// Checks `next_deadline` against the documented contract.
+fn assert_deadline_later(app: &App) -> Result<(), TestCaseError> {
+    if let Some(d) = app.next_deadline() {
+        prop_assert!(
+            d > app.now(),
+            "deadline {d:?} not after now {:?}",
+            app.now()
+        );
+    }
+    Ok(())
 }
 
 proptest! {
@@ -73,18 +83,16 @@ proptest! {
         let mut app = App::new(Instant::from_millis(0), seed);
         for event in events {
             deliver(&mut app, event);
-            if let Some(d) = app.next_deadline() {
-                prop_assert!(d > app.now(), "deadline {d:?} not after now {:?}", app.now());
-            }
+            assert_deadline_later(&app)?;
         }
     }
 
     #[test]
-    fn handle_never_panics(seed: u64, start: u64, events in wild_events()) {
+    fn handle_never_panics_and_deadlines_stay_later(seed: u64, start: u64, events in wild_events()) {
         let mut app = App::new(Instant::from_millis(start), seed);
         for event in events {
-            app.handle(event);
-            let _ = app.next_deadline();
+            let _ = app.handle(event);
+            assert_deadline_later(&app)?;
             let _ = app.view();
         }
     }
@@ -99,23 +107,40 @@ proptest! {
         let mut noisy = App::new(Instant::from_millis(0), seed);
 
         for (i, event) in events.iter().enumerate() {
-            // Insert spurious Deadline events before this one, between the previous event and it.
+            // Spurious Deadline events between the previous event and this one.
             for (idx, offset) in &extras {
-                if !events.is_empty() && idx.index(events.len()) == i {
+                if idx.index(events.len()) == i {
                     let at = Instant::from_millis(event.at.as_millis().saturating_sub(*offset)).max(noisy.now());
-                    noisy.handle(Event::deadline(at));
+                    let _ = noisy.handle(Event::deadline(at));
                 }
             }
             deliver(&mut plain, *event);
             deliver(&mut noisy, *event);
-            prop_assert_eq!(views_discrete(&plain.view()), views_discrete(&noisy.view()));
+            // The whole view, pose included: animation must depend on elapsed time only.
+            prop_assert_eq!(plain.view(), noisy.view());
         }
     }
-}
 
-/// The discrete part of a view. Poses may differ by float rounding between paths.
-fn views_discrete(view: &View) -> (Expression, bool) {
-    match view {
-        View::Buddy(b) => (b.expression, b.blinking),
+    #[test]
+    fn late_deadlines_do_not_change_the_view(
+        seed: u64,
+        events in ordered_events(),
+        punctual in prop::collection::vec(any::<bool>(), 60),
+    ) {
+        // `late` never gets requested deadlines on time before an event marked
+        // unpunctual: they are folded into the event itself, as after a stalled
+        // platform. Both must end up in the same state.
+        let mut on_time = App::new(Instant::from_millis(0), seed);
+        let mut late = App::new(Instant::from_millis(0), seed);
+
+        for (event, &punctual) in events.iter().zip(&punctual) {
+            deliver(&mut on_time, *event);
+            if punctual {
+                deliver(&mut late, *event);
+            } else {
+                let _ = late.handle(*event);
+            }
+            prop_assert_eq!(on_time.view(), late.view());
+        }
     }
 }
