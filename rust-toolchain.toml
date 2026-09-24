@@ -1,0 +1,7 @@
+# Toolchain for the root workspace (wade-core, wade-desktop). wade-cores3 has its own.
+[toolchain]
+channel = "1.98.1"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
+# Bare-metal target used to prove wade-core builds without std (see docs/testing.md#checks).
+targets = ["thumbv7em-none-eabihf"]
