@@ -8,7 +8,7 @@ Both platforms run the loop in [architecture.md](architecture.md#core-api): stam
 |---|---|
 | Window | `embedded-graphics-simulator`: a 320×240 Rgb565 display shown at 2× scale. Requires SDL2. |
 | Clock | `std::time::Instant` captured at startup; `Instant::from_millis(elapsed_ms)`. |
-| Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. The simulator's mouse events should already be in display coordinates (it undoes the window scale); confirm this in M1 and divide by the scale only if not. |
+| Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. The simulator's mouse events should already be in display coordinates (it undoes the window scale); confirm this in M1 and divide by the scale only if not. Number keys 0–9 and Z → `Key` events, which show an expression or put Wade to sleep (see [character.md](character.md#m1)). |
 | Loop | The simulator offers only non-blocking event polling. The loop polls window events, then sleeps until the next deadline or for 10 ms, whichever is sooner. This polling stays inside the desktop crate. |
 | Audio | `rodio`, synthesizing the tone sequence in `wade_core::sound::CHIME`. No audio files. |
 | Seed | OS entropy, or `--seed <n>`. |

@@ -3,7 +3,7 @@
 use embedded_graphics::geometry::Point;
 use proptest::prelude::*;
 use wade_core::app::STALL_LIMIT;
-use wade_core::{App, Event, EventKind, Instant, Touch, TouchPhase, View};
+use wade_core::{App, Digit, Event, EventKind, Instant, Key, Touch, TouchPhase, View};
 
 fn phase() -> impl Strategy<Value = TouchPhase> {
     prop_oneof![
@@ -17,10 +17,18 @@ fn point() -> impl Strategy<Value = Point> {
     (-20i32..340, -20i32..260).prop_map(|(x, y)| Point::new(x, y))
 }
 
+fn key() -> impl Strategy<Value = Key> {
+    prop_oneof![
+        (0u8..10).prop_map(|n| Key::Digit(Digit::new(n).unwrap())),
+        Just(Key::Z)
+    ]
+}
+
 fn kind() -> impl Strategy<Value = EventKind> {
     prop_oneof![
         1 => Just(EventKind::Deadline),
         3 => (phase(), point()).prop_map(|(phase, point)| EventKind::Touch(Touch { phase, point })),
+        1 => key().prop_map(EventKind::Key),
     ]
 }
 

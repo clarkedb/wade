@@ -45,9 +45,9 @@ pub struct Pose {
     pub brow_tilt: f32,           // −1.0 outer corners cut (worried) … 1.0 inner corners cut (angry)
     pub asymmetry: f32,           // −1.0 right eye shorter … 1.0 right eye taller (smug)
     pub gaze: (f32, f32),         // where both eyes look, −1.0 … 1.0 on each axis
-    pub face_offset: (f32, f32),  // whole-face offset in pixels: shaking
+    pub face_offset: (f32, f32),  // whole-face offset in pixels: shaking and breathing
     pub accent: Accent,
-    pub accent_phase: f32,        // 0.0 … 1.0 through the accent's motion
+    pub accent_phase: f32,        // 0.0 … 1.0 through the accent's motion; Zs runs to 2.0
     pub prop: Prop,
     pub prop_phase: f32,          // 0.0 … 1.0 through the prop's motion
 }
@@ -61,6 +61,7 @@ pub enum Accent {
     Steam,      // steam marks above the outer corners (Angry)
     Sparkle,    // one twinkle beside the right eye (Proud)
     SweatDrop,  // a drop slides down beside the left eye (Flustered)
+    Zs,         // Z's rise and grow (asleep)
 }
 
 pub enum Prop {
@@ -76,22 +77,24 @@ The ESP32-S3 has a single-precision FPU, so `f32` is cheap on the device. Trigon
 
 ## Expressions
 
-An expression is a named target pose.
+An expression is a named target pose, numbered for the desktop keys (see [platforms.md](platforms.md#desktop-wade-desktop)).
 
-| Expression | Used for | Pose traits | Accent |
-|---|---|---|---|
-| Neutral | Default | Rounded squares, level | |
-| Happy | Being tapped | Slightly larger; lower lids pushed up into crescents | Blush |
-| Sad | No trigger yet | Smaller and drooping, outer corners cut | Tear, every few seconds |
-| Angry | No trigger yet | Short, inner corners cut deep; a tremble | Steam, flashing |
-| Surprised | Woken suddenly (M6) | Tall and wide | Exclaim, briefly |
-| Sleepy | Long inactivity (M6) | Upper lids half down | |
-| Thinking | No trigger yet | Smaller, lids slightly down, looking up and to the side | Dots counting up |
-| Proud | Successes, repeated attention (M2, M4) | Half-lidded and smug, right eye taller, looking up and to one side | Sparkle |
-| Focused | Typing (M4) | Flattened, inner corners slightly cut, looking down | |
-| Flustered | Hubris backfire (M4) | Wide, worried, uneven | SweatDrop |
+| # | Expression | Used for | Pose traits | Accent |
+|---|---|---|---|---|
+| 0 | Neutral | Default | Rounded squares, level | |
+| 1 | Happy | Being tapped | Slightly larger; lower lids pushed up into crescents | Blush |
+| 2 | Sad | No trigger yet | Smaller and drooping, outer corners cut | Tear, every few seconds |
+| 3 | Angry | No trigger yet | Short, inner corners cut deep; a tremble | Steam, flashing |
+| 4 | Surprised | Being woken (M1), woken by an approach (M6) | Tall and wide | Exclaim, briefly |
+| 5 | Sleepy | Falling asleep | Upper lids half down | |
+| 6 | Thinking | No trigger yet | Smaller, lids slightly down, looking up and to the side | Dots counting up |
+| 7 | Proud | Successes, repeated attention (M2, M4) | Half-lidded and smug, right eye taller, looking up and to one side | Sparkle |
+| 8 | Focused | Typing (M4) | Flattened, inner corners slightly cut, looking down | |
+| 9 | Flustered | Hubris backfire (M4) | Wide, worried, uneven | SweatDrop |
 
 An expression that sets gaze holds it: glances pause until the expression ends. An expression's accent starts when the transition into it finishes, so it never appears on a half-formed face.
+
+Asleep is a state, not an expression; the expression is Sleepy. He does not blink, glance, or squint while asleep.
 
 ## Animation
 
@@ -99,18 +102,19 @@ The rendered pose is built in layers, applied in this order, each computed from 
 
 | Layer | Behavior |
 |---|---|
-| Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out: 300 ms as the eyes open at startup. |
+| Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out: 300 ms as the eyes open at startup, 1 s into sleep. |
 | Pop | On an expression change, the eyes jump 12% taller (30% into Surprised) and ease back over 400 ms. |
 | Squint | In Neutral, every 8 to 16 s, the eyes narrow by 40% and relax over 400 ms. |
+| Twitch | Asleep, 5 to 9 s after he falls asleep and then every 6 to 12 s, the eyes flutter open a crack for 300 ms. |
 | Activity (M4) | An idle activity overrides some parameters: gaze, prop, and prop phase for typing or sipping. |
 | Glance | While nothing else sets gaze, the gaze jumps every 1.2 to 4 s to a random offset (up to 1.0 across and 0.8 up or down), or back to center 40% of the time. Each jump takes 80 ms. |
-| Shake | Angry trembles by up to 2 px every 100 ms. |
-| Accent | The current accent holds (Blush), shows once (Exclaim, Sparkle, SweatDrop), or repeats (Tear, Dots, Steam). |
+| Shake | Angry trembles by up to 2 px every 100 ms. Asleep, the face breathes 5 px up and down over 6 s. |
+| Accent | The current accent holds (Blush), shows once (Exclaim, Sparkle, SweatDrop), or repeats (Tear, Dots, Steam, Zs). |
 | Blink | Closes the eyes over 50 ms and reopens them over 70 ms by scaling `eye_open`: a fast shut and a slower open read as natural. Applied last, so Wade can blink during any expression. |
 
 Blinks occur at random intervals of 2 to 6 seconds, and one in five is followed by a second 300 ms after it ends.
 
-Every layer has a fixed end, never an easing that only approaches its target, so the end of each animation is a transition (see [D18](decisions.md#d18-animations-have-fixed-ends-lasting-motion-is-stepped)). Motion that lasts moves in steps at scheduled instants, so each step costs one frame instead of a stream of them: Angry's tremble and steam, and Thinking's dots.
+Every layer has a fixed end, never an easing that only approaches its target, so the end of each animation is a transition (see [D18](decisions.md#d18-animations-have-fixed-ends-lasting-motion-is-stepped)). Motion that lasts moves in steps at scheduled instants, so each step costs one frame instead of a stream of them: Angry's tremble and steam, Thinking's dots, and sleep's breath and Z's. Asleep, a step every 150 ms costs about seven frames a second.
 
 While any motion is in progress, the character requests a deadline every frame (see [architecture.md](architecture.md#deadlines-and-frames)). When Wade is still, his only deadline is the next scheduled change, such as a blink, a step, or an expression expiring.
 
@@ -133,7 +137,10 @@ Idle activities (M4):
 | Start | Eyes open from closed over 300 ms, then Neutral |
 | Every 2 to 6 s, at random | Blink |
 | Tap on Wade | Happy for 2 s, then Neutral. Another tap restarts the 2 s. |
+| Tap on Wade while asleep | Surprised for 1 s, then Neutral |
 | Tap elsewhere on the Buddy screen | Nothing |
+| Desktop number key 0–9 | That expression, held until a tap or another key changes it |
+| Desktop Z | Asleep, until a tap or a number key |
 
 ### M2 adds
 

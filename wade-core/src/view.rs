@@ -11,6 +11,8 @@ pub enum View {
 pub struct BuddyView {
     /// The discrete expression, for behavior tests and the state hash.
     pub expression: Expression,
+    /// True while Wade is asleep, which the expression alone does not show.
+    pub asleep: bool,
     /// True while a blink is in progress.
     pub blinking: bool,
     /// The continuous pose that drawing reads. Behavior tests do not compare it.

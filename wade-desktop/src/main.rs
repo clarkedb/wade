@@ -11,9 +11,10 @@ use std::time::Duration;
 use clap::Parser;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics_simulator::{
-    OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window, sdl2::MouseButton,
+    OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
+    sdl2::{Keycode, MouseButton},
 };
-use wade_core::{App, Event, TouchPhase, layout, render};
+use wade_core::{App, Digit, Event, Key, TouchPhase, layout, render};
 
 use clock::Clock;
 
@@ -62,6 +63,7 @@ fn main() {
         .seed
         .unwrap_or_else(|| getrandom::u64().expect("OS entropy"));
     eprintln!("seed {seed}");
+    eprintln!("keys: 0–9 show an expression, z sleeps; click Wade to tap him");
 
     let clock = Clock::new(args.time_scale);
     let mut app = App::new(clock.now(), seed);
@@ -80,31 +82,36 @@ fn main() {
         let mut redraw = false;
 
         for sim_event in window.events() {
+            let now = clock.now();
             // The simulator reports points in display coordinates (it undoes the scale).
-            let touch = match sim_event {
+            let event = match sim_event {
                 SimulatorEvent::Quit => return,
+                SimulatorEvent::KeyDown {
+                    keycode,
+                    repeat: false,
+                    ..
+                } => key(keycode).map(|key| Event::key(now, key)),
                 SimulatorEvent::MouseButtonDown {
                     mouse_btn: MouseButton::Left,
                     point,
                 } => {
                     mouse_down = true;
-                    Some((TouchPhase::Down, point))
+                    Some(Event::touch(now, TouchPhase::Down, point))
                 }
                 SimulatorEvent::MouseMove { point } if mouse_down => {
-                    Some((TouchPhase::Move, point))
+                    Some(Event::touch(now, TouchPhase::Move, point))
                 }
                 SimulatorEvent::MouseButtonUp {
                     mouse_btn: MouseButton::Left,
                     point,
                 } if mouse_down => {
                     mouse_down = false;
-                    Some((TouchPhase::Up, point))
+                    Some(Event::touch(now, TouchPhase::Up, point))
                 }
                 _ => None,
             };
-            if let Some((phase, point)) = touch {
-                let output = app.handle(Event::touch(clock.now(), phase, point));
-                redraw |= output.redraw;
+            if let Some(event) = event {
+                redraw |= app.handle(event).redraw;
             }
         }
 
@@ -124,4 +131,23 @@ fn main() {
             .map_or(POLL_INTERVAL, |d| clock.real_until(d).min(POLL_INTERVAL));
         std::thread::sleep(sleep);
     }
+}
+
+/// The core key for a keyboard key, if it has one.
+fn key(keycode: Keycode) -> Option<Key> {
+    let n = match keycode {
+        Keycode::Z => return Some(Key::Z),
+        Keycode::NUM_0 => 0,
+        Keycode::NUM_1 => 1,
+        Keycode::NUM_2 => 2,
+        Keycode::NUM_3 => 3,
+        Keycode::NUM_4 => 4,
+        Keycode::NUM_5 => 5,
+        Keycode::NUM_6 => 6,
+        Keycode::NUM_7 => 7,
+        Keycode::NUM_8 => 8,
+        Keycode::NUM_9 => 9,
+        _ => return None,
+    };
+    Digit::new(n).map(Key::Digit)
 }

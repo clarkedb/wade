@@ -2,7 +2,7 @@
 
 | Milestone | Target | Summary | Requires |
 |---|---|---|---|
-| [M1 Desktop skeleton](#m1-desktop-skeleton) | Desktop | Core types, Wade's eyes with every expression, test harness, record and replay | Nothing |
+| [M1 Desktop skeleton](#m1-desktop-skeleton) | Desktop | Core types, Wade's eyes with every expression and sleep, test harness, record and replay | Nothing |
 | [M2 Timer](#m2-timer) | Desktop | Timer screen, navigation, chime | M1 |
 | [Hardware spike](#hardware-spike) | Device | Throwaway firmware proving display, touch, audio, and timing | The device |
 | [M3 Device port](#m3-device-port) | Device | `wade-cores3` runs everything from M2 | M2, spike |
@@ -21,8 +21,8 @@ Scope:
 |---|---|
 | Workspace | `wade-core` and `wade-desktop` crates; `wade-cores3` excluded (see [architecture.md](architecture.md#crates)) |
 | Core | `Instant`, `Event`, `App`, `Output`, `View`, `render::draw`, `TouchTracker` (taps), `layout`, seeded PRNG |
-| Wade | Eyes on the pose rig; every expression; the animation layers; M1 behavior rules from [character.md](character.md#m1) |
-| Desktop | Window, mouse-to-touch mapping, deadline-driven loop, `--seed`, `--record`, `--replay`, `--time-scale` |
+| Wade | Eyes on the pose rig; every expression and sleep; the animation layers; M1 behavior rules from [character.md](character.md#m1) |
+| Desktop | Window, mouse-to-touch mapping, number keys and Z, deadline-driven loop, `--seed`, `--record`, `--replay`, `--time-scale` |
 | Tests | Harness; behavior, invariant, and snapshot tests; the `no_std` and no-`alloc` checks; recordings with state hashes |
 | CI | GitHub Actions workspace job (see [testing.md](testing.md#ci)) |
 
@@ -38,15 +38,17 @@ Behavior tests:
 | Tap outside Wade | No change |
 | Touch down on Wade, move off, lift | No tap, no change |
 | Blinking | With a fixed seed, a blink starts within 6 s of startup and lasts 120 ms |
-| Blink rhythm | Blinks are 2 to 6 s apart, or doubled 300 ms after one ends |
-| Still | No frame requests while nothing moves |
+| Blink rhythm | Blinks are 2 to 6 s apart, or doubled 300 ms after one ends; none while asleep |
+| Number key | That expression, held until a tap or another key |
+| Z, then a tap | Asleep; then Surprised for 1 s, then Neutral |
+| Still | No frame requests while nothing moves; asleep, steps instead of frames |
 
 Done when:
 
 | # | Criterion |
 |---|---|
 | 1 | All [checks](testing.md#checks) pass |
-| 2 | `cargo run -p wade-desktop` shows Wade, who blinks every 2 to 6 s, is Happy for 2 s when clicked |
+| 2 | `cargo run -p wade-desktop` shows Wade, who blinks every 2 to 6 s, is Happy for 2 s when clicked, and shows each expression on keys 0–9 |
 | 3 | The desktop process uses negligible CPU while Wade is still |
 | 4 | A session recorded with `--record` replays with `--replay` with every state hash matching |
 | 5 | CI runs the checks on every push |

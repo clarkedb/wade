@@ -11,7 +11,7 @@ use embedded_graphics::geometry::Point;
 
 use crate::app::{App, Effect, Output, Screen};
 use crate::character::Expression;
-use crate::event::{Event, TouchPhase};
+use crate::event::{Event, Key, TouchPhase};
 use crate::time::Instant;
 use crate::view::{BuddyView, View};
 
@@ -80,6 +80,12 @@ impl Harness {
         self.handle(Event::touch(t, TouchPhase::Up, point));
     }
 
+    /// Run until `t`, then deliver a key press.
+    pub fn key(&mut self, t: Instant, key: Key) {
+        self.run_until(t);
+        self.handle(Event::key(t, key));
+    }
+
     /// Run until `t`, then deliver one raw touch sample.
     pub fn touch(&mut self, t: Instant, phase: TouchPhase, point: Point) {
         self.run_until(t);
@@ -105,6 +111,7 @@ impl Harness {
         Discrete {
             screen: self.app.screen(),
             expression: buddy.expression,
+            asleep: buddy.asleep,
             blinking: buddy.blinking,
         }
     }
@@ -115,12 +122,14 @@ impl Harness {
 struct Discrete {
     screen: Screen,
     expression: Expression,
+    asleep: bool,
     blinking: bool,
 }
 
-/// A hash of discrete state only: the screen and the expression (later also the
-/// activity and the timer). Excludes `Pose` and pixels, so tuning animation does
-/// not invalidate recordings (D16). FNV-1a, so it is stable across platforms.
+/// A hash of discrete state only: the screen, the expression, and whether Wade
+/// is asleep (later also the activity and the timer). Excludes `Pose` and
+/// pixels, so tuning animation does not invalidate recordings (D16). FNV-1a, so
+/// it is stable across platforms.
 #[must_use]
 pub fn state_hash(app: &App) -> u32 {
     let View::Buddy(buddy) = app.view();
@@ -141,7 +150,7 @@ pub fn state_hash(app: &App) -> u32 {
         Expression::Focused => 8,
         Expression::Flustered => 9,
     };
-    fnv1a(&[screen, expression])
+    fnv1a(&[screen, expression, u8::from(buddy.asleep)])
 }
 
 fn fnv1a(bytes: &[u8]) -> u32 {

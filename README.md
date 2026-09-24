@@ -31,7 +31,7 @@ export LIBRARY_PATH="$LIBRARY_PATH:$(brew --prefix)/lib"
 cargo run -p wade-desktop -- --seed 42
 ```
 
-Flags: `--seed <n>`, `--time-scale <x>`. `--record <file>` and `--replay <file>` are accepted but not implemented yet (M1).
+Click Wade to tap him; number keys 0–9 show each expression and Z puts him to sleep. Flags: `--seed <n>`, `--time-scale <x>`. `--record <file>` and `--replay <file>` are accepted but not implemented yet (M1).
 
 ## Checks
 

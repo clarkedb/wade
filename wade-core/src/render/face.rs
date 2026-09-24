@@ -6,7 +6,7 @@ use core::f32::consts::PI;
 use embedded_graphics::{
     pixelcolor::Rgb565,
     prelude::*,
-    primitives::{Circle, Line, PrimitiveStyle, Rectangle, RoundedRectangle, Triangle},
+    primitives::{Circle, Line, Polyline, PrimitiveStyle, Rectangle, RoundedRectangle, Triangle},
 };
 
 use crate::character::{Accent, Pose};
@@ -25,7 +25,7 @@ const ASYMMETRY: f32 = 0.25;
 const MIN_EYE_HEIGHT: f32 = 4.0;
 /// Minimum line width (docs/character.md#appearance).
 const LINE: u32 = 3;
-/// Steam.
+/// Steam, and the largest Z.
 const THICK_LINE: u32 = 4;
 /// The "!": its bar's top-left corner, size, and corner radius, and its dot's center.
 const EXCLAIM_BAR: (f32, f32, f32, f32) = (287.0, 12.0, 10.0, 28.0);
@@ -34,6 +34,8 @@ const EXCLAIM_DOT: (f32, f32) = (292.0, 50.0);
 /// Thinking's dots: the center of each, in the order they appear.
 const DOTS: [(f32, f32); 3] = [(255.0, 22.0), (275.0, 22.0), (295.0, 22.0)];
 const DOT_DIAMETER: u32 = 12;
+/// Where each Z starts rising, at its top-left corner.
+const Z_START: (f32, f32) = (240.0, 88.0);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Side {
@@ -231,6 +233,14 @@ where
                 .draw(target)
         }
         Accent::SweatDrop => water_drop(outer_left - 16.0, face.top + 16.0 + 36.0 * phase, target),
+        Accent::Zs => {
+            let newest = phase - libm::floorf(phase);
+            draw_z(newest / 2.0, target)?;
+            if phase >= 1.0 {
+                draw_z(f32::midpoint(newest, 1.0), target)?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -250,6 +260,33 @@ where
     Circle::with_center(point(x, y), 12)
         .into_styled(fill)
         .draw(target)
+}
+
+/// One Z, `age` 0.0 … 1.0 through its rise: it drifts up and right, grows, and
+/// flickers out.
+fn draw_z<D>(age: f32, target: &mut D) -> Result<(), D::Error>
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    if age > 0.8 && px(age * 20.0) % 2 == 1 {
+        return Ok(());
+    }
+    let (x, y) = (Z_START.0 + 45.0 * age, Z_START.1 - 66.0 * age);
+    let (w, h, width) = if age < 1.0 / 3.0 {
+        (14.0, 18.0, LINE)
+    } else if age < 2.0 / 3.0 {
+        (18.0, 24.0, LINE)
+    } else {
+        (22.0, 30.0, THICK_LINE)
+    };
+    Polyline::new(&[
+        point(x, y),
+        point(x + w, y),
+        point(x, y + h),
+        point(x + w, y + h),
+    ])
+    .into_styled(PrimitiveStyle::with_stroke(palette::EYE, width))
+    .draw(target)
 }
 
 /// The nearest whole pixel.

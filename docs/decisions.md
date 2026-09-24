@@ -127,3 +127,9 @@ Rejected: replaying every transition, which is unbounded for arbitrary timestamp
 Reason: recordings hash behavior, not motion (D16). If both drew from one stream, tuning how often Wade glances would shift every later behavior draw, such as which idle activity starts, and invalidate every recording. Motion's stream is the seed mixed with a constant, so it never touches behavior's.
 
 Rejected: one shared stream, which ties behavior to animation tuning; drawing motion from a hash of the time, which cannot express random intervals drawn in order.
+
+## D22. Desktop keys are core events
+
+Reason: showing any expression or sleep on demand is how looks are reviewed on desktop. As `Key` events, key presses take the same path as touches: they are recorded, replayed, and covered by the invariant tests. They are raw, like touches (D5); the core decides what each key does.
+
+Rejected: a desktop-only call into Wade, which bypasses recordings; a command event such as "show Angry", which puts interpretation in the platform.
