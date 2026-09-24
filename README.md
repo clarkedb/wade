@@ -1,5 +1,7 @@
 # wade
 
+[![CI](https://github.com/clarkedb/wade/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/clarkedb/wade/actions/workflows/ci.yml)
+
 my desk buddy
 
 Wade is an animated desk companion for the M5Stack CoreS3 Lite, developed and tested on desktop first. Design docs live in [docs/](docs/README.md); the plan is in [docs/roadmap.md](docs/roadmap.md).
