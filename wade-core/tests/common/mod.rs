@@ -6,6 +6,7 @@ pub mod framebuffer;
 
 use embedded_graphics::geometry::Point;
 use wade_core::layout;
+use wade_core::timer::TimerButton;
 use wade_core::{Digit, Instant, Key};
 
 /// The fixed seed for behavior tests.
@@ -31,4 +32,14 @@ pub fn apps() -> Point {
 /// The middle of the back button on app screens.
 pub fn back() -> Point {
     layout::BACK.center()
+}
+
+/// The middle of `button` in the timer's row. Each button has one slot.
+pub fn button(button: TimerButton) -> Point {
+    let slot = match button {
+        TimerButton::Minus | TimerButton::Reset => 0,
+        TimerButton::Start | TimerButton::Pause | TimerButton::Resume | TimerButton::Dismiss => 1,
+        TimerButton::Plus => 2,
+    };
+    layout::TIMER_ROW[slot].center()
 }

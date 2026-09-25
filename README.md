@@ -35,7 +35,7 @@ export LIBRARY_PATH="$LIBRARY_PATH:$(brew --prefix)/lib"
 cargo run -p wade-desktop -- --seed 42
 ```
 
-Click Wade to tap him; number keys 0–9 show each expression, Z puts him to sleep, and P switches between pupils and plain eyes. Flags: `--seed <n>`, `--time-scale <x>`. `--record <file>` and `--replay <file>` are accepted but not implemented yet (M1).
+Click Wade to tap him, or the bottom-right corner to open the timer; number keys 0–9 show each expression, Z puts him to sleep, and P switches between pupils and plain eyes. Flags: `--seed <n>`, `--time-scale <x>` (`10` finishes a 5:00 timer in 30 s), `--record <file>`, and `--replay <file>`.
 
 ## Checks
 

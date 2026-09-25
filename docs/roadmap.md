@@ -55,7 +55,7 @@ Done when:
 
 ## M2 Timer
 
-Scope: the `Screen` enum, the apps button, the timer state machine and screen as specified in [ui.md](ui.md#timer), seven-segment digits, pressed button styles, `Effect::Chime` with the tone sequence in `wade_core::sound`, desktop audio through `rodio`, and Wade's Proud reaction after a dismissed timer.
+Scope: the `Screen` enum, the apps button, the timer state machine and screen as specified in [ui.md](ui.md#timer), seven-segment digits, pressed button styles, `Effect::Chime` with the tone sequence in `wade_core::sound`, desktop audio through `rodio`, and Wade's reaction after a dismissed timer: Proud, or groggy if the chime woke him.
 
 Behavior tests:
 
@@ -76,6 +76,7 @@ Behavior tests:
 | Bounds | −1m does nothing at 1:00; +1m does nothing at 99:00 |
 | Dismiss | Ready with the same `set`; screen returns to Buddy; Wade is Proud for 2 s |
 | Back while Done | Same as Dismiss |
+| Timer wakes Wade | Asleep when the timer finishes: the chime wakes him, Sleepy. After Dismiss he stays Sleepy for 3 s instead of Proud, then a coin flip returns him to Neutral or puts him back to sleep, each for about half of seeds |
 
 Snapshots: the Timer screen in each state, and each button pressed.
 

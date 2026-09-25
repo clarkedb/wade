@@ -13,6 +13,7 @@ use crate::app::{App, Effect, Output, Screen};
 use crate::character::Expression;
 use crate::event::{Event, Key, TouchPhase};
 use crate::time::Instant;
+use crate::timer::TimerPhase;
 use crate::view::{BuddyView, EyeStyle, TimerView, View};
 
 #[derive(Debug)]
@@ -118,6 +119,12 @@ impl Harness {
         }
     }
 
+    /// True while Wade is asleep, on any screen.
+    #[must_use]
+    pub fn wade_asleep(&self) -> bool {
+        self.app.wade().asleep()
+    }
+
     /// Hash of the app's discrete state; see [`state_hash`].
     #[must_use]
     pub fn state_hash(&self) -> u32 {
@@ -151,9 +158,10 @@ enum Discrete {
 }
 
 /// A hash of discrete state only: the screen, Wade's expression and sleep
-/// state (on every screen), and eye style (later also the activity). Excludes
-/// `Pose` and pixels, so tuning animation does not invalidate recordings (D16,
-/// D24). FNV-1a is stable across platforms.
+/// state (on every screen), eye style, and the timer's state, duration, and
+/// digits (later also the activity). Excludes `Pose` and pixels, so tuning
+/// animation does not invalidate recordings (D16, D24). FNV-1a is stable
+/// across platforms.
 #[must_use]
 pub fn state_hash(app: &App) -> u32 {
     let wade = app.wade();
@@ -179,7 +187,25 @@ pub fn state_hash(app: &App) -> u32 {
         EyeStyle::Pupils => 0,
         EyeStyle::Plain => 1,
     };
-    fnv1a(&[screen, expression, u8::from(wade.asleep()), eye_style])
+    let timer = app.timer_state();
+    let phase = match timer.phase() {
+        TimerPhase::Ready => 0,
+        TimerPhase::Running => 1,
+        TimerPhase::Paused => 2,
+        TimerPhase::Done => 3,
+    };
+    let set = u8::try_from(timer.duration().as_secs() / 60).unwrap_or(u8::MAX);
+    let digits = timer.digits(app.now());
+    fnv1a(&[
+        screen,
+        expression,
+        u8::from(wade.asleep()),
+        eye_style,
+        phase,
+        set,
+        digits.minutes(),
+        digits.seconds(),
+    ])
 }
 
 fn fnv1a(bytes: &[u8]) -> u32 {

@@ -2,7 +2,9 @@
 
 use core::fmt;
 
+use crate::layout::Target;
 use crate::time::{Duration, Instant, millis};
+use crate::view::TimerView;
 
 /// The shortest duration that can be set.
 pub const MIN_SET: Duration = Duration::from_mins(1);
@@ -250,6 +252,17 @@ impl TimerState {
         };
         *self = next;
         true
+    }
+
+    /// The Timer screen at `now`, with `pressed` held down.
+    #[must_use]
+    pub fn view(&self, now: Instant, pressed: Option<Target>) -> TimerView {
+        TimerView {
+            phase: self.phase(),
+            digits: self.digits(now),
+            row: self.row(),
+            pressed,
+        }
     }
 }
 
