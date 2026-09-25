@@ -93,6 +93,7 @@ Behavior tests assert on discrete values such as the screen, the expression, and
 | `handle` never panics, including for timestamps that go backwards or near `u64::MAX` | Timestamps from different tasks can arrive slightly out of order. |
 | Each timer completion emits between 1 and 10 `Chime` effects (none with the chime off), the first at `ends_at`, repeats exactly 2 s apart, none after Dismiss | Duplicate, missing, or runaway chimes are easy to introduce when deadlines arrive late. |
 | A tap is never delivered to a screen other than the one its `Down` landed on | Screens can change mid-touch when the timer finishes. |
+| No `SaveSettings` repeats the settings last saved, and once input stops for 2 s the last saved settings are the current ones | A change left unsaved is lost at the next restart, and a needless save wears flash. |
 | From M3, if `render::damage` exists: every pixel that differs between drawing `prev` and `next` lies inside `damage(prev, next)` | A too-small rectangle leaves stale pixels on the device, which desktop never shows. |
 
 These are property tests: `proptest` generates random event sequences, from random starting settings, and checks each invariant.

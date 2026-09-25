@@ -20,6 +20,10 @@ pub const STALL_LIMIT: Duration = Duration::from_hours(1);
 /// Maximum effects per `Output`; extras are dropped, never a panic (D17).
 pub const MAX_EFFECTS: usize = 4;
 
+/// Settings are saved once they have stopped changing for this long, so
+/// stepping through several values writes storage once.
+pub const SAVE_DELAY: Duration = Duration::from_secs(2);
+
 /// For this long after the timer finishes, new touches are ignored: they were
 /// aimed at what the screen showed before, and could otherwise dismiss a timer
 /// its user never saw finish.
@@ -32,6 +36,10 @@ pub enum Effect {
     /// [`crate::sound::CHIME`]. Emitted when the timer finishes and repeated
     /// while it stays Done, unless the chime setting is off (docs/ui.md#rules).
     Chime,
+    /// Store these settings, for `App::new` at the next start. Emitted once
+    /// they stop changing, or on leaving the Settings screen, and only when
+    /// they differ from the last saved.
+    SaveSettings(Settings),
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -66,6 +74,10 @@ pub struct App {
     /// Touches that start before this are ignored (see `TOUCH_GUARD`).
     touch_guard_until: Instant,
     settings: Settings,
+    /// The settings as last loaded or saved.
+    saved: Settings,
+    /// When to save the settings: `SAVE_DELAY` after the last change.
+    save_at: Option<Instant>,
 }
 
 impl App {
@@ -84,6 +96,8 @@ impl App {
             touch: TouchTracker::new(),
             touch_guard_until: now,
             settings,
+            saved: settings,
+            save_at: None,
         }
     }
 
@@ -141,7 +155,7 @@ impl App {
                 }
             }
             Some(Target::Settings(button)) => {
-                self.settings = self.settings.toggled(button);
+                self.change_settings(self.settings.toggled(button));
                 out.redraw = true;
             }
             None => {}
@@ -165,10 +179,20 @@ impl App {
         self.switch_to(Screen::Buddy, out);
     }
 
+    /// Apply `settings` at once. Unless that returns them to the last saved,
+    /// they are saved once they stop changing.
+    fn change_settings(&mut self, settings: Settings) {
+        if settings == self.settings {
+            return;
+        }
+        self.settings = settings;
+        self.save_at = (settings != self.saved).then(|| self.now + SAVE_DELAY);
+    }
+
     /// Store the timer's duration in the settings, so it survives a restart.
     fn remember_duration(&mut self) {
         if let Some(settings) = self.settings.with_timer(self.timer.duration()) {
-            self.settings = settings;
+            self.change_settings(settings);
         }
     }
 
@@ -179,7 +203,7 @@ impl App {
                 .show(Expression::ALL[usize::from(digit.get())], self.now),
             Key::Z => self.wade.sleep(self.now),
             Key::P => {
-                self.settings = self.settings.toggled(SettingsButton::EyeStyle);
+                self.change_settings(self.settings.toggled(SettingsButton::EyeStyle));
                 true
             }
         }
@@ -203,9 +227,31 @@ impl App {
     /// `Up` cannot land on the new screen (docs/ui.md#touch-handling). The
     /// timer finishing does this even when the Timer screen is already shown.
     fn switch_to(&mut self, screen: Screen, out: &mut Output) {
+        // Leaving the Settings screen saves at once.
+        if self.screen == Screen::Settings && screen != Screen::Settings && self.save_at.is_some() {
+            self.save(out);
+        }
         self.screen = screen;
         self.touch.cancel();
         out.redraw = true;
+    }
+
+    /// Save the settings if they changed since they were last saved. With no
+    /// room left for the effect, try again a frame later.
+    fn save(&mut self, out: &mut Output) {
+        self.save_at = None;
+        if self.settings == self.saved {
+            return;
+        }
+        if out
+            .effects
+            .push(Effect::SaveSettings(self.settings))
+            .is_ok()
+        {
+            self.saved = self.settings;
+        } else {
+            self.save_at = Some(self.now + FRAME);
+        }
     }
 
     /// The button under a touch in progress, drawn pressed. Wade has no pressed look.
@@ -221,7 +267,10 @@ impl App {
         let wade = include_wade
             .then(|| self.wade.next_transition(self.wade_visible()))
             .flatten();
-        self.timer.next_transition().into_iter().chain(wade).min()
+        [self.timer.next_transition(), self.save_at, wade]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
     /// True while a visible feature's pose is changing with time.
@@ -276,6 +325,9 @@ impl App {
                 let visible = self.wade_visible();
                 out.redraw |= self.wade.advance(self.now, visible);
             }
+            if self.save_at.is_some_and(|t| t <= self.now) {
+                self.save(out);
+            }
         }
         if stalled {
             self.wade.fast_forward(target);
@@ -285,9 +337,9 @@ impl App {
         self.wade.catch_up(target);
     }
 
-    /// The earliest time the core needs a `Deadline` event, or `None` if nothing
-    /// visible will change without input. Always later than the last handled
-    /// event.
+    /// The earliest time the core needs a `Deadline` event, or `None` if
+    /// nothing visible will change without input and no save is pending.
+    /// Always later than the last handled event.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Instant> {
         // Hidden, Wade requests nothing: his schedule catches up at the next
@@ -300,10 +352,16 @@ impl App {
             .then(|| self.timer.next_tick(self.now))
             .flatten();
         let frame = self.animating().then(|| self.now + FRAME);
-        let deadline = [wade, self.timer.next_transition(), tick, frame]
-            .into_iter()
-            .flatten()
-            .min()?;
+        let deadline = [
+            wade,
+            self.timer.next_transition(),
+            self.save_at,
+            tick,
+            frame,
+        ]
+        .into_iter()
+        .flatten()
+        .min()?;
         debug_assert!(
             deadline > self.now || self.now == Instant::MAX,
             "deadline {deadline:?} is not after now {:?}",

@@ -13,7 +13,7 @@ use wade_core::layout::{Target, Tile, WADE_CENTER, WADE_FACE};
 use wade_core::timer::{
     CHIME_INTERVAL, DEFAULT_SET, Digits, MAX_SET, MIN_SET, TimerButton, TimerPhase, TimerState,
 };
-use wade_core::{Effect, Event, Instant, Key, TouchPhase};
+use wade_core::{Effect, Event, Instant, Key, Settings, TouchPhase};
 
 /// Open the Timer screen at `t` ms and shorten the timer to 1:00, finishing by `t + 500`.
 fn set_one_minute(h: &mut Harness, t: u64) {
@@ -215,8 +215,10 @@ fn holding_back_as_the_timer_finishes_does_not_dismiss_it() {
 
 #[test]
 fn hidden_wade_adds_no_deadlines_or_redraws_to_a_running_timer() {
-    let mut h = Harness::new(SEED);
-    set_one_minute(&mut h, 1_000);
+    // Starting at 1:00, so no save of a new duration is pending.
+    let one_minute = Settings::DEFAULT.with_timer(MIN_SET).expect("1 minute");
+    let mut h = Harness::with_settings(SEED, one_minute);
+    open(&mut h, ms(1_000), Tile::Timer);
     h.tap(ms(2_000), button(TimerButton::Start));
     let mut ticks = 0;
     while let Some(d) = h.app.next_deadline().filter(|&d| d < ENDS_AT) {

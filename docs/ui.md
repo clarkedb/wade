@@ -148,7 +148,7 @@ Each button is its icon alone, and the title is a stopwatch ([D26](decisions.md#
 └──────────────────────────────────────────┘
 ```
 
-Three toggles the size of the Launcher's tiles, 20 px apart across the middle. Each shows its setting's current value, at twice the size of a button's icon. Every change applies at once.
+Three toggles the size of the Launcher's tiles, 20 px apart across the middle. Each shows its setting's current value, at twice the size of a button's icon. Every change applies at once, and is saved 2 s after the last one or on leaving the screen ([M5](roadmap.md#m5-settings)).
 
 | Toggle | Shows | Effect |
 |---|---|---|
