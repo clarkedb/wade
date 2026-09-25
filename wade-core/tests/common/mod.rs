@@ -5,6 +5,7 @@
 pub mod framebuffer;
 
 use embedded_graphics::geometry::Point;
+use wade_core::layout;
 use wade_core::{Digit, Instant, Key};
 
 /// The fixed seed for behavior tests.
@@ -20,4 +21,14 @@ pub const OUTSIDE_WADE: Point = Point::new(10, 10);
 /// The number key `n`, 0–9.
 pub fn digit(n: u8) -> Key {
     Key::Digit(Digit::new(n).expect("a digit is 0–9"))
+}
+
+/// The middle of the apps button on the Buddy screen.
+pub fn apps() -> Point {
+    layout::APPS.center()
+}
+
+/// The middle of the back button on app screens.
+pub fn back() -> Point {
+    layout::BACK.center()
 }

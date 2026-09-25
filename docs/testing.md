@@ -85,7 +85,7 @@ Behavior tests assert on discrete values such as the screen, the expression, and
 
 | Invariant | Why |
 |---|---|
-| Inserting extra `Deadline` events anywhere in a sequence, or delivering requested ones late by up to `STALL_LIMIT` ([D20](decisions.md#d20-a-gap-over-an-hour-restarts-wades-idle-schedule)), does not change the view at any of the original events | Platforms may wake late or spuriously. Behavior must depend on elapsed time only. |
+| Inserting extra `Deadline` events anywhere in a sequence, or delivering requested ones late by up to `STALL_LIMIT` ([D20](decisions.md#d20-a-gap-over-an-hour-restarts-wades-idle-schedule)), does not change the view at any of the original events. One exception: a gap longer than `STALL_LIMIT` with nothing requested, possible only while Wade is hidden, may change his motion after it, never discrete state ([D25](decisions.md#d25-hidden-features-request-no-deadlines)). | Platforms may wake late or spuriously. Behavior must depend on elapsed time only. |
 | `next_deadline()` is `None` or strictly later than the last handled event | A deadline in the past or present would make the platform loop spin. |
 | `handle` never panics, including for timestamps that go backwards or near `u64::MAX` | Timestamps from different tasks can arrive slightly out of order. |
 | Each timer completion emits between 1 and 10 `Chime` effects, the first at `ends_at`, repeats exactly 10 s apart, none after Dismiss | Duplicate, missing, or runaway chimes are easy to introduce when deadlines arrive late. |
@@ -98,7 +98,7 @@ These are property tests: `proptest` generates random event sequences and checks
 
 A snapshot test builds a `View`, draws it into an in-memory 320×240 test framebuffer, and compares the result with `wade-core/tests/snapshots/<name>.png`. On a mismatch, the test writes `<name>.actual.png` next to the golden image and fails. Running `UPDATE_SNAPSHOTS=1 cargo test` rewrites the golden images, and the diff is reviewed in version control.
 
-Snapshot cases include each expression at rest with its accent, and a glance, in both eye styles; Wade asleep, mid-blink, at startup, and once awake; and each timer state. Golden images are generated on desktop.
+Snapshot cases include each expression at rest with its accent, and a glance, in both eye styles, and Wade asleep and mid-blink; these draw his face alone. Whole-screen cases cover Buddy at startup, once awake, and with the apps button pressed, and each timer state. Golden images are generated on desktop.
 
 ## Recording and replay
 
@@ -116,7 +116,7 @@ seed 8127364512
 
 Each line after the header is a timestamp in milliseconds, then either a touch phase (`down`, `move`, or `up`) with x and y in display coordinates or `key` with the key (`0`–`9`, `z`, or `p`), then a state hash. The parser and writer live behind the `harness` feature.
 
-The state hash is taken after the event is handled. It covers the screen, expression, sleep state, and eye style; later milestones add activity, timer state, and timer digits. Including eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover those. Replay recomputes the hash after each event and reports the first mismatch with its timestamp. This is how "replays identically" is checked.
+The state hash is taken after the event is handled. It covers the screen, Wade's expression and sleep state (on every screen), and eye style; later milestones add activity, timer state, and timer digits. Including eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover those. Replay recomputes the hash after each event and reports the first mismatch with its timestamp. This is how "replays identically" is checked.
 
 Recordings will need more input kinds as milestones add events: loaded settings (M5), power and proximity (M6), weather updates (M7). Each addition bumps the header version (`wade-events 2`, …). The parser accepts every older version, so existing recordings keep working.
 

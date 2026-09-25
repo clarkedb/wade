@@ -39,7 +39,7 @@ From M5, the apps button opens the Launcher. Back from an app returns to the Lau
 
 The platform sends raw `Down`, `Move`, and `Up` samples. The core's `TouchTracker` turns them into taps.
 
-A tap targets the element under the `Down` point. The element shows a pressed style while the touch stays inside it. The tap fires on `Up` if the `Up` point is still inside the same element; moving outside cancels it. There is no time limit, so no deadline is involved.
+A tap targets the element under the `Down` point. A button shows a pressed style, its colors inverted, while the touch stays inside it. The tap fires on `Up` if the `Up` point is still inside the same element; moving outside cancels it. There is no time limit, so no deadline is involved.
 
 A screen change cancels any tap in progress. If the core switches screens while a finger is down (the timer finishing, for example), the rest of that touch is ignored until the next `Down`. Otherwise the `Up` would land on an element of the new screen that the user never pressed. Long-press and swipe gestures are not used until a feature needs them.
 
@@ -47,7 +47,7 @@ A screen change cancels any tap in progress. If the core switches screens while 
 
 All geometry (element rectangles, Wade's hit area, button positions) is defined once in `wade_core::layout` and used by both drawing and hit-testing, so what you see is always what you can tap.
 
-The four 48×48 corners are reserved for navigation on every screen: back top-left, apps bottom-right, and the other two kept free. Nothing else takes touches there, Wade included.
+The four 48×48 corners are reserved for navigation on every screen: back top-left, apps bottom-right, and the other two kept free of touch targets. Nothing else takes touches there, Wade included.
 
 ## Buddy screen
 
@@ -100,24 +100,23 @@ pub enum TimerState {
 
 ```text
 ┌──────────────────────────────────────────┐
-│ ‹                                  Timer │  y 0–48: back button (48×48), title
-│                                          │
-│                  05:00                   │  y 48–176: digits, 64 px tall
-│                                          │
-│    −1m          Start          +1m       │  y 176–232: buttons, 56 px tall
+│ ‹                              stopwatch │  y 0–48: back button (48×48), title icon
+│                  05:00                   │  y 48–136: digits, 64 px tall
+│     −             play             +     │  y 136–192: buttons, 56 px tall
+│                                          │  y 192–240: reserved corners, left empty
 └──────────────────────────────────────────┘
 ```
 
-The button row has 8 px side margins and 16 px gaps: left 72 px, center 128 px, right 72 px.
+The button row sits above the bottom corners, with 8 px side margins and 16 px gaps: left 72 px, center 128 px, right 72 px.
 
 | State | Left | Center | Right |
 |---|---|---|---|
-| Ready | −1m | Start | +1m |
-| Running | (empty) | Pause | (empty) |
-| Paused | Reset | Resume | (empty) |
-| Done | (empty) | Dismiss | (empty) |
+| Ready | −1m (minus) | Start (play) | +1m (plus) |
+| Running | (empty) | Pause (two bars) | (empty) |
+| Paused | Reset (stop square) | Resume (play) | (empty) |
+| Done | (empty) | Dismiss (check mark) | (empty) |
 
-In Done, the word "Done" replaces the digits. −1m is dimmed and ignores taps at 1:00, and +1m does the same at 99:00.
+Each button is its icon alone, and the title is a stopwatch ([D26](decisions.md#d26-screens-show-icons-not-words)). In Done the digits read 00:00. −1m is dimmed and ignores taps at 1:00, and +1m does the same at 99:00.
 
 ## Rendering
 
@@ -154,7 +153,7 @@ This keeps a single 150 KB framebuffer; double buffering would need a second one
 | Use | Approach |
 |---|---|
 | Timer digits | Drawn from primitives in a rounded seven-segment style. Scales to any size with no font dependency. |
-| Labels, titles, buttons | `embedded-graphics` built-in mono fonts. The largest, 10×20 px, is readable at this pixel density. |
+| Titles, buttons | None: icons drawn from primitives, never words ([D26](decisions.md#d26-screens-show-icons-not-words)). |
 
 ### Color
 

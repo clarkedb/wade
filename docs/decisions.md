@@ -145,3 +145,17 @@ Rejected: a single fixed style, which gives up one of two looks worth keeping; d
 Reason: the P key changes a discrete setting in the view. Including it makes replay catch a broken toggle while leaving pose and pixels outside the hash, as in D16.
 
 Rejected: excluding eye style, which would let a recording with P replay successfully even if P stopped working.
+
+## D25. Hidden features request no deadlines
+
+Reason: a screen should wake the device only for what it shows; the Timer screen needs its digits on time, not Wade's hidden blinks. Transitions that fall due between events are applied in order at the next event, so skipping the wakeups changes nothing. This refines D15.
+
+Cost: an app screen can now go more than `STALL_LIMIT` without an event, and Wade then restarts his idle schedule as in D20. Whether a gap stalls depends on whether any event landed inside it, so a spurious wake there can change his motion once he is back on screen. It never changes discrete state: a restart redraws only motion, and must stay that way, so the recording hash never depends on it.
+
+Rejected: requesting hidden transitions as deadlines, which wakes the device every second or two for motion nobody sees; restarting Wade's schedule whenever he returns, which, like freezing it (D15), makes his behavior depend on navigation history.
+
+## D26. Screens show icons, not words
+
+Reason: Wade speaks only through expression, gaze, and small actions, and the screens around him should too. Icons drawn from primitives need no font, read at a glance from across a desk, and need no translation.
+
+Rejected: text labels and titles in the built-in mono font, which put a word on every button.

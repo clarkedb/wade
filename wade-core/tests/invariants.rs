@@ -3,6 +3,7 @@
 use embedded_graphics::geometry::Point;
 use proptest::prelude::*;
 use wade_core::app::STALL_LIMIT;
+use wade_core::layout;
 use wade_core::{App, Digit, Event, EventKind, Instant, Key, Touch, TouchPhase, View};
 
 fn phase() -> impl Strategy<Value = TouchPhase> {
@@ -13,8 +14,18 @@ fn phase() -> impl Strategy<Value = TouchPhase> {
     ]
 }
 
+/// Anywhere on or just off the screen, or often the middle of a touch target,
+/// so that random sequences press every button.
 fn point() -> impl Strategy<Value = Point> {
-    (-20i32..340, -20i32..260).prop_map(|(x, y)| Point::new(x, y))
+    let targets = vec![
+        layout::WADE_CENTER,
+        layout::APPS.center(),
+        layout::BACK.center(),
+    ];
+    prop_oneof![
+        (-20i32..340, -20i32..260).prop_map(|(x, y)| Point::new(x, y)),
+        prop::sample::select(targets),
+    ]
 }
 
 fn key() -> impl Strategy<Value = Key> {
@@ -66,13 +77,18 @@ fn wild_events() -> impl Strategy<Value = Vec<Event>> {
 /// Deliver `event` as a punctual platform would: first every deadline the app
 /// requested before it, each exactly on time.
 fn deliver(app: &mut App, event: Event) {
+    deliver_deadlines(app, event.at);
+    let _ = app.handle(event);
+}
+
+/// Deliver every deadline the app requests before `t`, each exactly on time.
+fn deliver_deadlines(app: &mut App, t: Instant) {
     while let Some(d) = app.next_deadline() {
-        if d >= event.at {
+        if d >= t {
             break;
         }
         let _ = app.handle(Event::deadline(d));
     }
-    let _ = app.handle(event);
 }
 
 /// Checks `next_deadline` against the documented contract.
@@ -179,6 +195,49 @@ proptest! {
                 handle_checked(&mut app, &mut drawn, Event::deadline(d))?;
             }
             handle_checked(&mut app, &mut drawn, *event)?;
+        }
+    }
+
+    #[test]
+    fn a_tap_only_reaches_the_screen_its_touch_began_on(seed: u64, events in ordered_events()) {
+        let mut app = App::new(Instant::from_millis(0), seed);
+        // The screen under the current touch's Down, and whether the screen
+        // has changed since.
+        let mut touch: Option<(wade_core::app::Screen, bool)> = None;
+        for event in events {
+            deliver_deadlines(&mut app, event.at);
+            if let Some((screen, changed)) = touch.as_mut() {
+                *changed |= app.screen() != *screen;
+            }
+            match event.kind {
+                EventKind::Touch(Touch { phase: TouchPhase::Down, .. }) => {
+                    let _ = app.handle(event);
+                    touch = Some((app.screen(), false));
+                }
+                EventKind::Touch(Touch { phase, .. }) if touch.is_some() => {
+                    // The same instant without the sample: what the app does
+                    // if the sample is ignored.
+                    let mut ignored = app.clone();
+                    let _ = ignored.handle(Event::deadline(event.at));
+                    let (screen, changed) = touch.expect("a touch in progress");
+                    let _ = app.handle(event);
+                    if changed || ignored.screen() != screen {
+                        prop_assert_eq!(
+                            app.view(),
+                            ignored.view(),
+                            "a {:?} at {:?} acted on a screen its touch did not begin on",
+                            phase,
+                            event.at
+                        );
+                    }
+                    if phase == TouchPhase::Up {
+                        touch = None;
+                    }
+                }
+                _ => {
+                    let _ = app.handle(event);
+                }
+            }
         }
     }
 

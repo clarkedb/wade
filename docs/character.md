@@ -126,7 +126,7 @@ Every layer has a fixed end, never an easing that only approaches its target, so
 
 While any motion is in progress, the character requests a deadline every frame (see [architecture.md](architecture.md#deadlines-and-frames)). When Wade is still, his only deadline is the next scheduled change, such as a blink, a step, or an expression expiring.
 
-Wade animates only while the Buddy screen is visible. On other screens his schedule keeps moving forward but he requests no frames: blinks and other motions that fall due are skipped, and idle activities do not start (see [architecture.md](architecture.md#hidden-features)).
+Wade animates only while the Buddy screen is visible. On other screens his schedule keeps moving forward but he requests no deadlines: blinks and other motions that fall due are skipped, and idle activities do not start (see [architecture.md](architecture.md#hidden-features)).
 
 Idle activities (M4):
 

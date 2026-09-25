@@ -417,6 +417,13 @@ impl Wade {
             .map(|_| now + random(&mut self.motion, TWITCH_INTERVAL_MIN, TWITCH_INTERVAL_MAX));
     }
 
+    /// Move Wade's clock to `now` once every transition up to it has been
+    /// applied, so stepped motion that was skipped while he was hidden is not
+    /// scheduled in the past when he is shown again.
+    pub fn catch_up(&mut self, now: Instant) {
+        self.now = self.now.max(now);
+    }
+
     /// True while the pose is changing with time, so a frame is needed every
     /// `FRAME`. The end of each motion is also a transition, so its final frame
     /// is drawn. Stepped motion is not animation: each step is a transition.
@@ -927,6 +934,24 @@ mod tests {
         // Angry trembles every 100 ms from the change.
         assert_eq!(wade.next_transition(true), Some(ms(3_100)));
         assert_eq!(wade.next_transition(false), Some(ms(60_000)));
+    }
+
+    #[test]
+    fn hidden_wade_starts_no_motion() {
+        let mut sad = Wade::new(ms(0), 3);
+        hold(&mut sad, Expression::Sad, ms(0));
+        let mut asleep = Wade::new(ms(0), 3);
+        let _ = asleep.sleep(ms(0));
+        for mut wade in [Wade::new(ms(0), 3), sad, asleep] {
+            while let Some(t) = wade.next_transition(false).filter(|&t| t <= ms(120_000)) {
+                assert!(!wade.advance(t, false), "a redraw at {t:?}");
+                assert_eq!(wade.blink_at, None, "a blink at {t:?}");
+                assert_eq!(wade.squint_at, None, "a squint at {t:?}");
+                assert_eq!(wade.tear_at, None, "a tear at {t:?}");
+                assert_eq!(wade.twitch_at, None, "a twitch at {t:?}");
+                assert_eq!(wade.glance_to, (0.0, 0.0), "a glance at {t:?}");
+            }
+        }
     }
 
     #[test]
