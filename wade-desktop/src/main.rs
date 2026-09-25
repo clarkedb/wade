@@ -3,6 +3,7 @@
 //! Runs the platform loop from docs/architecture.md#core-api against an
 //! `embedded-graphics-simulator` window.
 
+mod audio;
 mod clock;
 
 use std::error::Error;
@@ -19,8 +20,11 @@ use embedded_graphics_simulator::{
 };
 use wade_core::harness::recording::{Entry, Input, Recording};
 use wade_core::harness::state_hash;
-use wade_core::{App, Digit, Event, EventKind, Instant, Key, TouchPhase, layout, render};
+use wade_core::{
+    App, Digit, Effect, Event, EventKind, Instant, Key, Output, TouchPhase, layout, render,
+};
 
+use audio::Audio;
 use clock::Clock;
 
 /// Longest the loop sleeps before polling window events again.
@@ -88,6 +92,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         );
     }
 
+    let audio = Audio::open();
     let clock = Clock::new(args.time_scale);
     let mut app = App::new(Instant::from_millis(0), seed);
 
@@ -105,6 +110,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             recording,
             args.replay.as_ref().expect("replay path"),
             &clock,
+            audio.as_ref(),
             &mut app,
             &mut display,
             &mut window,
@@ -120,11 +126,19 @@ fn run() -> Result<(), Box<dyn Error>> {
         write!(writer, "{}", Recording::new(seed))?;
         writer.flush()?;
     }
-    live_loop(&clock, &mut app, &mut display, &mut window, &mut writer)
+    live_loop(
+        &clock,
+        audio.as_ref(),
+        &mut app,
+        &mut display,
+        &mut window,
+        &mut writer,
+    )
 }
 
 fn live_loop(
     clock: &Clock,
+    audio: Option<&Audio>,
     app: &mut App,
     display: &mut SimulatorDisplay<Rgb565>,
     window: &mut Window,
@@ -144,7 +158,7 @@ fn live_loop(
             }
             let event = input_event(sim_event, now, &mut mouse_down);
             if let Some(event) = event {
-                redraw |= app.handle(event).redraw;
+                redraw |= carry_out(&app.handle(event), audio);
                 if let Some(writer) = writer.as_mut() {
                     record_event(writer, event, app)?;
                     writer.flush()?;
@@ -154,8 +168,7 @@ fn live_loop(
 
         let now = clock.now();
         if app.next_deadline().is_some_and(|d| d <= now) {
-            let output = app.handle(Event::deadline(now));
-            redraw |= output.redraw;
+            redraw |= carry_out(&app.handle(Event::deadline(now)), audio);
         }
 
         if redraw {
@@ -168,6 +181,21 @@ fn live_loop(
             .map_or(POLL_INTERVAL, |d| clock.real_until(d).min(POLL_INTERVAL));
         std::thread::sleep(sleep);
     }
+}
+
+/// Carry out the core's effects and return whether to redraw. Nothing here
+/// waits: the chime plays on the audio thread (D17).
+fn carry_out(output: &Output, audio: Option<&Audio>) -> bool {
+    for effect in &output.effects {
+        match effect {
+            Effect::Chime => {
+                if let Some(audio) = audio {
+                    audio.chime();
+                }
+            }
+        }
+    }
+    output.redraw
 }
 
 fn input_event(sim_event: SimulatorEvent, now: Instant, mouse_down: &mut bool) -> Option<Event> {
@@ -220,6 +248,7 @@ fn replay_loop(
     recording: &Recording,
     path: &Path,
     clock: &Clock,
+    audio: Option<&Audio>,
     app: &mut App,
     display: &mut SimulatorDisplay<Rgb565>,
     window: &mut Window,
@@ -237,8 +266,7 @@ fn replay_loop(
                 .next_deadline()
                 .filter(|deadline| *deadline <= entry.at && *deadline <= now)
             {
-                let output = app.handle(Event::deadline(deadline));
-                if output.redraw {
+                if carry_out(&app.handle(Event::deadline(deadline)), audio) {
                     let Ok(()) = render::draw(&app.view(), display);
                     window.update(display);
                 }
@@ -250,7 +278,7 @@ fn replay_loop(
                 if let Some(mismatch) = entry.mismatch(index, state_hash(app)) {
                     return Err(format!("{}: {mismatch}", path.display()).into());
                 }
-                if output.redraw {
+                if carry_out(&output, audio) {
                     let Ok(()) = render::draw(&app.view(), display);
                     window.update(display);
                 }

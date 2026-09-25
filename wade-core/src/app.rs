@@ -27,8 +27,9 @@ pub const TOUCH_GUARD: Duration = Duration::from_millis(500);
 /// Side effects for the platform to carry out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Effect {
-    /// Play the timer-finished chime. Emitted when the timer finishes and
-    /// repeated while it stays Done (docs/ui.md#rules).
+    /// Play the timer-finished chime, the tone sequence in
+    /// [`crate::sound::CHIME`]. Emitted when the timer finishes and repeated
+    /// while it stays Done (docs/ui.md#rules).
     Chime,
 }
 
