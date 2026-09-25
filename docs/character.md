@@ -149,7 +149,7 @@ Idle activities (M4):
 | Tap elsewhere on the Buddy screen | Nothing |
 | Desktop number key 0–9 | That expression, held until a tap or another key changes it |
 | Desktop Z | Asleep, until a tap or a number key |
-| Desktop P | Switch between pupils and plain eyes |
+| Desktop P | Switch the eye style setting between pupils and plain |
 
 ### M2 adds
 
