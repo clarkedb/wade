@@ -7,27 +7,26 @@ mod common;
 use common::framebuffer::{Framebuffer, assert_snapshot};
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
-use wade_core::view::{BuddyView, EyeStyle, View};
-use wade_core::{App, Instant, render};
+use wade_core::layout::Target;
+use wade_core::view::{EyeStyle, TimerView, View};
+use wade_core::{App, Instant, TouchPhase, render};
 
+/// The whole screen for `view`.
 fn snapshot(name: &str, view: &View) {
     let mut fb = Framebuffer::new();
     let Ok(()) = render::draw(view, &mut fb);
     assert_snapshot(name, &fb);
 }
 
+/// Wade's face alone, without the rest of the Buddy screen.
+fn face(name: &str, pose: &Pose, eye_style: EyeStyle) {
+    let mut fb = Framebuffer::new();
+    let Ok(()) = render::face::draw(pose, eye_style, &mut fb);
+    assert_snapshot(name, &fb);
+}
+
 /// Both eye styles, with the prefix of their snapshot names.
 const STYLES: [(EyeStyle, &str); 2] = [(EyeStyle::Pupils, "pupils"), (EyeStyle::Plain, "plain")];
-
-fn buddy(expression: Expression, asleep: bool, eye_style: EyeStyle, pose: Pose) -> View {
-    View::Buddy(BuddyView {
-        expression,
-        asleep,
-        blinking: false,
-        pose,
-        eye_style,
-    })
-}
 
 /// A phase that shows the accent clearly in a still image.
 fn still_phase(accent: Accent) -> f32 {
@@ -54,6 +53,13 @@ fn buddy_once_awake() {
 }
 
 #[test]
+fn buddy_apps_pressed() {
+    let mut h = Harness::new(common::SEED);
+    h.touch(common::ms(1_000), TouchPhase::Down, common::apps());
+    snapshot("buddy_apps_pressed", &h.app.view());
+}
+
+#[test]
 fn each_expression_at_rest() {
     for (eye_style, prefix) in STYLES {
         for (number, expression) in Expression::ALL.into_iter().enumerate() {
@@ -64,10 +70,7 @@ fn each_expression_at_rest() {
                 ..expression.pose()
             };
             let name = format!("{expression:?}").to_lowercase();
-            snapshot(
-                &format!("{prefix}_{number}_{name}"),
-                &buddy(expression, false, eye_style, pose),
-            );
+            face(&format!("{prefix}_{number}_{name}"), &pose, eye_style);
         }
     }
 }
@@ -79,10 +82,7 @@ fn glancing() {
         ..Expression::Neutral.pose()
     };
     for (eye_style, prefix) in STYLES {
-        snapshot(
-            &format!("{prefix}_glancing"),
-            &buddy(Expression::Neutral, false, eye_style, pose),
-        );
+        face(&format!("{prefix}_glancing"), &pose, eye_style);
     }
 }
 
@@ -93,10 +93,7 @@ fn asleep() {
         accent_phase: still_phase(Accent::Zs),
         ..ASLEEP
     };
-    snapshot(
-        "asleep",
-        &buddy(Expression::Sleepy, true, EyeStyle::Pupils, pose),
-    );
+    face("asleep", &pose, EyeStyle::Pupils);
 }
 
 #[test]
@@ -105,8 +102,20 @@ fn mid_blink() {
         eye_open: 0.3,
         ..Expression::Neutral.pose()
     };
+    face("mid_blink", &pose, EyeStyle::Pupils);
+}
+
+#[test]
+fn timer_empty() {
+    snapshot("timer_empty", &View::Timer(TimerView { pressed: None }));
+}
+
+#[test]
+fn timer_back_pressed() {
     snapshot(
-        "mid_blink",
-        &buddy(Expression::Neutral, false, EyeStyle::Pupils, pose),
+        "timer_back_pressed",
+        &View::Timer(TimerView {
+            pressed: Some(Target::Back),
+        }),
     );
 }

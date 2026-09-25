@@ -69,7 +69,7 @@ Behavior tests:
 | Dismiss stops chimes | Dismissing after the third chime: no further `Chime` |
 | Completion while on Buddy | Same as above; the timer completes on time without the Timer screen being visible |
 | Completion mid-touch | Touch down on Wade, the timer completes, lift: no tap on the Timer screen, no change |
-| Wade while hidden | On the Timer screen, Wade requests no frame deadlines and never sets `redraw` |
+| Wade while hidden | On the Timer screen, Wade requests no deadlines and never sets `redraw` |
 | Navigation | Leaving and returning to the Timer screen does not change the timer |
 | Deadlines on Timer screen while Running | The next deadline is the next second boundary or `ends_at`, whichever is sooner |
 | Deadlines on Buddy while Running | The timer contributes only `ends_at` |

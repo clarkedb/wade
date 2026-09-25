@@ -84,7 +84,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     eprintln!("seed {seed}");
     if recording.is_none() {
         eprintln!(
-            "keys: 0–9 show an expression, z sleeps, p toggles pupils; click Wade to tap him"
+            "keys: 0–9 show an expression, z sleeps, p toggles pupils; click Wade to tap him or the bottom-right corner to open the timer"
         );
     }
 
@@ -336,7 +336,9 @@ mod tests {
         let recording: Recording = String::from_utf8(output).unwrap().parse().unwrap();
         assert_eq!(recording.entries.len(), samples.len());
         let replay = recording.replay().unwrap();
-        let wade_core::View::Buddy(buddy) = app.view();
+        let wade_core::View::Buddy(buddy) = app.view() else {
+            panic!("expected the Buddy screen");
+        };
         assert_eq!(replay.harness.buddy().eye_style, buddy.eye_style);
     }
 }

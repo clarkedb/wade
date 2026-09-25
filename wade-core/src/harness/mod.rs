@@ -13,7 +13,7 @@ use crate::app::{App, Effect, Output, Screen};
 use crate::character::Expression;
 use crate::event::{Event, Key, TouchPhase};
 use crate::time::Instant;
-use crate::view::{BuddyView, EyeStyle, View};
+use crate::view::{BuddyView, EyeStyle, TimerView, View};
 
 #[derive(Debug)]
 pub struct Harness {
@@ -93,10 +93,28 @@ impl Harness {
     }
 
     /// The current view, which must be the Buddy screen.
+    ///
+    /// # Panics
+    ///
+    /// If another screen is shown.
     #[must_use]
     pub fn buddy(&self) -> BuddyView {
         match self.app.view() {
-            View::Buddy(b) => b,
+            View::Buddy(buddy) => buddy,
+            view @ View::Timer(_) => panic!("expected the Buddy screen, got {view:?}"),
+        }
+    }
+
+    /// The current view, which must be the Timer screen.
+    ///
+    /// # Panics
+    ///
+    /// If another screen is shown.
+    #[must_use]
+    pub fn timer(&self) -> TimerView {
+        match self.app.view() {
+            View::Timer(timer) => timer,
+            view @ View::Buddy(_) => panic!("expected the Timer screen, got {view:?}"),
         }
     }
 
@@ -107,38 +125,45 @@ impl Harness {
     }
 
     fn discrete(&self) -> Discrete {
-        let View::Buddy(buddy) = self.app.view();
-        Discrete {
-            screen: self.app.screen(),
-            expression: buddy.expression,
-            asleep: buddy.asleep,
-            blinking: buddy.blinking,
+        match self.app.view() {
+            View::Buddy(buddy) => Discrete::Buddy {
+                expression: buddy.expression,
+                asleep: buddy.asleep,
+                blinking: buddy.blinking,
+                apps_pressed: buddy.apps_pressed,
+            },
+            View::Timer(timer) => Discrete::Timer(timer),
         }
     }
 }
 
-/// Discrete state that must only change at a requested deadline or an input.
+/// The discrete part of the view, which must only change at a requested
+/// deadline or an input.
 #[derive(Debug, PartialEq, Eq)]
-struct Discrete {
-    screen: Screen,
-    expression: Expression,
-    asleep: bool,
-    blinking: bool,
+enum Discrete {
+    Buddy {
+        expression: Expression,
+        asleep: bool,
+        blinking: bool,
+        apps_pressed: bool,
+    },
+    Timer(TimerView),
 }
 
-/// A hash of discrete state only: the screen, expression, sleep state, and eye
-/// style (later also the activity and timer). Excludes `Pose` and pixels, so
-/// tuning animation does not invalidate recordings (D16, D24). FNV-1a is stable
-/// across platforms.
+/// A hash of discrete state only: the screen, Wade's expression and sleep
+/// state (on every screen), and eye style (later also the activity). Excludes
+/// `Pose` and pixels, so tuning animation does not invalidate recordings (D16,
+/// D24). FNV-1a is stable across platforms.
 #[must_use]
 pub fn state_hash(app: &App) -> u32 {
-    let View::Buddy(buddy) = app.view();
+    let wade = app.wade();
     // Explicit codes, not `as u8`: reordering or inserting variants must not
     // change the hash of existing recordings. Never renumber these.
     let screen = match app.screen() {
         Screen::Buddy => 0u8,
+        Screen::Timer => 1,
     };
-    let expression = match buddy.expression {
+    let expression = match wade.expression() {
         Expression::Neutral => 0u8,
         Expression::Happy => 1,
         Expression::Sad => 2,
@@ -150,11 +175,11 @@ pub fn state_hash(app: &App) -> u32 {
         Expression::Focused => 8,
         Expression::Flustered => 9,
     };
-    let eye_style = match buddy.eye_style {
+    let eye_style = match app.eye_style() {
         EyeStyle::Pupils => 0,
         EyeStyle::Plain => 1,
     };
-    fnv1a(&[screen, expression, u8::from(buddy.asleep), eye_style])
+    fnv1a(&[screen, expression, u8::from(wade.asleep()), eye_style])
 }
 
 fn fnv1a(bytes: &[u8]) -> u32 {

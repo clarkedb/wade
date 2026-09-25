@@ -1,11 +1,11 @@
 //! `App`: the core's entry point. Owns all state and routes events to features.
 
 use crate::character::{Expression, Wade};
-use crate::event::{Event, EventKind, Key};
+use crate::event::{Event, EventKind, Key, Touch};
 use crate::input::TouchTracker;
 use crate::layout::{self, Target};
 use crate::time::{Duration, Instant};
-use crate::view::{BuddyView, EyeStyle, View};
+use crate::view::{BuddyView, EyeStyle, TimerView, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
@@ -38,6 +38,7 @@ pub struct Output {
 pub enum Screen {
     #[default]
     Buddy,
+    Timer,
 }
 
 #[derive(Clone, Debug)]
@@ -72,21 +73,32 @@ impl App {
         out.redraw |= self.animating();
 
         match event.kind {
-            EventKind::Touch(touch) => {
-                let screen = self.screen;
-                let tap = self.touch.handle(touch, |p| match screen {
-                    Screen::Buddy => layout::hit_buddy(p),
-                });
-                if let Some(Target::Wade) = tap {
-                    out.redraw |= self.wade.on_tap(self.now);
+            EventKind::Touch(touch) => self.on_touch(touch, &mut out),
+            // Keys act only on the Buddy screen (docs/architecture.md#events).
+            EventKind::Key(key) => {
+                if self.screen == Screen::Buddy {
+                    out.redraw |= self.on_key(key);
                 }
             }
-            EventKind::Key(key) => match self.screen {
-                Screen::Buddy => out.redraw |= self.on_key(key),
-            },
             EventKind::Deadline => {}
         }
         out
+    }
+
+    fn on_touch(&mut self, touch: Touch, out: &mut Output) {
+        let pressed = self.pressed_button();
+        let screen = self.screen;
+        let tap = self.touch.handle(touch, |p| match screen {
+            Screen::Buddy => layout::hit_buddy(p),
+            Screen::Timer => layout::hit_timer(p),
+        });
+        out.redraw |= self.pressed_button() != pressed;
+        match tap {
+            Some(Target::Wade) => out.redraw |= self.wade.on_tap(self.now),
+            Some(Target::Apps) => self.switch_to(Screen::Timer, out),
+            Some(Target::Back) => self.switch_to(Screen::Buddy, out),
+            None => {}
+        }
     }
 
     fn on_key(&mut self, key: Key) -> bool {
@@ -102,7 +114,22 @@ impl App {
         }
     }
 
-    /// The earliest scheduled transition across all features.
+    /// Show `screen`. A screen change cancels any touch in progress, so its
+    /// `Up` cannot land on the new screen (docs/ui.md#touch-handling).
+    fn switch_to(&mut self, screen: Screen, out: &mut Output) {
+        self.screen = screen;
+        self.touch.cancel();
+        out.redraw = true;
+    }
+
+    /// The button under a touch in progress, drawn pressed. Wade has no pressed look.
+    fn pressed_button(&self) -> Option<Target> {
+        self.touch
+            .pressed()
+            .filter(|&target| target != Target::Wade)
+    }
+
+    /// The earliest scheduled transition across all features, visible or not.
     fn next_transition(&self) -> Option<Instant> {
         self.wade.next_transition(self.wade_visible())
     }
@@ -143,20 +170,28 @@ impl App {
             );
             last = Some(t);
             self.now = self.now.max(t);
-            // Visibility is re-read each step: a transition can switch screens (M2).
+            // Visibility is re-read each step: a transition can switch screens.
             // Features are applied in a fixed order to break ties at the same instant.
             let visible = self.wade_visible();
             out.redraw |= self.wade.advance(self.now, visible);
         }
         self.now = target;
+        self.wade.catch_up(target);
     }
 
     /// The earliest time the core needs a `Deadline` event, or `None` if nothing
-    /// will change without input. Always later than the last handled event.
+    /// visible will change without input. Always later than the last handled
+    /// event.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Instant> {
+        // Hidden, Wade requests nothing: his schedule catches up at the next
+        // event (docs/architecture.md#hidden-features).
+        let wade = self
+            .wade_visible()
+            .then(|| self.wade.next_transition(true))
+            .flatten();
         let frame = self.animating().then(|| self.now + FRAME);
-        let deadline = self.next_transition().into_iter().chain(frame).min()?;
+        let deadline = wade.into_iter().chain(frame).min()?;
         debug_assert!(
             deadline > self.now || self.now == Instant::MAX,
             "deadline {deadline:?} is not after now {:?}",
@@ -176,6 +211,10 @@ impl App {
                 blinking: self.wade.blinking(self.now),
                 pose: self.wade.pose(self.now),
                 eye_style: self.eye_style,
+                apps_pressed: self.touch.pressed() == Some(Target::Apps),
+            }),
+            Screen::Timer => View::Timer(TimerView {
+                pressed: self.pressed_button(),
             }),
         }
     }
@@ -189,6 +228,17 @@ impl App {
     #[must_use]
     pub const fn screen(&self) -> Screen {
         self.screen
+    }
+
+    /// Wade's state, on every screen, for the state hash.
+    #[cfg(any(test, feature = "harness"))]
+    pub(crate) const fn wade(&self) -> &Wade {
+        &self.wade
+    }
+
+    #[cfg(any(test, feature = "harness"))]
+    pub(crate) const fn eye_style(&self) -> EyeStyle {
+        self.eye_style
     }
 }
 

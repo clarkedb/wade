@@ -11,3 +11,5 @@ pub const BLUSH: Rgb565 = Rgb565::new(31, 30, 22);
 /// Tears and sweat.
 pub const WATER: Rgb565 = Rgb565::new(12, 46, 31);
 pub const SPARKLE: Rgb565 = Rgb565::new(31, 56, 8);
+/// Low-contrast marks, such as the apps icon, and buttons that ignore taps.
+pub const DIM: Rgb565 = Rgb565::new(9, 20, 11);

@@ -1,7 +1,10 @@
 //! Drawing. A pure function of a `View` (D9): every call draws a complete frame.
 
-mod face;
+pub mod face;
+mod icons;
 pub mod palette;
+mod timer;
+mod widgets;
 
 use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 
@@ -18,6 +21,10 @@ where
 {
     target.clear(palette::BACKGROUND)?;
     match view {
-        View::Buddy(buddy) => face::draw(&buddy.pose, buddy.eye_style, target),
+        View::Buddy(buddy) => {
+            face::draw(&buddy.pose, buddy.eye_style, target)?;
+            widgets::apps_button(buddy.apps_pressed, target)
+        }
+        View::Timer(timer) => timer::draw(*timer, target),
     }
 }

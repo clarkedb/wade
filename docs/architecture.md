@@ -173,7 +173,7 @@ impl App {
     pub fn handle(&mut self, event: Event) -> Output;
 
     /// The earliest time the core needs a `Deadline` event, or `None` if nothing
-    /// will change without input. Always later than the last handled event.
+    /// visible will change without input. Always later than the last handled event.
     pub fn next_deadline(&self) -> Option<Instant>;
 
     /// What is on screen, as plain data, as of the last handled event.
@@ -242,7 +242,7 @@ Touches are global input. Any tap, on any screen, counts as activity for feature
 
 ### Hidden features
 
-A feature whose screen is not visible still keeps time but costs nothing. While Wade is hidden, his schedule (blinks and other idle motions, and idle activities from M4) keeps moving forward, but he requests no frame deadlines and never sets `redraw`. A blink that falls due while he is hidden is skipped and the next one is scheduled; an idle activity never starts while he is hidden. When the Buddy screen returns, Wade resumes from his current schedule with no burst of catch-up animation. The same rule covers any future feature with animation.
+A feature whose screen is not visible still keeps time but costs nothing. While Wade is hidden, his schedule (blinks and other idle motions, and idle activities from M4) keeps moving forward, but he requests no deadlines and never sets `redraw`. His transitions are applied in order when the next event arrives, like any others that fall due between events, so while he is hidden and nothing else is scheduled, the device sleeps until the next input ([D25](decisions.md#d25-hidden-features-request-no-deadlines)). A blink that falls due while he is hidden is skipped and the next one is scheduled; an idle activity never starts while he is hidden. When the Buddy screen returns, Wade resumes from his current schedule with no burst of catch-up animation. The same rule covers any future feature with animation.
 
 ## Deadlines and frames
 

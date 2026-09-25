@@ -1,10 +1,12 @@
 //! What is on screen, as plain data. The core produces it; `render::draw` turns it into pixels.
 
 use crate::character::{Expression, Pose};
+use crate::layout::Target;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum View {
     Buddy(BuddyView),
+    Timer(TimerView),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -18,6 +20,14 @@ pub struct BuddyView {
     /// The continuous pose that drawing reads. Behavior tests do not compare it.
     pub pose: Pose,
     pub eye_style: EyeStyle,
+    /// True while a touch that began on the apps button stays on it.
+    pub apps_pressed: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TimerView {
+    /// The button under a touch in progress, drawn pressed.
+    pub pressed: Option<Target>,
 }
 
 /// How Wade's eyes are drawn: a setting, not part of his behavior.

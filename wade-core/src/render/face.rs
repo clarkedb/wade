@@ -111,6 +111,12 @@ impl Face {
     }
 }
 
+/// Draw Wade's face for `pose` in `style`, without the rest of the Buddy
+/// screen and without clearing `target` first.
+///
+/// # Errors
+///
+/// Returns the first error from `target`.
 pub fn draw<D>(pose: &Pose, style: EyeStyle, target: &mut D) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565>,
