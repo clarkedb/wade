@@ -1,5 +1,6 @@
 //! Drawing. A pure function of a `View` (D9): every call draws a complete frame.
 
+mod digits;
 pub mod face;
 mod icons;
 pub mod palette;

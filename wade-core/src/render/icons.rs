@@ -3,11 +3,17 @@
 use embedded_graphics::{
     pixelcolor::Rgb565,
     prelude::*,
-    primitives::{Circle, Line, PrimitiveStyle, Rectangle, RoundedRectangle},
+    primitives::{Circle, Line, Polyline, PrimitiveStyle, Rectangle, RoundedRectangle, Triangle},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Icon {
+    Minus,
+    Plus,
+    Play,
+    Pause,
+    Stop,
+    Check,
     Stopwatch,
 }
 
@@ -28,6 +34,30 @@ where
         .into_styled(fill)
     };
     match icon {
+        Icon::Minus => bar(-12, -3, 24, 6).draw(target),
+        Icon::Plus => {
+            bar(-12, -3, 24, 6).draw(target)?;
+            bar(-3, -12, 6, 24).draw(target)
+        }
+        Icon::Play => Triangle::new(
+            m + Point::new(-8, -12),
+            m + Point::new(-8, 11),
+            m + Point::new(10, 0),
+        )
+        .into_styled(fill)
+        .draw(target),
+        Icon::Pause => {
+            bar(-10, -12, 7, 24).draw(target)?;
+            bar(3, -12, 7, 24).draw(target)
+        }
+        Icon::Stop => bar(-10, -10, 20, 20).draw(target),
+        Icon::Check => Polyline::new(&[
+            m + Point::new(-13, 0),
+            m + Point::new(-4, 9),
+            m + Point::new(13, -10),
+        ])
+        .into_styled(PrimitiveStyle::with_stroke(color, 6))
+        .draw(target),
         Icon::Stopwatch => {
             let stroke = PrimitiveStyle::with_stroke(color, 3);
             Circle::new(m + Point::new(-12, -10), 24)

@@ -55,7 +55,7 @@ Done when:
 
 ## M2 Timer
 
-Scope: the `Screen` enum, the apps button, the timer state machine and screen as specified in [ui.md](ui.md#timer), seven-segment digits, pressed button styles, `Effect::Chime` with the tone sequence in `wade_core::sound`, desktop audio through `rodio`, and Wade's reaction after a dismissed timer: Proud, or groggy if the chime woke him.
+Scope: the `Screen` enum, the apps button, the timer state machine and screen as specified in [ui.md](ui.md#timer), seven-segment digits, icon buttons with pressed styles, `Effect::Chime` with the tone sequence in `wade_core::sound`, desktop audio through `rodio`, and Wade's reaction after a dismissed timer: Proud, or groggy if the chime woke him.
 
 Behavior tests:
 

@@ -5,10 +5,11 @@
 mod common;
 
 use common::framebuffer::{Framebuffer, assert_snapshot};
+use std::time::Duration;
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
 use wade_core::layout::Target;
-use wade_core::timer::TimerState;
+use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
 use wade_core::view::{EyeStyle, View};
 use wade_core::{App, Instant, TouchPhase, render};
 
@@ -112,21 +113,85 @@ fn timer(timer: TimerState, now: Instant, pressed: Option<Target>) -> View {
 }
 
 #[test]
-fn timer_empty() {
-    snapshot(
-        "timer_empty",
-        &timer(TimerState::new(), Instant::from_millis(0), None),
-    );
+fn each_timer_state() {
+    let set = Duration::from_mins(5);
+    let now = Instant::from_millis(0);
+    for (name, state) in [
+        ("timer_ready", TimerState::Ready { set }),
+        (
+            "timer_running",
+            TimerState::Running {
+                set,
+                ends_at: Instant::from_millis(277_000),
+            },
+        ),
+        (
+            "timer_paused",
+            TimerState::Paused {
+                set,
+                remaining: Duration::from_secs(86 * 60 + 58),
+            },
+        ),
+        (
+            "timer_done",
+            TimerState::Done {
+                set,
+                since: now,
+                chimes: 1,
+            },
+        ),
+    ] {
+        snapshot(name, &timer(state, now, None));
+    }
 }
 
 #[test]
-fn timer_back_pressed() {
+fn each_timer_button_pressed() {
+    let set = Duration::from_mins(5);
+    let now = Instant::from_millis(0);
+    let running = TimerState::Running {
+        set,
+        ends_at: Instant::from_millis(277_000),
+    };
+    let paused = TimerState::Paused {
+        set,
+        remaining: Duration::from_secs(86 * 60 + 58),
+    };
+    let done = TimerState::Done {
+        set,
+        since: now,
+        chimes: 1,
+    };
+    for (state, pressed) in [
+        (TimerState::new(), Target::Back),
+        (TimerState::new(), Target::Timer(TimerButton::Minus)),
+        (TimerState::new(), Target::Timer(TimerButton::Start)),
+        (TimerState::new(), Target::Timer(TimerButton::Plus)),
+        (running, Target::Timer(TimerButton::Pause)),
+        (paused, Target::Timer(TimerButton::Reset)),
+        (paused, Target::Timer(TimerButton::Resume)),
+        (done, Target::Timer(TimerButton::Dismiss)),
+    ] {
+        let name = match pressed {
+            Target::Timer(button) => format!("{button:?}").to_lowercase(),
+            other => format!("{other:?}").to_lowercase(),
+        };
+        snapshot(
+            &format!("timer_{name}_pressed"),
+            &timer(state, now, Some(pressed)),
+        );
+    }
+}
+
+#[test]
+fn timer_bounds_dim_their_buttons() {
+    let now = Instant::from_millis(0);
     snapshot(
-        "timer_back_pressed",
-        &timer(
-            TimerState::new(),
-            Instant::from_millis(0),
-            Some(Target::Back),
-        ),
+        "timer_shortest",
+        &timer(TimerState::Ready { set: MIN_SET }, now, None),
+    );
+    snapshot(
+        "timer_longest",
+        &timer(TimerState::Ready { set: MAX_SET }, now, None),
     );
 }
