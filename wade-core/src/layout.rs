@@ -35,6 +35,8 @@ const NAV_SIZE: Size = Size::new(48, 48);
 /// no touches.
 pub const TITLE: Rectangle = Rectangle::new(Point::new(272, 0), NAV_SIZE);
 
+/// The band the timer's digits are centered in, between the title and the buttons.
+pub const TIMER_DIGITS: Rectangle = Rectangle::new(Point::new(0, 48), Size::new(320, 88));
 /// The timer's row of buttons: left, center, and right, above the bottom corners.
 pub const TIMER_ROW: [Rectangle; 3] = [
     Rectangle::new(Point::new(8, 136), Size::new(72, 56)),
