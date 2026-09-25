@@ -371,6 +371,13 @@ impl App {
         (deadline > self.now).then_some(deadline)
     }
 
+    /// Settings changed since they were last saved, for a platform about to
+    /// stop to store.
+    #[must_use]
+    pub fn unsaved_settings(&self) -> Option<Settings> {
+        (self.settings != self.saved).then_some(self.settings)
+    }
+
     /// What is on screen, as plain data, as of the last handled event.
     #[must_use]
     pub fn view(&self) -> View {

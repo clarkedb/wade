@@ -12,7 +12,7 @@ Wade is an animated desk companion. He lives on a small touchscreen, reacts to t
 | Goal                         | In practice                                                                                                                          |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Platform-independent core    | All behavior lives in `wade-core`, which does not depend on hardware, an operating system, or a heap allocator.                      |
-| Deterministic and testable   | Time and randomness are inputs. Any session can be reproduced exactly from its random seed and its list of timestamped input events. |
+| Deterministic and testable   | Time and randomness are inputs. Any session can be reproduced exactly from its random seed, its starting settings, and its timestamped input events. |
 | Event-driven and power-aware | The platform sleeps until input arrives or until the core asks to be woken. Nothing runs on a fixed tick.                            |
 | Desktop first                | Every feature runs and is tested on desktop before it runs on the device.                                                            |
 | Small milestones             | Each milestone ends with something working on at least one target.                                                                   |

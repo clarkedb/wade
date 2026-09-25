@@ -270,3 +270,15 @@ fn repeated_p_presses_save_once() {
         [Settings::DEFAULT.with_eye_style(EyeStyle::Plain)]
     );
 }
+
+#[test]
+fn a_change_is_unsaved_until_it_is_saved() {
+    let mut h = Harness::new(SEED);
+    assert_eq!(h.app.unsaved_settings(), None);
+    h.key(ms(1_000), Key::P);
+    let plain = Settings::DEFAULT.with_eye_style(EyeStyle::Plain);
+    assert_eq!(h.app.unsaved_settings(), Some(plain));
+    h.run_until(ms(1_000) + SAVE_DELAY);
+    assert_eq!(saves(&h), [plain]);
+    assert_eq!(h.app.unsaved_settings(), None);
+}
