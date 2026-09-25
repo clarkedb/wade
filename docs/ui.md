@@ -32,7 +32,7 @@ Launcher ──(tile)──► Timer or Settings
 Timer or Settings ──(back button)──► Launcher
 Launcher ──(back button)──► Buddy
 Timer finishes, on any screen ──► Timer, showing Done
-Timer in Done ──(Dismiss or back button)──► Buddy, Wade Proud (or groggy, if the chime woke him)
+Timer in Done ──(Dismiss or back button)──► Buddy, Wade Proud (or groggy, if the timer woke him)
 ```
 
 The one exception to back returning to the Launcher is a finished timer: dismissing it, with Dismiss or with back, always returns to Buddy so Wade can react.
@@ -105,13 +105,13 @@ pub enum TimerState {
 
 | Rule | Detail |
 |---|---|
-| Duration range | 1 to 99 minutes, in 1-minute steps. The default is 5:00. |
+| Duration range | 1 to 99 minutes, in 1-minute steps. The timer remembers the duration last set, across restarts, and starts at 5:00 the first time. |
 | Display | MM:SS. Remaining time rounds up to whole seconds, so the display shows 00:01 during the last second. The digits change on second boundaries measured back from `ends_at` (at `ends_at − k × 1 s`), not on whole seconds of the clock. |
 | Pause and resume | Pause stores `remaining = ends_at.saturating_since(now)`. Resume sets `ends_at = now + remaining`. |
 | Completion | When `now` reaches `ends_at`, the timer enters Done with `since = ends_at`, emits `Effect::Chime`, and switches the screen to Timer. |
-| Chime repeats | While Done, the chime repeats every 2 s: at `since + 2 s`, `since + 4 s`, and so on, for 10 chimes in total including the first. Chimes that fall due together, after a late wake, play once. Dismissing stops them. From M5, the "chime off" setting silences all of them. |
+| Chime repeats | While Done, the chime repeats every 2 s: at `since + 2 s`, `since + 4 s`, and so on, for 10 chimes in total including the first. Chimes that fall due together, after a late wake, play once. Dismissing stops them. With the chime setting off, none of them sound; the timer still finishes, shows Done, and wakes Wade. |
 | Screen independence | The timer runs regardless of which screen is visible. |
-| Dismiss | The Dismiss button or the back button. Done returns to Ready with the same `set`, the screen returns to Buddy, and Wade is Proud for 2 s, or groggy if the chime woke him (see [character.md](character.md#m2-adds)). |
+| Dismiss | The Dismiss button or the back button. Done returns to Ready with the same `set`, the screen returns to Buddy, and Wade is Proud for 2 s, or groggy if the timer woke him (see [character.md](character.md#m2-adds)). |
 | Deadlines | While Running: `ends_at`. While Running and the Timer screen is visible: also the next second boundary, so the digits update on time. While Done: the next chime repeat, until the tenth. |
 
 ### Layout
@@ -135,6 +135,28 @@ The button row sits above the bottom corners, with 8 px side margins and 16 px g
 | Done | (empty) | Dismiss (check mark) | (empty) |
 
 Each button is its icon alone, and the title is a stopwatch ([D26](decisions.md#d26-screens-show-icons-not-words)). In Done the digits read 00:00. −1m is dimmed and ignores taps at 1:00, and +1m does the same at 99:00.
+
+## Settings
+
+```text
+┌──────────────────────────────────────────┐
+│ ‹                                   gear │  y 0–48: back button (48×48), title icon
+│                                          │
+│   eyes           dots           bell     │  y 76–164: toggles, 88×88
+│                                          │
+│                                          │  y 192–240: reserved corners, left empty
+└──────────────────────────────────────────┘
+```
+
+Three toggles the size of the Launcher's tiles, 20 px apart across the middle. Each shows its setting's current value, at twice the size of a button's icon. Every change applies at once.
+
+| Toggle | Shows | Effect |
+|---|---|---|
+| Eye style | A small pair of eyes, with pupils or plain | Switches Wade's eyes. The desktop P key does the same. |
+| Colors | Three dots, pink, blue, and yellow, or all white for mono | Mono draws every accent in the eyes' color. |
+| Chime | A bell, struck through when off | Off silences every chime; see [Rules](#rules). |
+
+The timer's duration is saved with the settings but has no control here: the timer remembers whatever −1m and +1m last set ([D28](decisions.md#d28-the-timer-remembers-its-duration)). Brightness joins these toggles with the device ([D27](decisions.md#d27-brightness-waits-for-the-device)).
 
 ## Rendering
 

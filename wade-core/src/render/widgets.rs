@@ -12,6 +12,9 @@ use crate::layout;
 use crate::render::icons::{self, Colors, Icon};
 use crate::render::palette;
 
+/// Tiles draw their icons at twice the size of a button's.
+pub const TILE_ICON_SCALE: u32 = 2;
+
 /// Corner radius and outline width of buttons.
 const BUTTON_RADIUS: u32 = 12;
 const BUTTON_LINE: u32 = 3;

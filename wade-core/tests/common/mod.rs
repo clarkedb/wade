@@ -9,6 +9,7 @@ use std::time::Duration;
 use embedded_graphics::geometry::Point;
 use wade_core::harness::Harness;
 use wade_core::layout::{self, Tile};
+use wade_core::settings::SettingsButton;
 use wade_core::timer::TimerButton;
 use wade_core::view::{ColorMode, EyeStyle};
 use wade_core::{Digit, Instant, Key, Settings};
@@ -44,6 +45,15 @@ pub fn tile(tile: Tile) -> Point {
         .into_iter()
         .find(|&(t, _)| t == tile)
         .expect("every app has a tile");
+    area.center()
+}
+
+/// The middle of `button` on the Settings screen.
+pub fn setting(button: SettingsButton) -> Point {
+    let (_, area) = layout::SETTINGS_BUTTONS
+        .into_iter()
+        .find(|&(b, _)| b == button)
+        .expect("every settings button has an area");
     area.center()
 }
 

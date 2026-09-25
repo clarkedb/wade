@@ -8,9 +8,10 @@ use common::framebuffer::{Framebuffer, assert_snapshot};
 use std::time::Duration;
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
-use wade_core::layout::{Target, Tile};
+use wade_core::layout::{self, Target, Tile};
+use wade_core::settings::SettingsButton;
 use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
-use wade_core::view::{EyeStyle, View};
+use wade_core::view::{ColorMode, EyeStyle, SettingsView, View};
 use wade_core::{App, Instant, Settings, TouchPhase, render};
 
 /// The whole screen for `view`.
@@ -22,9 +23,23 @@ fn snapshot(name: &str, view: &View) {
 
 /// Wade's face alone, without the rest of the Buddy screen.
 fn face(name: &str, pose: &Pose, eye_style: EyeStyle) {
+    face_in(name, pose, eye_style, ColorMode::Color);
+}
+
+fn face_in(name: &str, pose: &Pose, eye_style: EyeStyle, color: ColorMode) {
     let mut fb = Framebuffer::new();
-    let Ok(()) = render::face::draw(pose, eye_style, &mut fb);
+    let Ok(()) = render::face::draw(pose, eye_style, color, &mut fb);
     assert_snapshot(name, &fb);
+}
+
+/// `expression` at rest with its accent showing.
+fn at_rest(expression: Expression) -> Pose {
+    let accent = expression.accent();
+    Pose {
+        accent,
+        accent_phase: still_phase(accent),
+        ..expression.pose()
+    }
 }
 
 /// Both eye styles, with the prefix of their snapshot names.
@@ -65,15 +80,35 @@ fn buddy_apps_pressed() {
 fn each_expression_at_rest() {
     for (eye_style, prefix) in STYLES {
         for (number, expression) in Expression::ALL.into_iter().enumerate() {
-            let accent = expression.accent();
-            let pose = Pose {
-                accent,
-                accent_phase: still_phase(accent),
-                ..expression.pose()
-            };
             let name = format!("{expression:?}").to_lowercase();
-            face(&format!("{prefix}_{number}_{name}"), &pose, eye_style);
+            face(
+                &format!("{prefix}_{number}_{name}"),
+                &at_rest(expression),
+                eye_style,
+            );
         }
+    }
+}
+
+#[test]
+fn each_colored_accent_in_mono() {
+    for expression in [
+        Expression::Happy,
+        Expression::Sad,
+        Expression::Proud,
+        Expression::Flustered,
+    ] {
+        let number = Expression::ALL
+            .iter()
+            .position(|&e| e == expression)
+            .expect("every expression is numbered");
+        let name = format!("{expression:?}").to_lowercase();
+        face_in(
+            &format!("mono_{number}_{name}"),
+            &at_rest(expression),
+            EyeStyle::Pupils,
+            ColorMode::Mono,
+        );
     }
 }
 
@@ -214,5 +249,40 @@ fn each_launcher_button_pressed() {
         h.tap(common::ms(1_000), common::apps());
         h.touch(common::ms(2_000), TouchPhase::Down, point);
         snapshot(&format!("launcher_{name}_pressed"), &h.app.view());
+    }
+}
+
+/// The Settings screen for `settings`, with `pressed` held down.
+fn settings_screen(settings: Settings, pressed: Option<Target>) -> View {
+    View::Settings(SettingsView { settings, pressed })
+}
+
+#[test]
+fn settings_screen_with_defaults_and_changed() {
+    snapshot("settings", &settings_screen(Settings::DEFAULT, None));
+    let changed = Settings::DEFAULT
+        .with_eye_style(EyeStyle::Plain)
+        .with_color(ColorMode::Mono)
+        .with_chime(false);
+    snapshot("settings_changed", &settings_screen(changed, None));
+}
+
+#[test]
+fn each_settings_button_pressed() {
+    let pressed = std::iter::once(("back".to_owned(), Target::Back)).chain(
+        layout::SETTINGS_BUTTONS.iter().map(|&(button, _)| {
+            let name = match button {
+                SettingsButton::EyeStyle => "eye_style",
+                SettingsButton::Color => "color",
+                SettingsButton::Chime => "chime",
+            };
+            (name.to_owned(), Target::Settings(button))
+        }),
+    );
+    for (name, target) in pressed {
+        snapshot(
+            &format!("settings_{name}_pressed"),
+            &settings_screen(Settings::DEFAULT, Some(target)),
+        );
     }
 }

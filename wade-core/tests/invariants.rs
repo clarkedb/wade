@@ -1,11 +1,13 @@
 //! Property tests over random event sequences (docs/testing.md#invariants).
 
+mod common;
+
 use embedded_graphics::geometry::Point;
 use embedded_graphics::primitives::Rectangle;
 use proptest::prelude::*;
 use wade_core::app::{STALL_LIMIT, Screen};
 use wade_core::layout;
-use wade_core::timer::{CHIME_INTERVAL, CHIMES, TimerPhase, TimerState};
+use wade_core::timer::{CHIME_INTERVAL, CHIMES, MAX_SET, MIN_SET, STEP, TimerPhase, TimerState};
 use wade_core::{
     App, Digit, Effect, Event, EventKind, Instant, Key, Settings, Touch, TouchPhase, View,
 };
@@ -28,10 +30,20 @@ fn point() -> impl Strategy<Value = Point> {
     ];
     targets.extend(layout::TIMER_ROW.iter().map(Rectangle::center));
     targets.extend(layout::TILES.iter().map(|(_, area)| area.center()));
+    targets.extend(
+        layout::SETTINGS_BUTTONS
+            .iter()
+            .map(|(_, area)| area.center()),
+    );
     prop_oneof![
         1 => (-20i32..340, -20i32..260).prop_map(|(x, y)| Point::new(x, y)),
         2 => prop::sample::select(targets),
     ]
+}
+
+/// Any settings the platform could load.
+fn settings() -> impl Strategy<Value = Settings> {
+    prop::sample::select(common::every_settings().collect::<Vec<_>>())
 }
 
 fn key() -> impl Strategy<Value = Key> {
@@ -76,20 +88,11 @@ fn step() -> impl Strategy<Value = Vec<(u64, EventKind)>> {
 fn one_minute_timer(pause: bool) -> Vec<EventKind> {
     let minus = layout::TIMER_ROW[0].center();
     let center = layout::TIMER_ROW[1].center();
-    let (_, timer) = layout::TILES
-        .into_iter()
-        .find(|&(tile, _)| tile == layout::Tile::Timer)
-        .expect("the timer has a tile");
-    let timer = timer.center();
-    let mut taps = vec![
-        layout::APPS.center(),
-        timer,
-        minus,
-        minus,
-        minus,
-        minus,
-        center,
-    ];
+    // Enough −1m to reach 1:00 from any duration the settings start it at.
+    let steps = (MAX_SET.as_secs() - MIN_SET.as_secs()) / STEP.as_secs();
+    let mut taps = vec![layout::APPS.center(), common::tile(layout::Tile::Timer)];
+    taps.extend((0..steps).map(|_| minus));
+    taps.push(center);
     if pause {
         taps.push(center);
     }
@@ -183,6 +186,8 @@ fn handle_chimes(
     schedule: &mut Option<(Instant, u8)>,
 ) -> Result<(), TestCaseError> {
     let before = app.timer_state();
+    // Chimes fall due before the event itself can change the setting.
+    let audible = usize::from(app.settings().chime());
     let out = app.handle(event);
     let rang = out.effects.iter().filter(|&&e| e == Effect::Chime).count();
     prop_assert!(rang <= 1, "{} chimes at {:?}", rang, event.at);
@@ -190,13 +195,13 @@ fn handle_chimes(
         && ends_at <= event.at
     {
         prop_assert_eq!(event.at, ends_at, "finished late");
-        prop_assert_eq!(rang, 1, "no chime on finishing");
+        prop_assert_eq!(rang, audible, "chimes on finishing");
         *schedule = Some((ends_at, 1));
     } else if let Some((since, rung)) = schedule.as_mut() {
         let next = *since + CHIME_INTERVAL * u32::from(*rung);
         if *rung < CHIMES && event.at >= next {
-            prop_assert_eq!(event.at, next, "chime {} rang late", *rung);
-            prop_assert_eq!(rang, 1, "chime {} is missing", *rung);
+            prop_assert_eq!(event.at, next, "chime {} fell due late", *rung);
+            prop_assert_eq!(rang, audible, "chimes at repeat {}", *rung);
             *rung += 1;
         } else {
             prop_assert_eq!(rang, 0, "an extra chime at {:?}", event.at);
@@ -247,8 +252,8 @@ fn a_stall_within_the_limit_does_not_change_the_view() {
 
 proptest! {
     #[test]
-    fn next_deadline_is_later_than_last_event(seed: u64, events in ordered_events()) {
-        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+    fn next_deadline_is_later_than_last_event(seed: u64, settings in settings(), events in ordered_events()) {
+        let mut app = App::new(Instant::from_millis(0), seed, settings);
         for event in events {
             deliver(&mut app, event);
             assert_deadline_later(&app)?;
@@ -256,8 +261,8 @@ proptest! {
     }
 
     #[test]
-    fn handle_never_panics_and_deadlines_stay_later(seed: u64, start: u64, events in wild_events()) {
-        let mut app = App::new(Instant::from_millis(start), seed, Settings::DEFAULT);
+    fn handle_never_panics_and_deadlines_stay_later(seed: u64, settings in settings(), start: u64, events in wild_events()) {
+        let mut app = App::new(Instant::from_millis(start), seed, settings);
         for event in events {
             let _ = app.handle(event);
             assert_deadline_later(&app)?;
@@ -268,11 +273,12 @@ proptest! {
     #[test]
     fn extra_deadlines_do_not_change_the_view(
         seed: u64,
+        settings in settings(),
         events in ordered_events(),
         extras in prop::collection::vec((any::<prop::sample::Index>(), 0u64..3_000), 0..20),
     ) {
-        let mut plain = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
-        let mut noisy = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+        let mut plain = App::new(Instant::from_millis(0), seed, settings);
+        let mut noisy = App::new(Instant::from_millis(0), seed, settings);
 
         for (i, event) in events.iter().enumerate() {
             // Spurious Deadline events between the previous event and this one.
@@ -292,10 +298,11 @@ proptest! {
     #[test]
     fn redraw_is_set_whenever_the_view_changes(
         seed: u64,
+        settings in settings(),
         events in ordered_events(),
         punctual in prop::collection::vec(any::<bool>(), 1..100),
     ) {
-        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+        let mut app = App::new(Instant::from_millis(0), seed, settings);
         let mut drawn = app.view();
         for (event, &punctual) in events.iter().zip(punctual.iter().cycle()) {
             while let Some(d) = app.next_deadline().filter(|&d| punctual && d < event.at) {
@@ -306,8 +313,8 @@ proptest! {
     }
 
     #[test]
-    fn a_touch_does_nothing_once_the_screen_changes_or_the_timer_finishes(seed: u64, events in ordered_events()) {
-        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+    fn a_touch_does_nothing_once_the_screen_changes_or_the_timer_finishes(seed: u64, settings in settings(), events in ordered_events()) {
+        let mut app = App::new(Instant::from_millis(0), seed, settings);
         // The screen and timer when the current touch went down, and whether
         // the screen has changed or the timer finished since. Finishing
         // changes the buttons under the touch even on the Timer screen.
@@ -354,8 +361,8 @@ proptest! {
     }
 
     #[test]
-    fn chimes_ring_on_schedule_until_dismissed(seed: u64, events in ordered_events()) {
-        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+    fn chimes_ring_on_schedule_until_dismissed(seed: u64, settings in settings(), events in ordered_events()) {
+        let mut app = App::new(Instant::from_millis(0), seed, settings);
         let mut schedule = None;
         for event in events {
             while let Some(d) = app.next_deadline().filter(|&d| d < event.at) {
@@ -368,18 +375,20 @@ proptest! {
     #[test]
     fn late_deadlines_never_add_chimes(
         seed: u64,
+        settings in settings(),
         events in ordered_events(),
         punctual in prop::collection::vec(any::<bool>(), 1..100),
     ) {
-        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+        let mut app = App::new(Instant::from_millis(0), seed, settings);
         // Chimes rung since the timer last finished, while it stays Done.
         let mut rung = None;
         let mut handle = |app: &mut App, event: Event| -> Result<(), TestCaseError> {
             let finishing = matches!(app.timer_state(), TimerState::Running { ends_at, .. } if ends_at <= event.at);
+            let audible = usize::from(app.settings().chime());
             let out = app.handle(event);
             let rang = out.effects.iter().filter(|&&e| e == Effect::Chime).count();
             if finishing {
-                prop_assert_eq!(rang, 1, "no chime on finishing");
+                prop_assert_eq!(rang, audible, "chimes on finishing");
                 rung = Some(1);
             } else if let Some(n) = rung.as_mut() {
                 *n += rang;
@@ -403,14 +412,15 @@ proptest! {
     #[test]
     fn late_deadlines_do_not_change_the_view(
         seed: u64,
+        settings in settings(),
         events in ordered_events(),
         punctual in prop::collection::vec(any::<bool>(), 1..100),
     ) {
         // `late` never gets requested deadlines on time before an event marked
         // unpunctual: they are folded into the event itself, as after a stalled
         // platform. Both must end up in the same state.
-        let mut on_time = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
-        let mut late = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+        let mut on_time = App::new(Instant::from_millis(0), seed, settings);
+        let mut late = App::new(Instant::from_millis(0), seed, settings);
 
         for (event, &punctual) in events.iter().zip(punctual.iter().cycle()) {
             deliver(&mut on_time, *event);

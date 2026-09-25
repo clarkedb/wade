@@ -140,7 +140,7 @@ Done when:
 
 Scope: the Launcher screen; a Settings screen; persistence.
 
-Settings: Wade's eye style (pupils or plain), his colors (color or mono), chime on or off (off silences the first chime and every repeat), and the default timer duration. Display brightness (4 levels) was planned too; it waits for the device ([D27](decisions.md#d27-brightness-waits-for-the-device)).
+Settings: Wade's eye style (pupils or plain), his colors (color or mono), chime on or off (off silences the first chime and every repeat), and the timer's duration, remembered from the Timer screen rather than set on the Settings screen ([D28](decisions.md#d28-the-timer-remembers-its-duration)). Display brightness (4 levels) was planned too; it waits for the device ([D27](decisions.md#d27-brightness-waits-for-the-device)).
 
 Persistence: the core defines `Settings` with `encode` and `decode` for a fixed binary layout that starts with a version byte. `decode` reads every older layout and falls back to defaults for missing, corrupt, or unknown-version data. The core emits `Effect::SaveSettings(settings)` once settings have stopped changing for 2 s, so stepping the timer duration through several minutes writes flash once, not on every tap. The debounce is an ordinary core deadline; leaving the Settings screen saves at once. The platform stores the bytes (desktop: a file in the user's config directory; device: flash through `esp-storage` and `sequential-storage`). At startup the platform loads the bytes, decodes them, and passes the result to `App::new`.
 

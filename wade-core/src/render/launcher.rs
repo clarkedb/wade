@@ -7,9 +7,6 @@ use crate::render::icons::Icon;
 use crate::render::widgets;
 use crate::view::LauncherView;
 
-/// Tiles draw their icons at twice the size of a button's.
-const TILE_ICON_SCALE: u32 = 2;
-
 pub fn draw<D>(view: LauncherView, target: &mut D) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565>,
@@ -18,7 +15,8 @@ where
     widgets::title(Icon::Apps, target)?;
     for (tile, area) in layout::TILES {
         let pressed = view.pressed == Some(Target::Tile(tile));
-        widgets::button(area, icon(tile), TILE_ICON_SCALE, true, pressed, target)?;
+        let scale = widgets::TILE_ICON_SCALE;
+        widgets::button(area, icon(tile), scale, true, pressed, target)?;
     }
     Ok(())
 }
