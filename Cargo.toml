@@ -22,6 +22,7 @@ libm = "0.2.16"
 clap = { version = "4.6.7", features = ["derive"] }
 embedded-graphics-simulator = "0.8.0"
 getrandom = "0.4.3"
+rodio = { version = "0.22.2", default-features = false, features = ["playback"] }
 
 png = "0.18.1"
 proptest = "1.11.0"

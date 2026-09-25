@@ -19,6 +19,7 @@ pub mod input;
 pub mod layout;
 pub mod render;
 pub mod rng;
+pub mod sound;
 pub mod time;
 pub mod timer;
 pub mod view;

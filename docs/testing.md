@@ -144,7 +144,7 @@ CI runs on GitHub Actions, in two jobs:
 
 | Job | Runner | Steps |
 |---|---|---|
-| Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev` (only `wade-desktop` needs it), then every check above |
+| Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev libasound2-dev` (SDL2 and ALSA, which only `wade-desktop` needs), then every check above |
 | Firmware (from M3) | `ubuntu-latest` | Install the Xtensa toolchain with the `esp-rs/xtensa-toolchain` action, then `cargo build --release` in `wade-cores3`, plus `cargo fmt --check` and `cargo clippy` there |
 
 A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The spike under `spikes/` is not built in CI.

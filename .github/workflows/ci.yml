@@ -25,8 +25,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install SDL2
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+      # wade-desktop's window needs SDL2 and its audio needs ALSA.
+      - name: Install SDL2 and ALSA
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libasound2-dev
 
       # Installs the channel, components, and targets from rust-toolchain.toml.
       - name: Install Rust toolchain
