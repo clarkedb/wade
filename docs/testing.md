@@ -120,7 +120,7 @@ The state hash is taken after the event is handled. It covers the screen, Wade's
 
 Recordings will need more input kinds as milestones add events: loaded settings (M5), power and proximity (M6), weather updates (M7). Each addition bumps the header version (`wade-events 2`, …). The parser accepts every older version, so existing recordings keep working.
 
-Recordings of interesting sessions go in `wade-core/tests/recordings/` as `*.events.wade` files. The suffix identifies Wade's custom event format; desktop captures use a `desktop-` prefix. The core replay test owns the fixtures. It runs each one through the harness and checks that it completes without panicking, that every state hash matches, plus any assertions written for that recording, such as the final screen or a snapshot of the final frame. A behavior change that alters a hash on purpose is accepted by re-recording, or by rewriting the hashes with `UPDATE_RECORDINGS=1 cargo test` and reviewing the diff.
+Recordings of interesting sessions go in `wade-core/tests/recordings/` as `*.events.wade` files. The suffix identifies Wade's custom event format; desktop captures use a `desktop-` prefix. The core replay tests own the fixtures. One runs every recording through the harness and checks that it completes without panicking and that every state hash matches. A recording with more to check, such as the final screen or a snapshot of the final frame, gets its own test that loads it by name, so renaming the file fails that test instead of silently skipping its checks. A behavior change that alters a hash on purpose is accepted by re-recording, or by rewriting the hashes with `UPDATE_RECORDINGS=1 cargo test` and reviewing the diff.
 
 ## Checks
 
