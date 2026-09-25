@@ -96,7 +96,7 @@ An expression is a named target pose, numbered for the desktop keys (see [platfo
 | 4 | Surprised | Being woken (M1), woken by an approach (M6) | Tall and wide | Exclaim, briefly |
 | 5 | Sleepy | Falling asleep | Upper lids half down | |
 | 6 | Thinking | No trigger yet | Smaller, lids slightly down, looking up and to the side | Dots counting up |
-| 7 | Proud | Successes, repeated attention (M2, M4) | Half-lidded and smug, right eye taller, looking up and to one side | Sparkle |
+| 7 | Proud | Successes, repeated attention (M2, M4) | Smiling crescents, right eye taller, looking up and to one side | Sparkle |
 | 8 | Focused | Typing (M4) | Flattened, inner corners slightly cut, looking down | |
 | 9 | Flustered | Hubris backfire (M4) | Wide, worried, uneven | SweatDrop |
 

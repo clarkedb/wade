@@ -160,13 +160,12 @@ impl Expression {
                 ..Pose::REST
             },
             Expression::Proud => Pose {
-                eye_size: (85.0, 72.0),
-                eye_radius: 26.0,
-                upper_lid: 0.4,
-                lower_lid: 0.22,
-                asymmetry: 0.8,
-                gaze: (-0.6, -0.5),
-                pupil: 33.0,
+                eye_size: (88.0, 84.0),
+                eye_radius: 32.0,
+                lower_lid: 0.36,
+                asymmetry: 0.45,
+                gaze: (-0.55, -0.6),
+                pupil: 34.0,
                 ..Pose::REST
             },
             Expression::Focused => Pose {
