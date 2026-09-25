@@ -7,7 +7,9 @@ use crate::timer::{Digits, RowButton, TimerPhase};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum View {
     Buddy(BuddyView),
+    Launcher(LauncherView),
     Timer(TimerView),
+    Settings(SettingsView),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -26,12 +28,24 @@ pub struct BuddyView {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LauncherView {
+    /// The tile or button under a touch in progress, drawn pressed.
+    pub pressed: Option<Target>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TimerView {
     pub phase: TimerPhase,
     /// The time shown: 00:00 once Done.
     pub digits: Digits,
     /// The row's left, center, and right buttons. `None` leaves a slot empty.
     pub row: [Option<RowButton>; 3],
+    /// The button under a touch in progress, drawn pressed.
+    pub pressed: Option<Target>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SettingsView {
     /// The button under a touch in progress, drawn pressed.
     pub pressed: Option<Target>,
 }

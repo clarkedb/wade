@@ -25,6 +25,7 @@ fn point() -> impl Strategy<Value = Point> {
         layout::BACK.center(),
     ];
     targets.extend(layout::TIMER_ROW.iter().map(Rectangle::center));
+    targets.extend(layout::TILES.iter().map(|(_, area)| area.center()));
     prop_oneof![
         1 => (-20i32..340, -20i32..260).prop_map(|(x, y)| Point::new(x, y)),
         2 => prop::sample::select(targets),
@@ -73,7 +74,20 @@ fn step() -> impl Strategy<Value = Vec<(u64, EventKind)>> {
 fn one_minute_timer(pause: bool) -> Vec<EventKind> {
     let minus = layout::TIMER_ROW[0].center();
     let center = layout::TIMER_ROW[1].center();
-    let mut taps = vec![layout::APPS.center(), minus, minus, minus, minus, center];
+    let (_, timer) = layout::TILES
+        .into_iter()
+        .find(|&(tile, _)| tile == layout::Tile::Timer)
+        .expect("the timer has a tile");
+    let timer = timer.center();
+    let mut taps = vec![
+        layout::APPS.center(),
+        timer,
+        minus,
+        minus,
+        minus,
+        minus,
+        center,
+    ];
     if pause {
         taps.push(center);
     }

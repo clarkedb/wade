@@ -88,7 +88,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     eprintln!("seed {seed}");
     if recording.is_none() {
         eprintln!(
-            "keys: 0–9 show an expression, z sleeps, p toggles pupils; click Wade to tap him or the bottom-right corner to open the timer"
+            "keys: 0–9 show an expression, z sleeps, p toggles pupils; click Wade to tap him or the bottom-right corner to open the Launcher"
         );
     }
 

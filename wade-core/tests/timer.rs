@@ -4,12 +4,12 @@ mod common;
 
 use std::time::Duration;
 
-use common::{SEED, apps, back, button, ms};
+use common::{SEED, apps, back, button, home, ms, open};
 use embedded_graphics::geometry::Point;
 use wade_core::app::{Screen, TOUCH_GUARD};
 use wade_core::character::{Expression, GROGGY_DURATION, TIMER_REACTION};
 use wade_core::harness::Harness;
-use wade_core::layout::{Target, WADE_CENTER, WADE_FACE};
+use wade_core::layout::{Target, Tile, WADE_CENTER, WADE_FACE};
 use wade_core::timer::{
     CHIME_INTERVAL, DEFAULT_SET, Digits, MAX_SET, MIN_SET, TimerButton, TimerPhase, TimerState,
 };
@@ -17,7 +17,7 @@ use wade_core::{Effect, Event, Instant, Key, TouchPhase};
 
 /// Open the Timer screen at `t` ms and shorten the timer to 1:00, finishing by `t + 500`.
 fn set_one_minute(h: &mut Harness, t: u64) {
-    h.tap(ms(t), apps());
+    open(h, ms(t), Tile::Timer);
     for step in 1..=4 {
         h.tap(ms(t + step * 100), button(TimerButton::Minus));
     }
@@ -30,7 +30,7 @@ fn one_minute_timer_from_buddy() -> Harness {
     let mut h = Harness::new(SEED);
     set_one_minute(&mut h, 1_000);
     h.tap(ms(2_000), button(TimerButton::Start));
-    h.tap(ms(3_000), back());
+    home(&mut h, ms(3_000));
     h
 }
 
@@ -56,7 +56,7 @@ fn before(t: Instant, by: u64) -> Instant {
 #[test]
 fn start_runs_until_now_plus_set() {
     let mut h = Harness::new(SEED);
-    h.tap(ms(1_000), apps());
+    open(&mut h, ms(1_000), Tile::Timer);
     assert_eq!(h.timer().phase, TimerPhase::Ready);
     assert_eq!(h.timer().digits.to_string(), "05:00");
     h.tap(ms(2_000), button(TimerButton::Start));
@@ -72,7 +72,7 @@ fn start_runs_until_now_plus_set() {
 #[test]
 fn digits_round_up_to_whole_seconds() {
     let mut h = Harness::new(SEED);
-    h.tap(ms(1_000), apps());
+    open(&mut h, ms(1_000), Tile::Timer);
     h.tap(ms(2_000), button(TimerButton::Start));
     h.run_until(ms(2_999));
     assert_eq!(h.timer().digits, Digits::new(5, 0), "299,001 ms left");
@@ -83,7 +83,7 @@ fn digits_round_up_to_whole_seconds() {
 #[test]
 fn pause_then_resume_keeps_the_time_left() {
     let mut h = Harness::new(SEED);
-    h.tap(ms(1_000), apps());
+    open(&mut h, ms(1_000), Tile::Timer);
     h.tap(ms(2_000), button(TimerButton::Start));
     h.tap(ms(62_500), button(TimerButton::Pause));
     assert_eq!(h.timer().phase, TimerPhase::Paused);
@@ -252,7 +252,7 @@ fn on_buddy_the_timer_adds_only_its_end_to_the_deadlines() {
     let mut running = one_minute_timer_from_buddy();
     let mut ready = Harness::new(SEED);
     set_one_minute(&mut ready, 1_000);
-    ready.tap(ms(3_000), back());
+    home(&mut ready, ms(3_000));
     let follow = |h: &mut Harness| {
         let mut deadlines = Vec::new();
         while let Some(d) = h.app.next_deadline().filter(|&d| d < ENDS_AT) {
@@ -268,11 +268,11 @@ fn on_buddy_the_timer_adds_only_its_end_to_the_deadlines() {
 #[test]
 fn leaving_and_returning_does_not_change_the_timer() {
     let mut h = Harness::new(SEED);
-    h.tap(ms(1_000), apps());
+    open(&mut h, ms(1_000), Tile::Timer);
     h.tap(ms(2_000), button(TimerButton::Start));
     let timer = h.app.timer_state();
-    h.tap(ms(10_000), back());
-    h.tap(ms(20_000), apps());
+    home(&mut h, ms(10_000));
+    open(&mut h, ms(20_000), Tile::Timer);
     assert_eq!(h.app.timer_state(), timer);
     assert_eq!(h.timer().digits.to_string(), "04:42");
 }
@@ -298,7 +298,7 @@ fn minus_and_plus_do_nothing_at_the_bounds() {
 #[test]
 fn a_pressed_row_button_shows_pressed() {
     let mut h = Harness::new(SEED);
-    h.tap(ms(1_000), apps());
+    open(&mut h, ms(1_000), Tile::Timer);
     h.touch(ms(2_000), TouchPhase::Down, button(TimerButton::Start));
     assert_eq!(h.timer().pressed, Some(Target::Timer(TimerButton::Start)));
     h.touch(ms(2_050), TouchPhase::Up, button(TimerButton::Start));
@@ -338,7 +338,7 @@ fn dismiss_a_timer_that_woke_him(h: &mut Harness) -> Instant {
     h.key(ms(500), Key::Z);
     set_one_minute(h, 1_000);
     h.tap(ms(2_000), button(TimerButton::Start));
-    h.tap(ms(3_000), back());
+    home(h, ms(3_000));
     assert!(h.buddy().asleep);
     h.run_until(ENDS_AT);
     assert!(!h.wade_asleep(), "the chime did not wake him");

@@ -230,7 +230,9 @@ pub struct App {
 
 enum Screen {
     Buddy,
+    Launcher,
     Timer,
+    Settings,
 }
 ```
 

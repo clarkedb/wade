@@ -8,7 +8,7 @@ use common::framebuffer::{Framebuffer, assert_snapshot};
 use std::time::Duration;
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
-use wade_core::layout::Target;
+use wade_core::layout::{Target, Tile};
 use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
 use wade_core::view::{EyeStyle, View};
 use wade_core::{App, Instant, TouchPhase, render};
@@ -194,4 +194,25 @@ fn timer_bounds_dim_their_buttons() {
         "timer_longest",
         &timer(TimerState::Ready { set: MAX_SET }, now, None),
     );
+}
+
+#[test]
+fn launcher() {
+    let mut h = Harness::new(common::SEED);
+    h.tap(common::ms(1_000), common::apps());
+    snapshot("launcher", &h.app.view());
+}
+
+#[test]
+fn each_launcher_button_pressed() {
+    for (name, point) in [
+        ("back", common::back()),
+        ("timer", common::tile(Tile::Timer)),
+        ("settings", common::tile(Tile::Settings)),
+    ] {
+        let mut h = Harness::new(common::SEED);
+        h.tap(common::ms(1_000), common::apps());
+        h.touch(common::ms(2_000), TouchPhase::Down, point);
+        snapshot(&format!("launcher_{name}_pressed"), &h.app.view());
+    }
 }

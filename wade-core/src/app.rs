@@ -3,11 +3,11 @@
 use crate::character::{Expression, Wade};
 use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
 use crate::input::TouchTracker;
-use crate::layout::{self, Target};
+use crate::layout::{self, Target, Tile};
 use crate::rng::Rng;
 use crate::time::{Duration, Instant};
-use crate::timer::{Chime, Digits, TimerButton, TimerState};
-use crate::view::{BuddyView, EyeStyle, View};
+use crate::timer::{Chime, Digits, TimerButton, TimerPhase, TimerState};
+use crate::view::{BuddyView, EyeStyle, LauncherView, SettingsView, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
@@ -48,7 +48,9 @@ pub struct Output {
 pub enum Screen {
     #[default]
     Buddy,
+    Launcher,
     Timer,
+    Settings,
 }
 
 #[derive(Clone, Debug)]
@@ -114,23 +116,39 @@ impl App {
         } else {
             self.touch.handle(touch, |p| match screen {
                 Screen::Buddy => layout::hit_buddy(p),
+                Screen::Launcher => layout::hit_launcher(p),
                 Screen::Timer => layout::hit_timer(p, row),
+                Screen::Settings => layout::hit_settings(p),
             })
         };
         out.redraw |= self.pressed_button() != pressed;
         match tap {
             Some(Target::Wade) => out.redraw |= self.wade.on_tap(self.now),
-            Some(Target::Apps) => self.switch_to(Screen::Timer, out),
-            // Back from a finished timer dismisses it, like Dismiss.
-            Some(Target::Back | Target::Timer(TimerButton::Dismiss)) => {
-                if self.timer.press(TimerButton::Dismiss, self.now) {
-                    out.redraw |= self.wade.timer_dismissed(self.now, &mut self.rng);
-                }
-                self.switch_to(Screen::Buddy, out);
-            }
+            Some(Target::Apps) => self.switch_to(Screen::Launcher, out),
+            Some(Target::Tile(Tile::Timer)) => self.switch_to(Screen::Timer, out),
+            Some(Target::Tile(Tile::Settings)) => self.switch_to(Screen::Settings, out),
+            Some(Target::Back) => self.back(out),
+            Some(Target::Timer(TimerButton::Dismiss)) => self.dismiss(out),
             Some(Target::Timer(button)) => out.redraw |= self.timer.press(button, self.now),
             None => {}
         }
+    }
+
+    /// Back from a finished timer dismisses it, like Dismiss.
+    fn back(&mut self, out: &mut Output) {
+        match self.screen {
+            Screen::Timer if self.timer.phase() == TimerPhase::Done => self.dismiss(out),
+            Screen::Timer | Screen::Settings => self.switch_to(Screen::Launcher, out),
+            Screen::Launcher | Screen::Buddy => self.switch_to(Screen::Buddy, out),
+        }
+    }
+
+    /// Dismiss a finished timer and return to Buddy, so Wade can react.
+    fn dismiss(&mut self, out: &mut Output) {
+        if self.timer.press(TimerButton::Dismiss, self.now) {
+            out.redraw |= self.wade.timer_dismissed(self.now, &mut self.rng);
+        }
+        self.switch_to(Screen::Buddy, out);
     }
 
     fn on_key(&mut self, key: Key) -> bool {
@@ -286,7 +304,13 @@ impl App {
                 eye_style: self.eye_style,
                 apps_pressed: self.touch.pressed() == Some(Target::Apps),
             }),
+            Screen::Launcher => View::Launcher(LauncherView {
+                pressed: self.pressed_button(),
+            }),
             Screen::Timer => View::Timer(self.timer.view(self.now, self.pressed_button())),
+            Screen::Settings => View::Settings(SettingsView {
+                pressed: self.pressed_button(),
+            }),
         }
     }
 
