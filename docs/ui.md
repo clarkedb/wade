@@ -62,11 +62,11 @@ pub enum TimerState {
     Ready   { set: Duration },
     Running { set: Duration, ends_at: Instant },
     Paused  { set: Duration, remaining: Duration },
-    Done    { set: Duration, since: Instant },
+    Done    { set: Duration, since: Instant, chimes: u8 },
 }
 ```
 
-`set` is the chosen duration. It is kept in every state so that Reset and Dismiss return to Ready with the same duration. `since` is when the timer finished; the chime repeats are scheduled from it.
+`set` is the chosen duration. It is kept in every state so that Reset and Dismiss return to Ready with the same duration. `since` is when the timer finished; the chime repeats are scheduled from it, and `chimes` counts those already due.
 
 ```text
             −1m / +1m
@@ -91,7 +91,7 @@ pub enum TimerState {
 | Display | MM:SS. Remaining time rounds up to whole seconds, so the display shows 00:01 during the last second. The digits change on second boundaries measured back from `ends_at` (at `ends_at − k × 1 s`), not on whole seconds of the clock. |
 | Pause and resume | Pause stores `remaining = ends_at.saturating_since(now)`. Resume sets `ends_at = now + remaining`. |
 | Completion | When `now` reaches `ends_at`, the timer enters Done with `since = ends_at`, emits `Effect::Chime`, and switches the screen to Timer. |
-| Chime repeats | While Done, the chime repeats every 10 s: at `since + 10 s`, `since + 20 s`, and so on, for 10 chimes in total including the first. Dismissing stops them. From M5, the "chime off" setting silences all of them. |
+| Chime repeats | While Done, the chime repeats every 2 s: at `since + 2 s`, `since + 4 s`, and so on, for 10 chimes in total including the first. Chimes that fall due together, after a late wake, play once. Dismissing stops them. From M5, the "chime off" setting silences all of them. |
 | Screen independence | The timer runs regardless of which screen is visible. |
 | Dismiss | The Dismiss button or the back button. Done returns to Ready with the same `set`, the screen returns to Buddy, and Wade is Proud for 2 s. |
 | Deadlines | While Running: `ends_at`. While Running and the Timer screen is visible: also the next second boundary, so the digits update on time. While Done: the next chime repeat, until the tenth. |

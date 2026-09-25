@@ -20,6 +20,7 @@ pub mod layout;
 pub mod render;
 pub mod rng;
 pub mod time;
+pub mod timer;
 pub mod view;
 
 #[cfg(any(test, feature = "harness"))]
