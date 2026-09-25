@@ -65,7 +65,7 @@ Behavior tests:
 | Rounding | With 299,001 ms remaining the display shows 05:00; with 500 ms remaining it shows 00:01 |
 | Pause, then resume | Remaining time is preserved across the pause |
 | Completion | At `ends_at`: Done, one `Chime`, screen switches to Timer |
-| Chime repeats | While Done, a `Chime` at `ends_at + 10 s`, `+ 20 s`, …, 10 in total; none after that |
+| Chime repeats | While Done, a `Chime` at `ends_at + 2 s`, `+ 4 s`, …, 10 in total; none after that |
 | Dismiss stops chimes | Dismissing after the third chime: no further `Chime` |
 | Completion while on Buddy | Same as above; the timer completes on time without the Timer screen being visible |
 | Completion mid-touch | Touch down on Wade, the timer completes, lift: no tap on the Timer screen, no change |
