@@ -5,6 +5,8 @@ use embedded_graphics::{
     primitives::Rectangle,
 };
 
+use crate::timer::{RowButton, TimerButton};
+
 /// Logical screen size: 320×240, landscape, origin top-left.
 pub const SCREEN_SIZE: Size = Size::new(320, 240);
 pub const SCREEN: Rectangle = Rectangle::new(Point::zero(), SCREEN_SIZE);
@@ -33,12 +35,20 @@ const NAV_SIZE: Size = Size::new(48, 48);
 /// no touches.
 pub const TITLE: Rectangle = Rectangle::new(Point::new(272, 0), NAV_SIZE);
 
+/// The timer's row of buttons: left, center, and right, above the bottom corners.
+pub const TIMER_ROW: [Rectangle; 3] = [
+    Rectangle::new(Point::new(8, 136), Size::new(72, 56)),
+    Rectangle::new(Point::new(96, 136), Size::new(128, 56)),
+    Rectangle::new(Point::new(240, 136), Size::new(72, 56)),
+];
+
 /// Something on screen that a tap can land on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Target {
     Wade,
     Apps,
     Back,
+    Timer(TimerButton),
 }
 
 /// The target under `point` on the Buddy screen, if any.
@@ -51,23 +61,53 @@ pub fn hit_buddy(point: Point) -> Option<Target> {
     }
 }
 
-/// The target under `point` on the Timer screen, if any.
+/// The target under `point` on the Timer screen, whose row holds `row`, if
+/// any. Disabled buttons take no touches.
 #[must_use]
-pub fn hit_timer(point: Point) -> Option<Target> {
-    BACK.contains(point).then_some(Target::Back)
+pub fn hit_timer(point: Point, row: [Option<RowButton>; 3]) -> Option<Target> {
+    if BACK.contains(point) {
+        return Some(Target::Back);
+    }
+    TIMER_ROW
+        .iter()
+        .zip(row)
+        .find(|(slot, _)| slot.contains(point))
+        .and_then(|(_, button)| button)
+        .filter(|button| button.enabled)
+        .map(|button| Target::Timer(button.button))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::app::Screen;
+    use crate::time::Instant;
+    use crate::timer::TimerState;
 
     /// Every hit area on every screen, with a target that uses it, and the
     /// navigation corner it owns, if any.
-    const HIT_AREAS: [(Screen, Target, Rectangle, Option<Rectangle>); 3] = [
+    const HIT_AREAS: [(Screen, Target, Rectangle, Option<Rectangle>); 6] = [
         (Screen::Buddy, Target::Wade, WADE_FACE, None),
         (Screen::Buddy, Target::Apps, APPS, Some(APPS)),
         (Screen::Timer, Target::Back, BACK, Some(BACK)),
+        (
+            Screen::Timer,
+            Target::Timer(TimerButton::Minus),
+            TIMER_ROW[0],
+            None,
+        ),
+        (
+            Screen::Timer,
+            Target::Timer(TimerButton::Start),
+            TIMER_ROW[1],
+            None,
+        ),
+        (
+            Screen::Timer,
+            Target::Timer(TimerButton::Plus),
+            TIMER_ROW[2],
+            None,
+        ),
     ];
 
     #[test]
@@ -78,10 +118,24 @@ mod tests {
 
     #[test]
     fn each_navigation_button_hits_only_on_its_screen() {
+        let row = TimerState::new().row();
         assert_eq!(hit_buddy(APPS.center()), Some(Target::Apps));
-        assert_eq!(hit_timer(APPS.center()), None);
-        assert_eq!(hit_timer(BACK.center()), Some(Target::Back));
+        assert_eq!(hit_timer(APPS.center(), row), None);
+        assert_eq!(hit_timer(BACK.center(), row), Some(Target::Back));
         assert_eq!(hit_buddy(BACK.center()), None);
+    }
+
+    #[test]
+    fn the_row_hits_only_enabled_buttons_in_filled_slots() {
+        let mut timer = TimerState::new();
+        let hit = |timer: TimerState, slot: usize| hit_timer(TIMER_ROW[slot].center(), timer.row());
+        assert_eq!(hit(timer, 0), Some(Target::Timer(TimerButton::Minus)));
+        assert_eq!(hit(timer, 1), Some(Target::Timer(TimerButton::Start)));
+        while timer.press(TimerButton::Minus, Instant::from_millis(0)) {}
+        assert_eq!(hit(timer, 0), None, "a disabled −1m takes touches");
+        assert!(timer.press(TimerButton::Start, Instant::from_millis(0)));
+        assert_eq!(hit(timer, 0), None, "an empty slot takes touches");
+        assert_eq!(hit(timer, 1), Some(Target::Timer(TimerButton::Pause)));
     }
 
     #[test]

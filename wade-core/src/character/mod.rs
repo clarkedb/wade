@@ -17,6 +17,11 @@ const MOTION_STREAM: u64 = 0x6D6F_7469_6F6E_5EED;
 pub const HAPPY_DURATION: Duration = Duration::from_millis(2_000);
 /// How long Wade stays Surprised after a tap wakes him.
 pub const WAKE_DURATION: Duration = Duration::from_millis(1_000);
+/// How long Wade stays Proud after a finished timer is dismissed.
+pub const TIMER_REACTION: Duration = Duration::from_millis(2_000);
+/// How long Wade stays Sleepy after dismissing a timer whose chime woke him.
+/// Then a coin flip decides whether he wakes up or dozes off again.
+pub const GROGGY_DURATION: Duration = Duration::from_millis(3_000);
 /// How long a blink takes, closing and reopening.
 pub const BLINK_DURATION: Duration = Duration::from_millis(120);
 /// A blink shuts fast and reopens slower; together they make `BLINK_DURATION`.
@@ -255,6 +260,19 @@ pub(crate) struct Wade {
     tear_at: Option<Instant>,
     next_twitch: Option<Instant>,
     twitch_at: Option<Instant>,
+    groggy: Groggy,
+}
+
+/// How being woken by the timer's chime plays out.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Groggy {
+    No,
+    /// The chime woke him, so dismissing the timer leaves him Sleepy
+    /// instead of Proud.
+    Woken,
+    /// When the timed expression expires, he falls back asleep instead of
+    /// returning to Neutral.
+    DozingOff,
 }
 
 impl Wade {
@@ -286,6 +304,7 @@ impl Wade {
             tear_at: None,
             next_twitch: None,
             twitch_at: None,
+            groggy: Groggy::No,
         };
         wade.schedule_idle(now);
         wade
@@ -336,12 +355,11 @@ impl Wade {
         let mut changed = self.next_step() == Some(now)
             || self.accent_end() == Some(now) && !self.accent().moves();
         self.now = now;
-        let idle = visible && !self.asleep;
         if self.expires_at.is_some_and(|t| t <= now) {
-            self.expires_at = None;
-            self.change(now, Expression::Neutral);
+            self.expire(now);
             changed = true;
         }
+        let idle = visible && !self.asleep;
         if self.next_blink <= now {
             if idle {
                 self.blink_at = Some(now);
@@ -405,8 +423,7 @@ impl Wade {
     /// function of elapsed time with a fixed end, so all have long finished.
     pub fn fast_forward(&mut self, now: Instant) {
         if let Some(t) = self.expires_at.filter(|&t| t <= now) {
-            self.expires_at = None;
-            self.change(t, Expression::Neutral);
+            self.expire(t);
         }
         self.now = now;
         self.schedule_idle(now);
@@ -458,6 +475,41 @@ impl Wade {
         true
     }
 
+    /// The timer finished and its chime sounded. If he was asleep, it wakes
+    /// him, Sleepy, and he stays groggy until the timer is dismissed.
+    pub fn hear_chime(&mut self, now: Instant) {
+        self.now = now;
+        if self.asleep {
+            self.change(now, Expression::Sleepy);
+            self.groggy = Groggy::Woken;
+        }
+    }
+
+    /// A finished timer was dismissed: Proud for `TIMER_REACTION`. If its
+    /// chime woke him, he is Sleepy for `GROGGY_DURATION` instead, and a coin
+    /// flip from `behavior` decides whether he then wakes up or dozes off.
+    /// Returns true if the view may have changed.
+    #[must_use = "a true result means the view must be redrawn"]
+    pub fn timer_dismissed(&mut self, now: Instant, behavior: &mut Rng) -> bool {
+        self.now = now;
+        let groggy = self.groggy == Groggy::Woken;
+        let (expression, lasts) = if groggy {
+            (Expression::Sleepy, GROGGY_DURATION)
+        } else {
+            (Expression::Proud, TIMER_REACTION)
+        };
+        if self.asleep || expression != self.expression {
+            self.change(now, expression);
+        }
+        self.expires_at = Some(now + lasts);
+        self.groggy = if groggy && behavior.range_inclusive(1, 2) == 1 {
+            Groggy::DozingOff
+        } else {
+            Groggy::No
+        };
+        true
+    }
+
     /// Show `expression` until something else changes it, waking him if
     /// asleep. Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]
@@ -467,6 +519,7 @@ impl Wade {
             self.change(now, expression);
         }
         self.expires_at = None;
+        self.stay_awake();
         true
     }
 
@@ -530,11 +583,29 @@ impl Wade {
         self.next_squint = now + random(rng, SQUINT_INTERVAL_MIN, SQUINT_INTERVAL_MAX);
     }
 
-    /// Start a transition from the current base pose, forgetting motions that
-    /// belong to the old state.
+    /// A timed expression ends at `at`: back to Neutral, or back to sleep.
+    fn expire(&mut self, at: Instant) {
+        self.expires_at = None;
+        if self.groggy == Groggy::DozingOff {
+            self.fall_asleep(at);
+        } else {
+            self.change(at, Expression::Neutral);
+        }
+    }
+
+    /// Forget a plan to doze off when the timed expression expires.
+    fn stay_awake(&mut self) {
+        if self.groggy == Groggy::DozingOff {
+            self.groggy = Groggy::No;
+        }
+    }
+
+    /// Start a transition from the current base pose, forgetting motions and
+    /// plans that belong to the old state.
     fn begin_change(&mut self, now: Instant) {
         self.from = self.base(now);
         self.changed_at = now;
+        self.stay_awake();
         self.tear_at = None;
         self.next_tear = None;
         self.twitch_at = None;

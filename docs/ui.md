@@ -30,10 +30,10 @@ Navigation in M2:
 Buddy ──(apps button)──► Timer
 Timer ──(back button)──► Buddy
 Timer finishes, on any screen ──► Timer, showing Done
-Timer in Done ──(Dismiss or back button)──► Buddy, Wade Proud
+Timer in Done ──(Dismiss or back button)──► Buddy, Wade Proud (or groggy, if the chime woke him)
 ```
 
-From M5, the apps button opens the Launcher. Back from an app returns to the Launcher, and back from the Launcher returns to Buddy. The one exception is a finished timer: dismissing it, with Dismiss or with back, always returns to Buddy so Wade can be Proud.
+From M5, the apps button opens the Launcher. Back from an app returns to the Launcher, and back from the Launcher returns to Buddy. The one exception is a finished timer: dismissing it, with Dismiss or with back, always returns to Buddy so Wade can react.
 
 ## Touch handling
 
@@ -41,7 +41,7 @@ The platform sends raw `Down`, `Move`, and `Up` samples. The core's `TouchTracke
 
 A tap targets the element under the `Down` point. A button shows a pressed style, its colors inverted, while the touch stays inside it. The tap fires on `Up` if the `Up` point is still inside the same element; moving outside cancels it. There is no time limit, so no deadline is involved.
 
-A screen change cancels any tap in progress. If the core switches screens while a finger is down (the timer finishing, for example), the rest of that touch is ignored until the next `Down`. Otherwise the `Up` would land on an element of the new screen that the user never pressed. Long-press and swipe gestures are not used until a feature needs them.
+A screen change cancels any tap in progress. If the core switches screens while a finger is down (the timer finishing, for example), the rest of that touch is ignored until the next `Down`. Otherwise the `Up` would land on an element of the new screen that the user never pressed. The timer finishing cancels a touch even when the Timer screen is already shown, since its buttons change, and for half a second afterwards new touches are ignored too: they were aimed at what the screen showed before. Either way, a timer is never dismissed by a user who has not seen it finish. Long-press and swipe gestures are not used until a feature needs them.
 
 ## Layout
 
@@ -93,7 +93,7 @@ pub enum TimerState {
 | Completion | When `now` reaches `ends_at`, the timer enters Done with `since = ends_at`, emits `Effect::Chime`, and switches the screen to Timer. |
 | Chime repeats | While Done, the chime repeats every 2 s: at `since + 2 s`, `since + 4 s`, and so on, for 10 chimes in total including the first. Chimes that fall due together, after a late wake, play once. Dismissing stops them. From M5, the "chime off" setting silences all of them. |
 | Screen independence | The timer runs regardless of which screen is visible. |
-| Dismiss | The Dismiss button or the back button. Done returns to Ready with the same `set`, the screen returns to Buddy, and Wade is Proud for 2 s. |
+| Dismiss | The Dismiss button or the back button. Done returns to Ready with the same `set`, the screen returns to Buddy, and Wade is Proud for 2 s, or groggy if the chime woke him (see [character.md](character.md#m2-adds)). |
 | Deadlines | While Running: `ends_at`. While Running and the Timer screen is visible: also the next second boundary, so the digits update on time. While Done: the next chime repeat, until the tenth. |
 
 ### Layout

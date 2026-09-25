@@ -93,8 +93,8 @@ An expression is a named target pose, numbered for the desktop keys (see [platfo
 | 1 | Happy | Being tapped | Slightly larger; lower lids pushed up into crescents | Blush |
 | 2 | Sad | No trigger yet | Smaller and drooping, outer corners cut | Tear, every few seconds |
 | 3 | Angry | No trigger yet | Short, inner corners cut deep; a tremble | Steam, flashing |
-| 4 | Surprised | Being woken (M1), woken by an approach (M6) | Tall and wide | Exclaim, briefly |
-| 5 | Sleepy | Falling asleep | Upper lids half down | |
+| 4 | Surprised | Being woken by a tap (M1), woken by an approach (M6) | Tall and wide | Exclaim, briefly |
+| 5 | Sleepy | Falling asleep; groggy after the timer's chime wakes him (M2) | Upper lids half down | |
 | 6 | Thinking | No trigger yet | Smaller, lids slightly down, looking up and to the side | Dots counting up |
 | 7 | Proud | Successes, repeated attention (M2, M4) | Smiling crescents, right eye taller, looking up and to one side | Sparkle |
 | 8 | Focused | Typing (M4) | Flattened, inner corners slightly cut, looking down | |
@@ -156,6 +156,8 @@ Idle activities (M4):
 | Trigger | Result |
 |---|---|
 | Returning to the Buddy screen after dismissing a finished timer (with Dismiss or back) | Proud for 2 s, then Neutral |
+| The timer finishing while he is asleep | The chime wakes him, Sleepy, out of sight on the Timer screen |
+| Dismissing a finished timer whose chime woke him | Sleepy for 3 s instead of Proud, then a coin flip: Neutral, or back to sleep |
 
 ### M4 (proposed; finalized at the start of M4)
 

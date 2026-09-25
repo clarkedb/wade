@@ -1,11 +1,13 @@
 //! `App`: the core's entry point. Owns all state and routes events to features.
 
 use crate::character::{Expression, Wade};
-use crate::event::{Event, EventKind, Key, Touch};
+use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
 use crate::input::TouchTracker;
 use crate::layout::{self, Target};
+use crate::rng::Rng;
 use crate::time::{Duration, Instant};
-use crate::view::{BuddyView, EyeStyle, TimerView, View};
+use crate::timer::{Chime, Digits, TimerButton, TimerState};
+use crate::view::{BuddyView, EyeStyle, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
@@ -17,11 +19,18 @@ pub const STALL_LIMIT: Duration = Duration::from_hours(1);
 /// Maximum effects per `Output`; extras are dropped, never a panic (D17).
 pub const MAX_EFFECTS: usize = 4;
 
+/// For this long after the timer finishes, new touches are ignored: they were
+/// aimed at what the screen showed before, and could otherwise dismiss a timer
+/// its user never saw finish.
+pub const TOUCH_GUARD: Duration = Duration::from_millis(500);
+
 /// Side effects for the platform to carry out.
-///
-/// Empty in M1. `Chime` arrives in M2 (docs/architecture.md#planned-additions).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Effect {}
+pub enum Effect {
+    /// Play the timer-finished chime. Emitted when the timer finishes and
+    /// repeated while it stays Done (docs/ui.md#rules).
+    Chime,
+}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Output {
@@ -46,7 +55,12 @@ pub struct App {
     now: Instant,
     screen: Screen,
     wade: Wade,
+    timer: TimerState,
+    /// Randomness for behavior, apart from Wade's motion (D21).
+    rng: Rng,
     touch: TouchTracker,
+    /// Touches that start before this are ignored (see `TOUCH_GUARD`).
+    touch_guard_until: Instant,
     eye_style: EyeStyle,
 }
 
@@ -57,7 +71,10 @@ impl App {
             now,
             screen: Screen::Buddy,
             wade: Wade::new(now, seed),
+            timer: TimerState::new(),
+            rng: Rng::new(seed),
             touch: TouchTracker::new(),
+            touch_guard_until: now,
             eye_style: EyeStyle::default(),
         }
     }
@@ -67,10 +84,11 @@ impl App {
         let mut out = Output::default();
         // Anything animating before or after this event needs a new frame.
         out.redraw |= self.animating();
+        let digits = self.visible_digits();
         // Clamp: events may arrive slightly out of order.
         let target = self.now.max(event.at);
         self.advance_to(target, &mut out);
-        out.redraw |= self.animating();
+        out.redraw |= self.animating() || self.visible_digits() != digits;
 
         match event.kind {
             EventKind::Touch(touch) => self.on_touch(touch, &mut out),
@@ -88,15 +106,28 @@ impl App {
     fn on_touch(&mut self, touch: Touch, out: &mut Output) {
         let pressed = self.pressed_button();
         let screen = self.screen;
-        let tap = self.touch.handle(touch, |p| match screen {
-            Screen::Buddy => layout::hit_buddy(p),
-            Screen::Timer => layout::hit_timer(p),
-        });
+        let row = self.timer.row();
+        let tap = if touch.phase == TouchPhase::Down && self.now < self.touch_guard_until {
+            self.touch.cancel();
+            None
+        } else {
+            self.touch.handle(touch, |p| match screen {
+                Screen::Buddy => layout::hit_buddy(p),
+                Screen::Timer => layout::hit_timer(p, row),
+            })
+        };
         out.redraw |= self.pressed_button() != pressed;
         match tap {
             Some(Target::Wade) => out.redraw |= self.wade.on_tap(self.now),
             Some(Target::Apps) => self.switch_to(Screen::Timer, out),
-            Some(Target::Back) => self.switch_to(Screen::Buddy, out),
+            // Back from a finished timer dismisses it, like Dismiss.
+            Some(Target::Back | Target::Timer(TimerButton::Dismiss)) => {
+                if self.timer.press(TimerButton::Dismiss, self.now) {
+                    out.redraw |= self.wade.timer_dismissed(self.now, &mut self.rng);
+                }
+                self.switch_to(Screen::Buddy, out);
+            }
+            Some(Target::Timer(button)) => out.redraw |= self.timer.press(button, self.now),
             None => {}
         }
     }
@@ -114,8 +145,23 @@ impl App {
         }
     }
 
+    /// The timer chimed at `now`. Finishing brings up the Timer screen, from
+    /// any screen, and the chime wakes Wade if he is asleep.
+    fn on_chime(&mut self, chime: Chime, out: &mut Output) {
+        if chime == Chime::First {
+            self.wade.hear_chime(self.now);
+            self.switch_to(Screen::Timer, out);
+            self.touch_guard_until = self.now + TOUCH_GUARD;
+        }
+        // Chimes that fall due in one event, after a late wake, ring once.
+        if !out.effects.contains(&Effect::Chime) {
+            let _ = out.effects.push(Effect::Chime);
+        }
+    }
+
     /// Show `screen`. A screen change cancels any touch in progress, so its
-    /// `Up` cannot land on the new screen (docs/ui.md#touch-handling).
+    /// `Up` cannot land on the new screen (docs/ui.md#touch-handling). The
+    /// timer finishing does this even when the Timer screen is already shown.
     fn switch_to(&mut self, screen: Screen, out: &mut Output) {
         self.screen = screen;
         self.touch.cancel();
@@ -129,9 +175,13 @@ impl App {
             .filter(|&target| target != Target::Wade)
     }
 
-    /// The earliest scheduled transition across all features, visible or not.
-    fn next_transition(&self) -> Option<Instant> {
-        self.wade.next_transition(self.wade_visible())
+    /// The earliest scheduled transition across all features, including
+    /// Wade's only if `include_wade`.
+    fn next_transition(&self, include_wade: bool) -> Option<Instant> {
+        let wade = include_wade
+            .then(|| self.wade.next_transition(self.wade_visible()))
+            .flatten();
+        self.timer.next_transition().into_iter().chain(wade).min()
     }
 
     /// True while a visible feature's pose is changing with time.
@@ -143,18 +193,24 @@ impl App {
         self.screen == Screen::Buddy
     }
 
+    /// The timer's digits, while the Timer screen shows them.
+    fn visible_digits(&self) -> Option<Digits> {
+        (self.screen == Screen::Timer).then(|| self.timer.digits(self.now))
+    }
+
     /// Advance `now` to `target`, applying every timed transition that became due
     /// along the way in chronological order across features (docs/architecture.md#events).
     fn advance_to(&mut self, target: Instant, out: &mut Output) {
-        if self
-            .next_transition()
-            .is_some_and(|t| target.saturating_since(t) > STALL_LIMIT)
-        {
-            self.wade.fast_forward(target);
-            out.redraw |= self.wade_visible();
-        }
+        // Past STALL_LIMIT, Wade restarts his idle schedule instead of replaying
+        // it (D20). The timer's few transitions still replay first, in order,
+        // and see Wade as of the last event. That matches an in-order replay
+        // only while no timed transition changes whether he is asleep.
+        let stalled = self
+            .wade
+            .next_transition(self.wade_visible())
+            .is_some_and(|t| target.saturating_since(t) > STALL_LIMIT);
         let mut last = None;
-        while let Some(t) = self.next_transition() {
+        while let Some(t) = self.next_transition(!stalled) {
             if t > target {
                 break;
             }
@@ -170,10 +226,20 @@ impl App {
             );
             last = Some(t);
             self.now = self.now.max(t);
-            // Visibility is re-read each step: a transition can switch screens.
-            // Features are applied in a fixed order to break ties at the same instant.
-            let visible = self.wade_visible();
-            out.redraw |= self.wade.advance(self.now, visible);
+            // Features are applied in a fixed order to break ties at the same
+            // instant: the timer first, because finishing switches screens,
+            // which decides whether Wade is visible.
+            if let Some(chime) = self.timer.advance(self.now) {
+                self.on_chime(chime, out);
+            }
+            if !stalled {
+                let visible = self.wade_visible();
+                out.redraw |= self.wade.advance(self.now, visible);
+            }
+        }
+        if stalled {
+            self.wade.fast_forward(target);
+            out.redraw |= self.wade_visible();
         }
         self.now = target;
         self.wade.catch_up(target);
@@ -190,8 +256,14 @@ impl App {
             .wade_visible()
             .then(|| self.wade.next_transition(true))
             .flatten();
+        let tick = (self.screen == Screen::Timer)
+            .then(|| self.timer.next_tick(self.now))
+            .flatten();
         let frame = self.animating().then(|| self.now + FRAME);
-        let deadline = wade.into_iter().chain(frame).min()?;
+        let deadline = [wade, self.timer.next_transition(), tick, frame]
+            .into_iter()
+            .flatten()
+            .min()?;
         debug_assert!(
             deadline > self.now || self.now == Instant::MAX,
             "deadline {deadline:?} is not after now {:?}",
@@ -213,9 +285,7 @@ impl App {
                 eye_style: self.eye_style,
                 apps_pressed: self.touch.pressed() == Some(Target::Apps),
             }),
-            Screen::Timer => View::Timer(TimerView {
-                pressed: self.pressed_button(),
-            }),
+            Screen::Timer => View::Timer(self.timer.view(self.now, self.pressed_button())),
         }
     }
 
@@ -228,6 +298,13 @@ impl App {
     #[must_use]
     pub const fn screen(&self) -> Screen {
         self.screen
+    }
+
+    /// The timer, which runs on every screen, for tests and the state hash.
+    #[cfg(any(test, feature = "harness"))]
+    #[must_use]
+    pub const fn timer_state(&self) -> TimerState {
+        self.timer
     }
 
     /// Wade's state, on every screen, for the state hash.
@@ -260,6 +337,7 @@ mod tests {
         let app = App::new(ms(500), SEED);
         assert_eq!(app.now(), ms(500));
         assert_eq!(app.screen(), Screen::Buddy);
+        assert_eq!(app.timer_state(), TimerState::new());
     }
 
     #[test]
@@ -294,5 +372,23 @@ mod tests {
         let _ = app.handle(Event::deadline(Instant::MAX));
         assert_eq!(app.now(), Instant::MAX);
         assert_eq!(app.next_deadline(), None);
+    }
+
+    #[test]
+    fn a_stall_still_finishes_the_timer_and_rings_once() {
+        let mut app = App::new(ms(0), SEED);
+        app.timer = TimerState::Running {
+            set: Duration::from_mins(1),
+            ends_at: ms(60_000),
+        };
+        let late = ms(60_000) + STALL_LIMIT + STALL_LIMIT;
+        let out = app.handle(Event::deadline(late));
+        assert_eq!(out.effects.as_slice(), [Effect::Chime]);
+        assert!(out.redraw);
+        assert_eq!(app.screen(), Screen::Timer);
+        assert!(matches!(
+            app.timer_state(),
+            TimerState::Done { since, chimes: 10, .. } if since == ms(60_000)
+        ));
     }
 }

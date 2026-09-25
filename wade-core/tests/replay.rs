@@ -3,8 +3,12 @@
 //! (docs/testing.md#recording-and-replay).
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
+use wade_core::app::Screen;
+use wade_core::character::Expression;
 use wade_core::harness::recording::{FILE_SUFFIX, Input, Recording, Replay};
+use wade_core::timer::TimerState;
 use wade_core::view::EyeStyle;
 use wade_core::{Digit, Key, TouchPhase};
 
@@ -80,4 +84,23 @@ fn the_m1_session_covers_every_input_and_ends_awake_with_plain_eyes() {
     }
     assert_eq!(replay.harness.buddy().eye_style, EyeStyle::Plain);
     assert!(!replay.harness.buddy().asleep);
+}
+
+#[test]
+fn the_timer_session_ends_back_on_buddy_with_wade_groggy() {
+    // Set 1:00, start, pause, reset, start, pause, resume, go back, and fall
+    // asleep. A touch is in progress when the timer finishes and wakes Wade;
+    // Dismiss after the seventh chime leaves him Sleepy.
+    let (_, replay) = replay("timer-session");
+    let h = &replay.harness;
+    assert_eq!(
+        h.app.timer_state(),
+        TimerState::Ready {
+            set: Duration::from_mins(1)
+        }
+    );
+    assert_eq!(h.app.screen(), Screen::Buddy);
+    assert_eq!(h.buddy().expression, Expression::Sleepy);
+    assert!(!h.buddy().asleep);
+    assert_eq!(h.effects.len(), 7);
 }

@@ -8,7 +8,8 @@ use common::framebuffer::{Framebuffer, assert_snapshot};
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
 use wade_core::layout::Target;
-use wade_core::view::{EyeStyle, TimerView, View};
+use wade_core::timer::TimerState;
+use wade_core::view::{EyeStyle, View};
 use wade_core::{App, Instant, TouchPhase, render};
 
 /// The whole screen for `view`.
@@ -105,17 +106,27 @@ fn mid_blink() {
     face("mid_blink", &pose, EyeStyle::Pupils);
 }
 
+/// The Timer screen for `timer` at `now`, with `pressed` held down.
+fn timer(timer: TimerState, now: Instant, pressed: Option<Target>) -> View {
+    View::Timer(timer.view(now, pressed))
+}
+
 #[test]
 fn timer_empty() {
-    snapshot("timer_empty", &View::Timer(TimerView { pressed: None }));
+    snapshot(
+        "timer_empty",
+        &timer(TimerState::new(), Instant::from_millis(0), None),
+    );
 }
 
 #[test]
 fn timer_back_pressed() {
     snapshot(
         "timer_back_pressed",
-        &View::Timer(TimerView {
-            pressed: Some(Target::Back),
-        }),
+        &timer(
+            TimerState::new(),
+            Instant::from_millis(0),
+            Some(Target::Back),
+        ),
     );
 }

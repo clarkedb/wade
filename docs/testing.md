@@ -116,7 +116,7 @@ seed 8127364512
 
 Each line after the header is a timestamp in milliseconds, then either a touch phase (`down`, `move`, or `up`) with x and y in display coordinates or `key` with the key (`0`–`9`, `z`, or `p`), then a state hash. The parser and writer live behind the `harness` feature.
 
-The state hash is taken after the event is handled. It covers the screen, Wade's expression and sleep state (on every screen), and eye style; later milestones add activity, timer state, and timer digits. Including eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover those. Replay recomputes the hash after each event and reports the first mismatch with its timestamp. This is how "replays identically" is checked.
+The state hash is taken after the event is handled. It covers the screen, Wade's expression and sleep state (on every screen), eye style, and the timer's state, duration, and digits; M4 adds the activity. Including eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover those. Replay recomputes the hash after each event and reports the first mismatch with its timestamp. This is how "replays identically" is checked.
 
 Recordings will need more input kinds as milestones add events: loaded settings (M5), power and proximity (M6), weather updates (M7). Each addition bumps the header version (`wade-events 2`, …). The parser accepts every older version, so existing recordings keep working.
 
