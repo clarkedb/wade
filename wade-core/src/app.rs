@@ -5,9 +5,10 @@ use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
 use crate::input::TouchTracker;
 use crate::layout::{self, Target, Tile};
 use crate::rng::Rng;
+use crate::settings::Settings;
 use crate::time::{Duration, Instant};
 use crate::timer::{Chime, Digits, TimerButton, TimerPhase, TimerState};
-use crate::view::{BuddyView, EyeStyle, LauncherView, SettingsView, View};
+use crate::view::{BuddyView, LauncherView, SettingsView, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
@@ -64,21 +65,25 @@ pub struct App {
     touch: TouchTracker,
     /// Touches that start before this are ignored (see `TOUCH_GUARD`).
     touch_guard_until: Instant,
-    eye_style: EyeStyle,
+    settings: Settings,
 }
 
 impl App {
+    /// Start at `now`, seeding behavior with `seed`, with the `settings` the
+    /// platform loaded.
     #[must_use]
-    pub fn new(now: Instant, seed: u64) -> App {
+    pub fn new(now: Instant, seed: u64, settings: Settings) -> App {
         App {
             now,
             screen: Screen::Buddy,
             wade: Wade::new(now, seed),
-            timer: TimerState::new(),
+            timer: TimerState::Ready {
+                set: settings.timer(),
+            },
             rng: Rng::new(seed),
             touch: TouchTracker::new(),
             touch_guard_until: now,
-            eye_style: EyeStyle::default(),
+            settings,
         }
     }
 
@@ -158,7 +163,8 @@ impl App {
                 .show(Expression::ALL[usize::from(digit.get())], self.now),
             Key::Z => self.wade.sleep(self.now),
             Key::P => {
-                self.eye_style = self.eye_style.toggled();
+                let eye_style = self.settings.eye_style().toggled();
+                self.settings = self.settings.with_eye_style(eye_style);
                 true
             }
         }
@@ -301,7 +307,7 @@ impl App {
                 asleep: self.wade.asleep(),
                 blinking: self.wade.blinking(self.now),
                 pose: self.wade.pose(self.now),
-                eye_style: self.eye_style,
+                eye_style: self.settings.eye_style(),
                 apps_pressed: self.touch.pressed() == Some(Target::Apps),
             }),
             Screen::Launcher => View::Launcher(LauncherView {
@@ -325,6 +331,11 @@ impl App {
         self.screen
     }
 
+    #[must_use]
+    pub const fn settings(&self) -> Settings {
+        self.settings
+    }
+
     /// The timer, which runs on every screen, for tests and the state hash.
     #[cfg(any(test, feature = "harness"))]
     #[must_use]
@@ -336,11 +347,6 @@ impl App {
     #[cfg(any(test, feature = "harness"))]
     pub(crate) const fn wade(&self) -> &Wade {
         &self.wade
-    }
-
-    #[cfg(any(test, feature = "harness"))]
-    pub(crate) const fn eye_style(&self) -> EyeStyle {
-        self.eye_style
     }
 }
 
@@ -359,7 +365,7 @@ mod tests {
 
     #[test]
     fn starts_on_buddy_at_the_given_time() {
-        let app = App::new(ms(500), SEED);
+        let app = App::new(ms(500), SEED, Settings::DEFAULT);
         assert_eq!(app.now(), ms(500));
         assert_eq!(app.screen(), Screen::Buddy);
         assert_eq!(app.timer_state(), TimerState::new());
@@ -367,7 +373,7 @@ mod tests {
 
     #[test]
     fn handle_moves_now_to_the_event_time() {
-        let mut app = App::new(ms(0), SEED);
+        let mut app = App::new(ms(0), SEED, Settings::DEFAULT);
         let _ = app.handle(Event::deadline(ms(1_000)));
         assert_eq!(app.now(), ms(1_000));
         let _ = app.handle(Event::touch(ms(1_500), TouchPhase::Down, Point::zero()));
@@ -376,7 +382,7 @@ mod tests {
 
     #[test]
     fn late_event_does_not_move_now_backwards() {
-        let mut app = App::new(ms(0), SEED);
+        let mut app = App::new(ms(0), SEED, Settings::DEFAULT);
         let _ = app.handle(Event::deadline(ms(1_000)));
         let _ = app.handle(Event::touch(ms(400), TouchPhase::Down, Point::zero()));
         assert_eq!(app.now(), ms(1_000));
@@ -385,7 +391,7 @@ mod tests {
     #[test]
     fn idle_deadline_has_no_effects_and_no_redraw() {
         // Once the eyes have opened, nothing moves until the first glance, at least 1.2 s in.
-        let mut app = App::new(ms(0), SEED);
+        let mut app = App::new(ms(0), SEED, Settings::DEFAULT);
         let _ = app.handle(Event::deadline(ms(500)));
         assert_eq!(app.handle(Event::deadline(ms(600))), Output::default());
     }
@@ -393,7 +399,7 @@ mod tests {
     #[test]
     fn no_deadline_once_time_runs_out() {
         // Schedules saturate at Instant::MAX, where no deadline can be later than now.
-        let mut app = App::new(ms(u64::MAX - 10_000), SEED);
+        let mut app = App::new(ms(u64::MAX - 10_000), SEED, Settings::DEFAULT);
         let _ = app.handle(Event::deadline(Instant::MAX));
         assert_eq!(app.now(), Instant::MAX);
         assert_eq!(app.next_deadline(), None);
@@ -401,7 +407,7 @@ mod tests {
 
     #[test]
     fn a_stall_still_finishes_the_timer_and_rings_once() {
-        let mut app = App::new(ms(0), SEED);
+        let mut app = App::new(ms(0), SEED, Settings::DEFAULT);
         app.timer = TimerState::Running {
             set: Duration::from_mins(1),
             ends_at: ms(60_000),

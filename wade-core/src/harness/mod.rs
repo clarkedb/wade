@@ -12,9 +12,10 @@ use embedded_graphics::geometry::Point;
 use crate::app::{App, Effect, Output, Screen};
 use crate::character::Expression;
 use crate::event::{Event, Key, TouchPhase};
+use crate::settings::Settings;
 use crate::time::Instant;
 use crate::timer::TimerPhase;
-use crate::view::{BuddyView, EyeStyle, LauncherView, SettingsView, TimerView, View};
+use crate::view::{BuddyView, ColorMode, EyeStyle, LauncherView, SettingsView, TimerView, View};
 
 #[derive(Debug)]
 pub struct Harness {
@@ -24,10 +25,17 @@ pub struct Harness {
 }
 
 impl Harness {
+    /// Start at time zero with the default settings.
     #[must_use]
     pub fn new(seed: u64) -> Self {
+        Self::with_settings(seed, Settings::DEFAULT)
+    }
+
+    /// Start at time zero with `settings`, as if the platform loaded them.
+    #[must_use]
+    pub fn with_settings(seed: u64, settings: Settings) -> Self {
         Self {
-            app: App::new(Instant::from_millis(0), seed),
+            app: App::new(Instant::from_millis(0), seed, settings),
             effects: Vec::new(),
         }
     }
@@ -188,8 +196,8 @@ enum Discrete {
 }
 
 /// A hash of discrete state only: the screen, Wade's expression and sleep
-/// state (on every screen), eye style, and the timer's state, duration, and
-/// digits (later also the activity). Excludes `Pose` and pixels, so tuning
+/// state (on every screen), the timer's state, duration, and digits, and the
+/// settings (later also the activity). Excludes `Pose` and pixels, so tuning
 /// animation does not invalidate recordings (D16, D24). FNV-1a is stable
 /// across platforms.
 #[must_use]
@@ -215,9 +223,14 @@ pub fn state_hash(app: &App) -> u32 {
         Expression::Focused => 8,
         Expression::Flustered => 9,
     };
-    let eye_style = match app.eye_style() {
+    let settings = app.settings();
+    let eye_style = match settings.eye_style() {
         EyeStyle::Pupils => 0,
         EyeStyle::Plain => 1,
+    };
+    let color = match settings.color() {
+        ColorMode::Color => 0,
+        ColorMode::Mono => 1,
     };
     let timer = app.timer_state();
     let phase = match timer.phase() {
@@ -226,7 +239,7 @@ pub fn state_hash(app: &App) -> u32 {
         TimerPhase::Paused => 2,
         TimerPhase::Done => 3,
     };
-    let set = u8::try_from(timer.duration().as_secs() / 60).unwrap_or(u8::MAX);
+    let minutes = |d: crate::time::Duration| u8::try_from(d.as_secs() / 60).unwrap_or(u8::MAX);
     let digits = timer.digits(app.now());
     fnv1a(&[
         screen,
@@ -234,9 +247,12 @@ pub fn state_hash(app: &App) -> u32 {
         u8::from(wade.asleep()),
         eye_style,
         phase,
-        set,
+        minutes(timer.duration()),
         digits.minutes(),
         digits.seconds(),
+        color,
+        u8::from(settings.chime()),
+        minutes(settings.timer()),
     ])
 }
 

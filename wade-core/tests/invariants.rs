@@ -6,7 +6,9 @@ use proptest::prelude::*;
 use wade_core::app::{STALL_LIMIT, Screen};
 use wade_core::layout;
 use wade_core::timer::{CHIME_INTERVAL, CHIMES, TimerPhase, TimerState};
-use wade_core::{App, Digit, Effect, Event, EventKind, Instant, Key, Touch, TouchPhase, View};
+use wade_core::{
+    App, Digit, Effect, Event, EventKind, Instant, Key, Settings, Touch, TouchPhase, View,
+};
 
 fn phase() -> impl Strategy<Value = TouchPhase> {
     prop_oneof![
@@ -229,8 +231,8 @@ fn handle_checked(app: &mut App, drawn: &mut View, event: Event) -> Result<(), T
 fn a_stall_within_the_limit_does_not_change_the_view() {
     let tap = Instant::from_millis(1_000);
     let late = Instant::from_millis(1_000) + STALL_LIMIT;
-    let mut punctual = App::new(Instant::from_millis(0), 7);
-    let mut stalled = App::new(Instant::from_millis(0), 7);
+    let mut punctual = App::new(Instant::from_millis(0), 7, Settings::DEFAULT);
+    let mut stalled = App::new(Instant::from_millis(0), 7, Settings::DEFAULT);
     for app in [&mut punctual, &mut stalled] {
         deliver(
             app,
@@ -246,7 +248,7 @@ fn a_stall_within_the_limit_does_not_change_the_view() {
 proptest! {
     #[test]
     fn next_deadline_is_later_than_last_event(seed: u64, events in ordered_events()) {
-        let mut app = App::new(Instant::from_millis(0), seed);
+        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
         for event in events {
             deliver(&mut app, event);
             assert_deadline_later(&app)?;
@@ -255,7 +257,7 @@ proptest! {
 
     #[test]
     fn handle_never_panics_and_deadlines_stay_later(seed: u64, start: u64, events in wild_events()) {
-        let mut app = App::new(Instant::from_millis(start), seed);
+        let mut app = App::new(Instant::from_millis(start), seed, Settings::DEFAULT);
         for event in events {
             let _ = app.handle(event);
             assert_deadline_later(&app)?;
@@ -269,8 +271,8 @@ proptest! {
         events in ordered_events(),
         extras in prop::collection::vec((any::<prop::sample::Index>(), 0u64..3_000), 0..20),
     ) {
-        let mut plain = App::new(Instant::from_millis(0), seed);
-        let mut noisy = App::new(Instant::from_millis(0), seed);
+        let mut plain = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+        let mut noisy = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
 
         for (i, event) in events.iter().enumerate() {
             // Spurious Deadline events between the previous event and this one.
@@ -293,7 +295,7 @@ proptest! {
         events in ordered_events(),
         punctual in prop::collection::vec(any::<bool>(), 1..100),
     ) {
-        let mut app = App::new(Instant::from_millis(0), seed);
+        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
         let mut drawn = app.view();
         for (event, &punctual) in events.iter().zip(punctual.iter().cycle()) {
             while let Some(d) = app.next_deadline().filter(|&d| punctual && d < event.at) {
@@ -305,7 +307,7 @@ proptest! {
 
     #[test]
     fn a_touch_does_nothing_once_the_screen_changes_or_the_timer_finishes(seed: u64, events in ordered_events()) {
-        let mut app = App::new(Instant::from_millis(0), seed);
+        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
         // The screen and timer when the current touch went down, and whether
         // the screen has changed or the timer finished since. Finishing
         // changes the buttons under the touch even on the Timer screen.
@@ -353,7 +355,7 @@ proptest! {
 
     #[test]
     fn chimes_ring_on_schedule_until_dismissed(seed: u64, events in ordered_events()) {
-        let mut app = App::new(Instant::from_millis(0), seed);
+        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
         let mut schedule = None;
         for event in events {
             while let Some(d) = app.next_deadline().filter(|&d| d < event.at) {
@@ -369,7 +371,7 @@ proptest! {
         events in ordered_events(),
         punctual in prop::collection::vec(any::<bool>(), 1..100),
     ) {
-        let mut app = App::new(Instant::from_millis(0), seed);
+        let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
         // Chimes rung since the timer last finished, while it stays Done.
         let mut rung = None;
         let mut handle = |app: &mut App, event: Event| -> Result<(), TestCaseError> {
@@ -407,8 +409,8 @@ proptest! {
         // `late` never gets requested deadlines on time before an event marked
         // unpunctual: they are folded into the event itself, as after a stalled
         // platform. Both must end up in the same state.
-        let mut on_time = App::new(Instant::from_millis(0), seed);
-        let mut late = App::new(Instant::from_millis(0), seed);
+        let mut on_time = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+        let mut late = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
 
         for (event, &punctual) in events.iter().zip(punctual.iter().cycle()) {
             deliver(&mut on_time, *event);

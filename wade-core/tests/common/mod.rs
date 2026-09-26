@@ -4,11 +4,14 @@
 
 pub mod framebuffer;
 
+use std::time::Duration;
+
 use embedded_graphics::geometry::Point;
 use wade_core::harness::Harness;
 use wade_core::layout::{self, Tile};
 use wade_core::timer::TimerButton;
-use wade_core::{Digit, Instant, Key};
+use wade_core::view::{ColorMode, EyeStyle};
+use wade_core::{Digit, Instant, Key, Settings};
 
 /// The fixed seed for behavior tests.
 pub const SEED: u64 = 0x5EED_F00D;
@@ -64,4 +67,26 @@ pub fn button(button: TimerButton) -> Point {
         TimerButton::Plus => 2,
     };
     layout::TIMER_ROW[slot].center()
+}
+
+/// Every possible value of the settings.
+pub fn every_settings() -> impl Iterator<Item = Settings> {
+    [EyeStyle::Pupils, EyeStyle::Plain]
+        .into_iter()
+        .flat_map(|eye_style| {
+            [ColorMode::Color, ColorMode::Mono]
+                .into_iter()
+                .map(move |color| (eye_style, color))
+        })
+        .flat_map(|(eye_style, color)| [false, true].map(|chime| (eye_style, color, chime)))
+        .flat_map(|(eye_style, color, chime)| {
+            (1..=99).map(move |minutes| {
+                Settings::DEFAULT
+                    .with_eye_style(eye_style)
+                    .with_color(color)
+                    .with_chime(chime)
+                    .with_timer(Duration::from_mins(minutes))
+                    .expect("1 to 99 minutes is a valid timer")
+            })
+        })
 }

@@ -7,7 +7,7 @@
 | [Hardware spike](#hardware-spike) | Device | Throwaway firmware proving display, touch, audio, and timing | The device |
 | [M3 Device port](#m3-device-port) | Device | `wade-cores3` runs everything from M2 | M2, spike |
 | [M4 Character](#m4-character) | Both | Look and motion tuned on the device, props and idle activities, personality | M3 |
-| [M5 Settings](#m5-settings) | Both | Launcher, settings screen, persistent settings | M3 |
+| [M5 Settings](#m5-settings) | Both | Launcher, settings screen, persistent settings | M2 on desktop, M3 on the device |
 | [M6 Power](#m6-power) | Both | Display sleep, wake on approach, battery status | M5 |
 | [M7 Weather](#m7-weather) | Both | Wi-Fi, weather fetch, weather screen | M5 |
 
@@ -140,9 +140,9 @@ Done when:
 
 Scope: the Launcher screen; a Settings screen; persistence.
 
-Planned settings: display brightness (4 levels), chime on or off (off silences the first chime and every repeat), the default timer duration, and Wade's eye style (pupils or plain). Confirm this list at the start of the milestone.
+Settings: Wade's eye style (pupils or plain), his colors (color or mono), chime on or off (off silences the first chime and every repeat), and the default timer duration. Display brightness (4 levels) was planned too; it waits for the device ([D27](decisions.md#d27-brightness-waits-for-the-device)).
 
-Persistence: the core defines `Settings` with `encode` and `decode` for a fixed binary layout that starts with a version byte. `decode` falls back to defaults for missing, corrupt, or unknown-version data. The core emits `Effect::SaveSettings(settings)` once settings have stopped changing for 2 s, so stepping through brightness levels writes flash once, not on every tap. The debounce is an ordinary core deadline; leaving the Settings screen saves at once. The platform stores the bytes (desktop: a file in the user's config directory; device: flash through `esp-storage` and `sequential-storage`). At startup the platform loads the bytes, decodes them, and passes the result to `App::new`.
+Persistence: the core defines `Settings` with `encode` and `decode` for a fixed binary layout that starts with a version byte. `decode` reads every older layout and falls back to defaults for missing, corrupt, or unknown-version data. The core emits `Effect::SaveSettings(settings)` once settings have stopped changing for 2 s, so stepping the timer duration through several minutes writes flash once, not on every tap. The debounce is an ordinary core deadline; leaving the Settings screen saves at once. The platform stores the bytes (desktop: a file in the user's config directory; device: flash through `esp-storage` and `sequential-storage`). At startup the platform loads the bytes, decodes them, and passes the result to `App::new`.
 
 Done when: settings survive a restart on both platforms, and corrupt stored data yields defaults rather than a crash (tested).
 
@@ -153,7 +153,7 @@ Scope:
 | Area | Work |
 |---|---|
 | Events | `Power(PowerStatus)` with battery percentage, charging, and external power; `Proximity(Near \| Far)` |
-| Effects | `DisplayPower(bool)`, plus the existing `SetBrightness` |
+| Effects | `DisplayPower(bool)`, plus `SetBrightness` once the device has it ([D27](decisions.md#d27-brightness-waits-for-the-device)) |
 | Behavior | After a period without touch or proximity (a setting), Wade becomes Sleepy, falls asleep, and then the display turns off. A touch or an approach turns it back on, with Surprised then Neutral. |
 | Timer | Keeps running with the display off. On completion the chime plays and the display turns on. |
 | Battery | Battery level on the Settings screen. A small indicator on the Buddy screen when running on battery. |
