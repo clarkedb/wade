@@ -17,7 +17,7 @@ For now Wade communicates only through expression, gaze, and small actions. He h
 
 Wade is a pair of eyes: light, flat shapes on black, like a small robot's OLED face. He has no head or mouth, so the eyes carry every expression. He is drawn entirely from shapes in code with `embedded-graphics` primitives: rounded rectangles, circles, triangles, lines, and polylines.
 
-Each eye is a rounded rectangle. Expressions reshape it by cutting parts away in the background color: a flat lid droops from above, a wide disc risen from below leaves a smiling crescent, and a triangle cut across the top slants the eye, from the outer corner for worry and the inner corner for anger. Small accents beside the eyes finish some expressions. Blush, tears and sweat, and the sparkle carry the only color: pink, blue, and yellow.
+Each eye is a rounded rectangle. Expressions reshape it by cutting parts away in the background color: a flat lid droops from above, a wide disc risen from below leaves a smiling crescent, and a triangle cut across the top slants the eye, from the outer corner for worry and the inner corner for anger. Small accents beside the eyes finish some expressions. Blush, tears and sweat, and the sparkle carry the only color: pink, blue, and yellow. In mono, they take the eyes' color.
 
 The eyes come in two styles, a setting ([D23](decisions.md#d23-eye-style-is-a-setting)):
 
@@ -94,7 +94,7 @@ An expression is a named target pose, numbered for the desktop keys (see [platfo
 | 2 | Sad | No trigger yet | Smaller and drooping, outer corners cut | Tear, every few seconds |
 | 3 | Angry | No trigger yet | Short, inner corners cut deep; a tremble | Steam, flashing |
 | 4 | Surprised | Being woken by a tap (M1), woken by an approach (M6) | Tall and wide | Exclaim, briefly |
-| 5 | Sleepy | Falling asleep; groggy after the timer's chime wakes him (M2) | Upper lids half down | |
+| 5 | Sleepy | Falling asleep; groggy after the timer wakes him (M2) | Upper lids half down | |
 | 6 | Thinking | No trigger yet | Smaller, lids slightly down, looking up and to the side | Dots counting up |
 | 7 | Proud | Successes, repeated attention (M2, M4) | Smiling crescents, right eye taller, looking up and to one side | Sparkle |
 | 8 | Focused | Typing (M4) | Flattened, inner corners slightly cut, looking down | |
@@ -156,8 +156,8 @@ Idle activities (M4):
 | Trigger | Result |
 |---|---|
 | Returning to the Buddy screen after dismissing a finished timer (with Dismiss or back) | Proud for 2 s, then Neutral |
-| The timer finishing while he is asleep | The chime wakes him, Sleepy, out of sight on the Timer screen |
-| Dismissing a finished timer whose chime woke him | Sleepy for 3 s instead of Proud, then a coin flip: Neutral, or back to sleep |
+| The timer finishing while he is asleep | It wakes him, Sleepy, out of sight on the Timer screen, even with the chime off |
+| Dismissing a finished timer that woke him | Sleepy for 3 s instead of Proud, then a coin flip: Neutral, or back to sleep |
 
 ### M4 (proposed; finalized at the start of M4)
 
