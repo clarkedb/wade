@@ -194,6 +194,7 @@ fn carry_out(output: &Output, audio: Option<&Audio>) -> bool {
                     audio.chime();
                 }
             }
+            Effect::SaveSettings(_) => {}
         }
     }
     output.redraw

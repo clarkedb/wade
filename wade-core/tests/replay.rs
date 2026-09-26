@@ -10,7 +10,7 @@ use wade_core::character::Expression;
 use wade_core::harness::recording::{FILE_SUFFIX, Input, Recording, Replay};
 use wade_core::timer::TimerState;
 use wade_core::view::EyeStyle;
-use wade_core::{Digit, Key, TouchPhase};
+use wade_core::{Digit, Effect, Key, Settings, TouchPhase};
 
 fn recordings_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recordings")
@@ -102,5 +102,15 @@ fn the_timer_session_ends_back_on_buddy_with_wade_groggy() {
     assert_eq!(h.app.screen(), Screen::Buddy);
     assert_eq!(h.buddy().expression, Expression::Sleepy);
     assert!(!h.buddy().asleep);
-    assert_eq!(h.effects.len(), 7);
+    let one_minute = Settings::DEFAULT
+        .with_timer(Duration::from_mins(1))
+        .expect("1 minute");
+    let mut chimes = 0;
+    for &effect in &h.effects {
+        match effect {
+            Effect::Chime => chimes += 1,
+            Effect::SaveSettings(settings) => assert_eq!(settings, one_minute),
+        }
+    }
+    assert_eq!(chimes, 7);
 }

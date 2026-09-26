@@ -6,9 +6,9 @@ mod common;
 use std::collections::HashSet;
 use std::time::Duration;
 
-use common::{SEED, button, every_settings, home, ms, open, setting};
+use common::{SEED, back, button, every_settings, home, ms, open, setting};
 use proptest::prelude::*;
-use wade_core::app::Screen;
+use wade_core::app::{SAVE_DELAY, Screen};
 use wade_core::harness::Harness;
 use wade_core::layout::{Target, Tile};
 use wade_core::settings::{ENCODED_LEN, SettingsButton};
@@ -173,4 +173,100 @@ fn a_settings_button_shows_pressed_while_the_touch_stays_on_it() {
     assert_eq!(h.settings().pressed, None);
     h.touch(ms(2_100), TouchPhase::Up, chime);
     assert_eq!(h.app.settings(), Settings::DEFAULT);
+}
+
+/// Every `SaveSettings` emitted so far.
+fn saves(h: &Harness) -> Vec<Settings> {
+    h.effects
+        .iter()
+        .filter_map(|&e| match e {
+            Effect::SaveSettings(settings) => Some(settings),
+            Effect::Chime => None,
+        })
+        .collect()
+}
+
+#[test]
+fn stepping_through_durations_saves_once_they_stop_changing() {
+    let mut h = Harness::new(SEED);
+    open(&mut h, ms(1_000), Tile::Timer);
+    for step in 0..6 {
+        h.tap(ms(2_000 + step * 500), button(TimerButton::Plus));
+    }
+    let last = ms(4_500);
+    assert_eq!(h.app.next_deadline(), Some(last + SAVE_DELAY));
+    h.run_until(ms((last + SAVE_DELAY).as_millis() - 1));
+    assert!(saves(&h).is_empty());
+    h.run_until(last + SAVE_DELAY);
+    let expected = Settings::DEFAULT
+        .with_timer(Duration::from_mins(11))
+        .expect("11 minutes");
+    assert_eq!(saves(&h), [expected]);
+    h.run_until(ms(60_000));
+    assert_eq!(saves(&h).len(), 1);
+}
+
+#[test]
+fn leaving_the_settings_screen_saves_at_once() {
+    let mut h = Harness::new(SEED);
+    open(&mut h, ms(1_000), Tile::Settings);
+    h.tap(ms(2_000), setting(SettingsButton::Chime));
+    h.tap(ms(2_500), back());
+    assert_eq!(saves(&h), [Settings::DEFAULT.with_chime(false)]);
+    h.run_until(ms(10_000));
+    assert_eq!(saves(&h).len(), 1, "the pending save was not cancelled");
+}
+
+#[test]
+fn a_timer_finishing_on_the_settings_screen_saves_at_once() {
+    let mut h = Harness::new(SEED);
+    open(&mut h, ms(1_000), Tile::Timer);
+    for step in 1..=4 {
+        h.tap(ms(1_000 + step * 100), button(TimerButton::Minus));
+    }
+    h.tap(ms(2_000), button(TimerButton::Start));
+    h.tap(ms(3_000), back());
+    h.tap(ms(3_000), common::tile(Tile::Settings));
+    h.tap(ms(61_000), setting(SettingsButton::Color));
+    h.run_until(ms(62_000));
+    assert_eq!(h.app.screen(), Screen::Timer);
+    let one_minute = Settings::DEFAULT.with_timer(MIN_SET).expect("1 minute");
+    assert_eq!(
+        saves(&h),
+        [one_minute, one_minute.with_color(ColorMode::Mono)]
+    );
+}
+
+#[test]
+fn nothing_is_saved_without_a_change() {
+    let mut h = Harness::new(SEED);
+    open(&mut h, ms(1_000), Tile::Settings);
+    h.tap(ms(2_000), back());
+    open(&mut h, ms(3_000), Tile::Settings);
+    h.tap(ms(4_000), setting(SettingsButton::EyeStyle));
+    h.tap(ms(4_500), setting(SettingsButton::EyeStyle));
+    assert_eq!(h.app.next_deadline(), None, "a save of nothing is pending");
+    h.tap(ms(4_600), back());
+    // Running a timer leaves its duration alone.
+    h.tap(ms(11_000), common::tile(Tile::Timer));
+    h.tap(ms(12_000), button(TimerButton::Start));
+    h.tap(ms(13_000), button(TimerButton::Pause));
+    h.tap(ms(14_000), button(TimerButton::Reset));
+    h.run_until(ms(20_000));
+    assert!(saves(&h).is_empty());
+}
+
+#[test]
+fn repeated_p_presses_save_once() {
+    let mut h = Harness::new(SEED);
+    h.key(ms(1_000), Key::P);
+    h.key(ms(1_500), Key::P);
+    h.key(ms(2_000), Key::P);
+    h.run_until(ms(3_999));
+    assert!(saves(&h).is_empty());
+    h.run_until(ms(4_000));
+    assert_eq!(
+        saves(&h),
+        [Settings::DEFAULT.with_eye_style(EyeStyle::Plain)]
+    );
 }
