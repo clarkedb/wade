@@ -1,16 +1,19 @@
-//! Recordings: a seed plus every input event with the state hash after it
-//! (docs/testing.md#recording-and-replay).
+//! Recordings: a seed, the settings the session started with, and every input
+//! event with the state hash after it (docs/testing.md#recording-and-replay).
 //!
 //! ```text
-//! wade-events 1
+//! wade-events 2
 //! seed 8127364512
+//! settings 0100000105
 //! 1000 down 160 110 #3f9a1c02
 //! 1080 up 160 110 #b7e0442d
 //! 2400 key 3 #5d21a7c4
 //! ```
 //!
 //! `Deadline` events are not recorded; replay regenerates them from `next_deadline`.
-//! Parse with `text.parse::<Recording>()`; write with `Display`.
+//! The settings are their stored form in hex; version 1 recordings, from before
+//! settings, start with the defaults. Parse with `text.parse::<Recording>()`;
+//! write with `Display`.
 
 use core::fmt;
 use core::str::FromStr;
@@ -20,12 +23,16 @@ use std::vec::Vec;
 use embedded_graphics::geometry::Point;
 
 use crate::event::{Digit, Event, EventKind, Key, Touch, TouchPhase};
+use crate::settings::Settings;
 use crate::time::Instant;
 
 use super::Harness;
 
 /// The newest header version this code writes. The parser accepts every older one.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
+
+/// The first version whose recordings carry the settings they started with.
+const SETTINGS_SINCE: u32 = 2;
 
 /// Filename suffix for recordings in `wade-core/tests/recordings/`.
 pub const FILE_SUFFIX: &str = ".events.wade";
@@ -33,6 +40,8 @@ pub const FILE_SUFFIX: &str = ".events.wade";
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Recording {
     pub seed: u64,
+    /// The settings the platform loaded at the start.
+    pub settings: Settings,
     pub entries: Vec<Entry>,
 }
 
@@ -142,9 +151,10 @@ pub struct Replay {
 
 impl Recording {
     #[must_use]
-    pub const fn new(seed: u64) -> Self {
+    pub const fn new(seed: u64, settings: Settings) -> Self {
         Self {
             seed,
+            settings,
             entries: Vec::new(),
         }
     }
@@ -175,7 +185,7 @@ impl Recording {
     }
 
     fn run(&self, check: bool) -> Result<Replay, Mismatch> {
-        let mut harness = Harness::new(self.seed);
+        let mut harness = Harness::with_settings(self.seed, self.settings);
         let mut hashes = Vec::with_capacity(self.entries.len());
         for (index, entry) in self.entries.iter().enumerate() {
             harness.run_until(entry.at);
@@ -233,7 +243,14 @@ impl FromStr for Recording {
             return Err(error(2, "unexpected field after seed"));
         }
 
-        let mut recording = Recording::new(seed);
+        let settings = if version >= SETTINGS_SINCE {
+            let line = lines.next().ok_or_else(|| error(3, "missing settings"))?;
+            parse_settings(line.1).ok_or_else(|| error(3, "invalid settings"))?
+        } else {
+            Settings::DEFAULT
+        };
+
+        let mut recording = Recording::new(seed, settings);
         for (line_index, line) in lines {
             let line_number = line_index + 1;
             let mut fields = line.split_whitespace();
@@ -284,7 +301,7 @@ impl FromStr for Recording {
                 .ok_or_else(|| error(line_number, "missing state hash"))?;
             let hash = hash_text
                 .strip_prefix('#')
-                .filter(|hex| hex.len() == 8)
+                .filter(|hex| hex.len() == 8 && is_hex(hex))
                 .and_then(|hex| u32::from_str_radix(hex, 16).ok())
                 .ok_or_else(|| error(line_number, "invalid state hash"))?;
             if fields.next().is_some() {
@@ -300,11 +317,37 @@ impl fmt::Display for Recording {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "wade-events {VERSION}")?;
         writeln!(f, "seed {}", self.seed)?;
+        f.write_str("settings ")?;
+        for byte in self.settings.encode() {
+            write!(f, "{byte:02x}")?;
+        }
+        writeln!(f)?;
         for entry in &self.entries {
             writeln!(f, "{entry}")?;
         }
         Ok(())
     }
+}
+
+/// Parse a `settings <hex>` line, or `None` unless the hex is exactly an
+/// encoding of some settings.
+fn parse_settings(line: &str) -> Option<Settings> {
+    let mut fields = line.split_whitespace();
+    let hex = fields
+        .next()
+        .filter(|&name| name == "settings")
+        .and_then(|_| fields.next())
+        .filter(|hex| hex.len() % 2 == 0 && is_hex(hex) && fields.next().is_none())?;
+    let bytes = (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(hex.get(i..i + 2)?, 16).ok())
+        .collect::<Option<Vec<u8>>>()?;
+    Settings::try_decode(&bytes)
+}
+
+/// True if `hex` is all lowercase hexadecimal digits, as the writer writes.
+fn is_hex(hex: &str) -> bool {
+    hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 fn error(line: usize, message: &str) -> ParseError {
@@ -333,19 +376,38 @@ mod tests {
 
     #[test]
     fn parses_and_writes_each_input_kind() {
-        let source = "wade-events 1\nseed 42\n0 down -1 240 #0123abcd\n0 move 2 3 #89abcdef\n10 up 2 3 #ffffffff\n10 key 9 #00000000\n20 key z #00000001\n30 key p #00000002\n";
+        let source = "wade-events 2\nseed 42\nsettings 0101000063\n0 down -1 240 #0123abcd\n0 move 2 3 #89abcdef\n10 up 2 3 #ffffffff\n10 key 9 #00000000\n20 key z #00000001\n30 key p #00000002\n";
         let recording: Recording = source.parse().unwrap();
         assert_eq!(recording.seed, 42);
+        assert_eq!(recording.settings.eye_style(), crate::view::EyeStyle::Plain);
+        assert!(!recording.settings.chime());
+        assert_eq!(recording.settings.timer(), crate::timer::MAX_SET);
         assert_eq!(recording.entries.len(), 6);
         assert_eq!(recording.to_string(), source);
+    }
+
+    #[test]
+    fn a_version_1_recording_starts_with_the_default_settings() {
+        let recording: Recording = "wade-events 1\nseed 7\n10 key p #00000000\n"
+            .parse()
+            .unwrap();
+        assert_eq!(recording.settings, Settings::DEFAULT);
+        assert_eq!(recording.entries.len(), 1);
     }
 
     #[test]
     fn reports_the_bad_line() {
         for (source, line) in [
             ("", 1),
-            ("wade-events 2\nseed 1\n", 1),
+            ("wade-events 3\nseed 1\n", 1),
             ("wade-events 1\nseed nope\n", 2),
+            ("wade-events 2\nseed 1\n", 3),
+            ("wade-events 2\nseed 1\nsettings 01000001\n", 3),
+            ("wade-events 2\nseed 1\nsettings 01000001ff\n", 3),
+            ("wade-events 2\nseed 1\nsettings 010000010x\n", 3),
+            ("wade-events 2\nseed 1\nsettings 01+0+0+1+5\n", 3),
+            ("wade-events 1\nseed 1\n0 key p #+1234567\n", 3),
+            ("wade-events 1\nseed 1\n0 key p #0123ABCD\n", 3),
             ("wade-events 1\nseed 1\n0 deadline #00000000\n", 3),
             ("wade-events 1\nseed 1\n0 key 10 #00000000\n", 3),
             (
@@ -353,13 +415,34 @@ mod tests {
                 4,
             ),
         ] {
-            assert_eq!(source.parse::<Recording>().unwrap_err().line, line);
+            assert_eq!(
+                source.parse::<Recording>().unwrap_err().line,
+                line,
+                "{source:?}"
+            );
         }
     }
 
     #[test]
+    fn replay_starts_with_the_recorded_settings() {
+        let mono = Settings::DEFAULT.with_color(crate::view::ColorMode::Mono);
+        let mut recording = Recording::new(42, mono);
+        recording.entries.push(Entry {
+            at: Instant::from_millis(1_000),
+            input: Input::Key(Key::P),
+            hash: 0,
+        });
+        recording.refresh_hashes();
+        let replay = recording.replay().unwrap();
+        assert_eq!(
+            replay.harness.app.settings().color(),
+            crate::view::ColorMode::Mono
+        );
+    }
+
+    #[test]
     fn replay_reports_first_mismatch_with_timestamp() {
-        let mut recording = Recording::new(42);
+        let mut recording = Recording::new(42, Settings::DEFAULT);
         for (at, key) in [(1_000, Key::P), (2_000, Key::Z), (3_000, Key::P)] {
             recording.entries.push(Entry {
                 at: Instant::from_millis(at),

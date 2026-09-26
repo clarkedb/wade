@@ -180,6 +180,9 @@ impl App {
 
     /// What is on screen, as plain data, as of the last handled event.
     pub fn view(&self) -> View;
+
+    /// Settings changed since they were last saved, for a platform about to stop.
+    pub fn unsaved_settings(&self) -> Option<Settings>;
 }
 
 pub struct Output {
@@ -218,6 +221,7 @@ loop:
     output = app.handle(event)
     carry out output.effects
     if output.redraw: draw(app.view())
+on shutdown: store app.unsaved_settings(), if any
 ```
 
 ## State
