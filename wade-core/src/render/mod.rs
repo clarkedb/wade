@@ -3,7 +3,9 @@
 mod digits;
 pub mod face;
 mod icons;
+mod launcher;
 pub mod palette;
+mod settings;
 mod timer;
 mod widgets;
 
@@ -26,6 +28,8 @@ where
             face::draw(&buddy.pose, buddy.eye_style, target)?;
             widgets::apps_button(buddy.apps_pressed, target)
         }
+        View::Launcher(launcher) => launcher::draw(*launcher, target),
         View::Timer(timer) => timer::draw(*timer, target),
+        View::Settings(settings) => settings::draw(*settings, target),
     }
 }

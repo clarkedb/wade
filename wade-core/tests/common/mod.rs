@@ -5,7 +5,8 @@
 pub mod framebuffer;
 
 use embedded_graphics::geometry::Point;
-use wade_core::layout;
+use wade_core::harness::Harness;
+use wade_core::layout::{self, Tile};
 use wade_core::timer::TimerButton;
 use wade_core::{Digit, Instant, Key};
 
@@ -32,6 +33,27 @@ pub fn apps() -> Point {
 /// The middle of the back button on app screens.
 pub fn back() -> Point {
     layout::BACK.center()
+}
+
+/// The middle of `tile` on the Launcher.
+pub fn tile(tile: Tile) -> Point {
+    let (_, area) = layout::TILES
+        .into_iter()
+        .find(|&(t, _)| t == tile)
+        .expect("every app has a tile");
+    area.center()
+}
+
+/// From Buddy at `t`, open the Launcher and then `app`.
+pub fn open(h: &mut Harness, t: Instant, app: Tile) {
+    h.tap(t, apps());
+    h.tap(t, tile(app));
+}
+
+/// From an app at `t`, go back to the Launcher and then to Buddy.
+pub fn home(h: &mut Harness, t: Instant) {
+    h.tap(t, back());
+    h.tap(t, back());
 }
 
 /// The middle of `button` in the timer's row. Each button has one slot.

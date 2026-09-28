@@ -14,7 +14,7 @@ use crate::character::Expression;
 use crate::event::{Event, Key, TouchPhase};
 use crate::time::Instant;
 use crate::timer::TimerPhase;
-use crate::view::{BuddyView, EyeStyle, TimerView, View};
+use crate::view::{BuddyView, EyeStyle, LauncherView, SettingsView, TimerView, View};
 
 #[derive(Debug)]
 pub struct Harness {
@@ -102,7 +102,20 @@ impl Harness {
     pub fn buddy(&self) -> BuddyView {
         match self.app.view() {
             View::Buddy(buddy) => buddy,
-            view @ View::Timer(_) => panic!("expected the Buddy screen, got {view:?}"),
+            view => panic!("expected the Buddy screen, got {view:?}"),
+        }
+    }
+
+    /// The current view, which must be the Launcher.
+    ///
+    /// # Panics
+    ///
+    /// If another screen is shown.
+    #[must_use]
+    pub fn launcher(&self) -> LauncherView {
+        match self.app.view() {
+            View::Launcher(launcher) => launcher,
+            view => panic!("expected the Launcher, got {view:?}"),
         }
     }
 
@@ -115,7 +128,20 @@ impl Harness {
     pub fn timer(&self) -> TimerView {
         match self.app.view() {
             View::Timer(timer) => timer,
-            view @ View::Buddy(_) => panic!("expected the Timer screen, got {view:?}"),
+            view => panic!("expected the Timer screen, got {view:?}"),
+        }
+    }
+
+    /// The current view, which must be the Settings screen.
+    ///
+    /// # Panics
+    ///
+    /// If another screen is shown.
+    #[must_use]
+    pub fn settings(&self) -> SettingsView {
+        match self.app.view() {
+            View::Settings(settings) => settings,
+            view => panic!("expected the Settings screen, got {view:?}"),
         }
     }
 
@@ -139,7 +165,9 @@ impl Harness {
                 blinking: buddy.blinking,
                 apps_pressed: buddy.apps_pressed,
             },
+            View::Launcher(launcher) => Discrete::Launcher(launcher),
             View::Timer(timer) => Discrete::Timer(timer),
+            View::Settings(settings) => Discrete::Settings(settings),
         }
     }
 }
@@ -154,7 +182,9 @@ enum Discrete {
         blinking: bool,
         apps_pressed: bool,
     },
+    Launcher(LauncherView),
     Timer(TimerView),
+    Settings(SettingsView),
 }
 
 /// A hash of discrete state only: the screen, Wade's expression and sleep
@@ -170,6 +200,8 @@ pub fn state_hash(app: &App) -> u32 {
     let screen = match app.screen() {
         Screen::Buddy => 0u8,
         Screen::Timer => 1,
+        Screen::Launcher => 2,
+        Screen::Settings => 3,
     };
     let expression = match wade.expression() {
         Expression::Neutral => 0u8,

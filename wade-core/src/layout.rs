@@ -44,12 +44,34 @@ pub const TIMER_ROW: [Rectangle; 3] = [
     Rectangle::new(Point::new(240, 136), Size::new(72, 56)),
 ];
 
+/// The Launcher's grid: four square slots, two by two, centered and clear of
+/// the corners.
+const GRID: [Rectangle; 4] = [
+    Rectangle::new(Point::new(64, 24), TILE_SIZE),
+    Rectangle::new(Point::new(168, 24), TILE_SIZE),
+    Rectangle::new(Point::new(64, 128), TILE_SIZE),
+    Rectangle::new(Point::new(168, 128), TILE_SIZE),
+];
+const TILE_SIZE: Size = Size::new(88, 88);
+
+/// The Launcher's tiles and their slots. Apps fill the grid from the top
+/// left; Settings always takes the bottom right.
+pub const TILES: [(Tile, Rectangle); 2] = [(Tile::Timer, GRID[0]), (Tile::Settings, GRID[3])];
+
+/// An app the Launcher opens.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Tile {
+    Timer,
+    Settings,
+}
+
 /// Something on screen that a tap can land on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Target {
     Wade,
     Apps,
     Back,
+    Tile(Tile),
     Timer(TimerButton),
 }
 
@@ -61,6 +83,24 @@ pub fn hit_buddy(point: Point) -> Option<Target> {
     } else {
         WADE_FACE.contains(point).then_some(Target::Wade)
     }
+}
+
+/// The target under `point` on the Launcher, if any.
+#[must_use]
+pub fn hit_launcher(point: Point) -> Option<Target> {
+    if BACK.contains(point) {
+        return Some(Target::Back);
+    }
+    TILES
+        .iter()
+        .find(|(_, area)| area.contains(point))
+        .map(|&(tile, _)| Target::Tile(tile))
+}
+
+/// The target under `point` on the Settings screen, if any.
+#[must_use]
+pub fn hit_settings(point: Point) -> Option<Target> {
+    BACK.contains(point).then_some(Target::Back)
 }
 
 /// The target under `point` on the Timer screen, whose row holds `row`, if
@@ -81,36 +121,39 @@ pub fn hit_timer(point: Point, row: [Option<RowButton>; 3]) -> Option<Target> {
 
 #[cfg(test)]
 mod tests {
+    use std::vec;
+    use std::vec::Vec;
+
     use super::*;
     use crate::app::Screen;
     use crate::time::Instant;
     use crate::timer::TimerState;
 
-    /// Every hit area on every screen, with a target that uses it, and the
+    /// A hit area on a screen, with a target that uses it, and the
     /// navigation corner it owns, if any.
-    const HIT_AREAS: [(Screen, Target, Rectangle, Option<Rectangle>); 6] = [
-        (Screen::Buddy, Target::Wade, WADE_FACE, None),
-        (Screen::Buddy, Target::Apps, APPS, Some(APPS)),
-        (Screen::Timer, Target::Back, BACK, Some(BACK)),
-        (
-            Screen::Timer,
-            Target::Timer(TimerButton::Minus),
-            TIMER_ROW[0],
-            None,
-        ),
-        (
-            Screen::Timer,
-            Target::Timer(TimerButton::Start),
-            TIMER_ROW[1],
-            None,
-        ),
-        (
-            Screen::Timer,
-            Target::Timer(TimerButton::Plus),
-            TIMER_ROW[2],
-            None,
-        ),
-    ];
+    type HitArea = (Screen, Target, Rectangle, Option<Rectangle>);
+
+    /// Every hit area on every screen, taken from the layout's own tables so
+    /// that a new one is checked too.
+    fn hit_areas() -> Vec<HitArea> {
+        let mut areas = vec![
+            (Screen::Buddy, Target::Wade, WADE_FACE, None),
+            (Screen::Buddy, Target::Apps, APPS, Some(APPS)),
+        ];
+        for screen in [Screen::Launcher, Screen::Timer, Screen::Settings] {
+            areas.push((screen, Target::Back, BACK, Some(BACK)));
+        }
+        areas.extend(
+            TILES
+                .iter()
+                .map(|&(tile, area)| (Screen::Launcher, Target::Tile(tile), area, None)),
+        );
+        let row = TimerState::new().row();
+        areas.extend(TIMER_ROW.iter().zip(row).filter_map(|(&area, button)| {
+            button.map(|b| (Screen::Timer, Target::Timer(b.button), area, None))
+        }));
+        areas
+    }
 
     #[test]
     fn center_hits_wade_and_corner_does_not() {
@@ -120,11 +163,22 @@ mod tests {
 
     #[test]
     fn each_navigation_button_hits_only_on_its_screen() {
-        let row = TimerState::new().row();
         assert_eq!(hit_buddy(APPS.center()), Some(Target::Apps));
-        assert_eq!(hit_timer(APPS.center(), row), None);
-        assert_eq!(hit_timer(BACK.center(), row), Some(Target::Back));
+        let timer = |p| hit_timer(p, TimerState::new().row());
+        for hit in [hit_launcher, hit_settings, timer] {
+            assert_eq!(hit(APPS.center()), None);
+            assert_eq!(hit(BACK.center()), Some(Target::Back));
+        }
         assert_eq!(hit_buddy(BACK.center()), None);
+    }
+
+    #[test]
+    fn settings_takes_the_bottom_right_tile() {
+        assert_eq!(TILES.last().map(|&(tile, _)| tile), Some(Tile::Settings));
+        assert_eq!(TILES.last().map(|&(_, area)| area), GRID.last().copied());
+        for (tile, area) in TILES {
+            assert_eq!(hit_launcher(area.center()), Some(Target::Tile(tile)));
+        }
     }
 
     #[test]
@@ -142,7 +196,7 @@ mod tests {
 
     #[test]
     fn touch_targets_are_large_enough_and_clear_of_the_corners() {
-        for (_, target, area, owned) in HIT_AREAS {
+        for (_, target, area, owned) in hit_areas() {
             assert!(
                 area.size.width >= 48 && area.size.height >= 48,
                 "{target:?} is {} px",
@@ -159,8 +213,9 @@ mod tests {
 
     #[test]
     fn touch_targets_on_one_screen_do_not_overlap() {
-        for (i, &(screen, a, area, _)) in HIT_AREAS.iter().enumerate() {
-            for &(other_screen, b, other, _) in &HIT_AREAS[i + 1..] {
+        let areas = hit_areas();
+        for (i, &(screen, a, area, _)) in areas.iter().enumerate() {
+            for &(other_screen, b, other, _) in &areas[i + 1..] {
                 assert!(
                     screen != other_screen || area.intersection(&other).is_zero_sized(),
                     "{a:?} overlaps {b:?}"

@@ -24,16 +24,18 @@ Each screen fills the display. Wade appears only on the Buddy screen; app screen
 | Settings | M5 | Device settings |
 | Weather | M7 | Current conditions |
 
-Navigation in M2:
+Navigation:
 
 ```text
-Buddy ──(apps button)──► Timer
-Timer ──(back button)──► Buddy
+Buddy ──(apps button)──► Launcher
+Launcher ──(tile)──► Timer or Settings
+Timer or Settings ──(back button)──► Launcher
+Launcher ──(back button)──► Buddy
 Timer finishes, on any screen ──► Timer, showing Done
 Timer in Done ──(Dismiss or back button)──► Buddy, Wade Proud (or groggy, if the chime woke him)
 ```
 
-From M5, the apps button opens the Launcher. Back from an app returns to the Launcher, and back from the Launcher returns to Buddy. The one exception is a finished timer: dismissing it, with Dismiss or with back, always returns to Buddy so Wade can react.
+The one exception to back returning to the Launcher is a finished timer: dismissing it, with Dismiss or with back, always returns to Buddy so Wade can react.
 
 ## Touch handling
 
@@ -52,6 +54,22 @@ The four 48×48 corners are reserved for navigation on every screen: back top-le
 ## Buddy screen
 
 Wade fills the screen. The apps button is a 48×48 hit area in the bottom-right corner with a small, low-contrast icon. Wade's hit area is a rectangle around his eyes, clear of the corners. In M1 through M3, touches elsewhere do nothing; M4 adds gaze-following (see [character.md](character.md#behavior-rules)).
+
+## Launcher
+
+```text
+┌──────────────────────────────────────────┐
+│ ‹                                   apps │
+│       ┌───────────┐  ┌───────────┐       │  y 24–112: top row of tiles
+│       │ stopwatch │  │           │       │
+│       └───────────┘  └───────────┘       │
+│       ┌───────────┐  ┌───────────┐       │  y 128–216: bottom row
+│       │           │  │    gear   │       │
+│       └───────────┘  └───────────┘       │
+└──────────────────────────────────────────┘
+```
+
+A two-by-two grid of 88×88 tiles, 16 px apart, centered and clear of the corners. Each tile shows its app's title icon at twice the size and is styled like a button: outlined, filled while pressed. Apps fill the grid from the top left, and Settings always takes the bottom right, so it stays put as apps are added. The title is the apps button's four squares.
 
 ## Timer
 

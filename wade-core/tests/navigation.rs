@@ -2,25 +2,73 @@
 
 mod common;
 
-use common::{SEED, apps, back, digit, ms};
+use common::{SEED, apps, back, digit, home, ms, open, tile};
 use embedded_graphics::geometry::Point;
 use wade_core::app::{FRAME, STALL_LIMIT, Screen};
-use wade_core::character::Expression;
+use wade_core::character::{Expression, TIMER_REACTION};
 use wade_core::harness::Harness;
-use wade_core::layout::{Target, WADE_CENTER};
+use wade_core::layout::{Target, Tile, WADE_CENTER};
+use wade_core::timer::{MIN_SET, TimerButton, TimerPhase};
 use wade_core::{Event, Key, TouchPhase};
 
 #[test]
-fn apps_opens_the_timer_and_back_returns_to_buddy() {
+fn apps_opens_the_launcher_and_back_returns_to_buddy() {
     let mut h = Harness::new(SEED);
     h.tap(ms(1_000), apps());
-    assert_eq!(h.app.screen(), Screen::Timer);
+    assert_eq!(h.app.screen(), Screen::Launcher);
     h.tap(ms(2_000), back());
     assert_eq!(h.app.screen(), Screen::Buddy);
 }
 
 #[test]
-fn a_touch_that_leaves_the_apps_button_does_not_open_the_timer() {
+fn each_tile_opens_its_app_and_back_returns_to_the_launcher() {
+    for (app, screen) in [
+        (Tile::Timer, Screen::Timer),
+        (Tile::Settings, Screen::Settings),
+    ] {
+        let mut h = Harness::new(SEED);
+        open(&mut h, ms(1_000), app);
+        assert_eq!(h.app.screen(), screen);
+        h.tap(ms(2_000), back());
+        assert_eq!(h.app.screen(), Screen::Launcher);
+        h.tap(ms(3_000), back());
+        assert_eq!(h.app.screen(), Screen::Buddy);
+    }
+}
+
+#[test]
+fn a_timer_finishing_elsewhere_is_dismissed_to_buddy() {
+    for (screen, from_buddy) in [
+        (Screen::Buddy, &[][..]),
+        (Screen::Launcher, &[apps()][..]),
+        (Screen::Settings, &[apps(), tile(Tile::Settings)][..]),
+    ] {
+        for dismiss in [common::button(TimerButton::Dismiss), back()] {
+            let mut h = Harness::new(SEED);
+            open(&mut h, ms(1_000), Tile::Timer);
+            for step in 1..=4 {
+                h.tap(ms(1_000 + step * 100), common::button(TimerButton::Minus));
+            }
+            h.tap(ms(2_000), common::button(TimerButton::Start));
+            home(&mut h, ms(3_000));
+            for &point in from_buddy {
+                h.tap(ms(4_000), point);
+            }
+            assert_eq!(h.app.screen(), screen);
+            h.run_until(ms(62_000));
+            assert_eq!(h.timer().phase, TimerPhase::Done, "from {screen:?}");
+            h.tap(ms(65_000), dismiss);
+            assert_eq!(h.app.screen(), Screen::Buddy, "from {screen:?}");
+            assert_eq!(h.app.timer_state().duration(), MIN_SET);
+            assert_eq!(h.buddy().expression, Expression::Proud);
+            h.run_until(ms(65_000) + TIMER_REACTION);
+            assert_eq!(h.buddy().expression, Expression::Neutral);
+        }
+    }
+}
+
+#[test]
+fn a_touch_that_leaves_the_apps_button_does_not_open_the_launcher() {
     let mut h = Harness::new(SEED);
     h.touch(ms(1_000), TouchPhase::Down, apps());
     assert!(h.buddy().apps_pressed);
@@ -31,31 +79,52 @@ fn a_touch_that_leaves_the_apps_button_does_not_open_the_timer() {
 }
 
 #[test]
-fn back_shows_pressed_while_the_touch_stays_on_it() {
-    let mut h = Harness::new(SEED);
-    h.tap(ms(1_000), apps());
-    assert!(
-        h.handle(Event::touch(ms(2_000), TouchPhase::Down, back()))
-            .redraw
-    );
-    assert_eq!(h.timer().pressed, Some(Target::Back));
-    assert!(
-        h.handle(Event::touch(ms(2_050), TouchPhase::Move, WADE_CENTER))
-            .redraw
-    );
-    assert_eq!(h.timer().pressed, None);
+fn back_and_tiles_show_pressed_while_the_touch_stays_on_them() {
+    for target in [
+        Target::Back,
+        Target::Tile(Tile::Timer),
+        Target::Tile(Tile::Settings),
+    ] {
+        let point = match target {
+            Target::Tile(app) => tile(app),
+            _ => back(),
+        };
+        let mut h = Harness::new(SEED);
+        h.tap(ms(1_000), apps());
+        assert!(
+            h.handle(Event::touch(ms(2_000), TouchPhase::Down, point))
+                .redraw
+        );
+        assert_eq!(h.launcher().pressed, Some(target));
+        assert!(
+            h.handle(Event::touch(ms(2_050), TouchPhase::Move, WADE_CENTER))
+                .redraw
+        );
+        assert_eq!(h.launcher().pressed, None);
+        h.touch(ms(2_100), TouchPhase::Up, point);
+        assert_eq!(h.app.screen(), Screen::Launcher, "{target:?} fired");
+    }
 }
 
 #[test]
-fn wade_ignores_taps_and_keys_on_the_timer_screen() {
-    let mut h = Harness::new(SEED);
-    h.tap(ms(1_000), apps());
-    h.tap(ms(2_000), WADE_CENTER);
-    h.key(ms(3_000), digit(3));
-    h.key(ms(4_000), Key::Z);
-    h.tap(ms(5_000), back());
-    assert_eq!(h.buddy().expression, Expression::Neutral);
-    assert!(!h.buddy().asleep);
+fn wade_ignores_taps_and_keys_on_other_screens() {
+    for app in [None, Some(Tile::Timer), Some(Tile::Settings)] {
+        let mut h = Harness::new(SEED);
+        h.tap(ms(1_000), apps());
+        if let Some(app) = app {
+            h.tap(ms(1_000), tile(app));
+        }
+        let screen = h.app.screen();
+        h.tap(ms(2_000), WADE_CENTER);
+        h.key(ms(3_000), digit(3));
+        h.key(ms(4_000), Key::Z);
+        let backs = if app.is_some() { 2 } else { 1 };
+        for _ in 0..backs {
+            h.tap(ms(5_000), back());
+        }
+        assert_eq!(h.buddy().expression, Expression::Neutral, "on {screen:?}");
+        assert!(!h.buddy().asleep, "on {screen:?}");
+    }
 }
 
 #[test]

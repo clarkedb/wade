@@ -27,7 +27,7 @@ Camera, microphones, motion sensors, text or speech from Wade, deep sleep, over-
 | ---------------------------------- | ----------------------------------------------------------------- |
 | [architecture.md](architecture.md) | Crate layout, the core API, time, events, effects, deadlines      |
 | [character.md](character.md)       | Persona, face rig, expressions, animation, behavior rules         |
-| [ui.md](ui.md)                     | Screens, navigation, touch handling, layout, rendering, the timer |
+| [ui.md](ui.md)                     | Screens, navigation, touch handling, layout, and rendering        |
 | [platforms.md](platforms.md)       | Desktop and CoreS3 Lite implementations, hardware, toolchain      |
 | [testing.md](testing.md)           | Test layers, the test harness, snapshots, recording and replay    |
 | [roadmap.md](roadmap.md)           | Milestones with scope and completion criteria                     |
