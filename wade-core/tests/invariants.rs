@@ -5,7 +5,7 @@ mod common;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::primitives::Rectangle;
 use proptest::prelude::*;
-use wade_core::app::{STALL_LIMIT, Screen};
+use wade_core::app::{SAVE_DELAY, STALL_LIMIT, Screen};
 use wade_core::layout;
 use wade_core::timer::{CHIME_INTERVAL, CHIMES, MAX_SET, MIN_SET, STEP, TimerPhase, TimerState};
 use wade_core::{
@@ -431,5 +431,46 @@ proptest! {
             }
             prop_assert_eq!(on_time.view(), late.view());
         }
+    }
+
+    #[test]
+    fn settings_are_saved_once_they_stop_changing(
+        seed: u64,
+        settings in settings(),
+        events in ordered_events(),
+    ) {
+        let mut app = App::new(Instant::from_millis(0), seed, settings);
+        let mut saved = settings;
+        let mut changed_at: Option<Instant> = None;
+        // Each save repeats nothing, and comes once settings have stopped
+        // changing for SAVE_DELAY or on leaving the Settings screen.
+        let mut handle = |app: &mut App, event: Event| -> Result<(), TestCaseError> {
+            let (before, screen) = (app.settings(), app.screen());
+            let out = app.handle(event);
+            let left = screen == Screen::Settings && app.screen() != Screen::Settings;
+            for effect in out.effects {
+                if let Effect::SaveSettings(s) = effect {
+                    prop_assert_ne!(s, saved, "saved settings that had not changed");
+                    let settled = changed_at.is_some_and(|t| app.now() >= t + SAVE_DELAY);
+                    prop_assert!(settled || left, "saved too soon at {:?}", app.now());
+                    saved = s;
+                }
+            }
+            if app.settings() != before {
+                changed_at = Some(app.now());
+            }
+            Ok(())
+        };
+        let idle = events.last().map_or(Instant::from_millis(0), |e| e.at) + SAVE_DELAY;
+        for event in events {
+            while let Some(d) = app.next_deadline().filter(|&d| d < event.at) {
+                handle(&mut app, Event::deadline(d))?;
+            }
+            handle(&mut app, event)?;
+        }
+        while let Some(d) = app.next_deadline().filter(|&d| d <= idle) {
+            handle(&mut app, Event::deadline(d))?;
+        }
+        prop_assert_eq!(saved, app.settings(), "settings left unsaved");
     }
 }

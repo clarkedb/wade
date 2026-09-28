@@ -53,9 +53,10 @@ impl Harness {
     /// # Panics
     ///
     /// If `t` is before the app's `now`, if a requested deadline is not later
-    /// than `now`, or if the final Deadline at `t` changes discrete state. The
-    /// last means the app changed at or before `t` without requesting a deadline
-    /// for it, which a real platform would never have woken up for.
+    /// than `now`, or if the final Deadline at `t` changes discrete state or
+    /// has effects. The last means the app changed at or before `t` without
+    /// requesting a deadline for it, which a real platform would never have
+    /// woken up for.
     pub fn run_until(&mut self, t: Instant) {
         assert!(
             t >= self.app.now(),
@@ -74,11 +75,16 @@ impl Harness {
             self.handle(Event::deadline(deadline));
         }
         let before = self.discrete();
-        self.handle(Event::deadline(t));
+        let out = self.handle(Event::deadline(t));
         assert_eq!(
             before,
             self.discrete(),
             "state changed at {t:?} without a requested deadline"
+        );
+        assert!(
+            out.effects.is_empty(),
+            "effects at {t:?} without a requested deadline: {:?}",
+            out.effects
         );
     }
 
@@ -171,6 +177,8 @@ impl Harness {
                 expression: buddy.expression,
                 asleep: buddy.asleep,
                 blinking: buddy.blinking,
+                eye_style: buddy.eye_style,
+                color: buddy.color,
                 apps_pressed: buddy.apps_pressed,
             },
             View::Launcher(launcher) => Discrete::Launcher(launcher),
@@ -188,6 +196,8 @@ enum Discrete {
         expression: Expression,
         asleep: bool,
         blinking: bool,
+        eye_style: EyeStyle,
+        color: ColorMode,
         apps_pressed: bool,
     },
     Launcher(LauncherView),

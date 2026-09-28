@@ -174,7 +174,8 @@ impl App {
     pub fn handle(&mut self, event: Event) -> Output;
 
     /// The earliest time the core needs a `Deadline` event, or `None` if nothing
-    /// visible will change without input. Always later than the last handled event.
+    /// visible will change without input and no save is pending. Always later
+    /// than the last handled event.
     pub fn next_deadline(&self) -> Option<Instant>;
 
     /// What is on screen, as plain data, as of the last handled event.
@@ -192,8 +193,11 @@ pub struct Output {
 
 pub enum Effect {
     /// Play the timer-finished chime, defined as a tone sequence in `wade_core::sound::CHIME`.
-    /// Emitted when the timer finishes and repeated while it stays Done (see ui.md).
+    /// Emitted when the timer finishes and repeated while it stays Done, unless
+    /// the chime setting is off (see ui.md).
     Chime,
+    /// Store these settings for the next start (see roadmap.md#m5-settings).
+    SaveSettings(Settings),
 }
 
 // In wade_core::render. Drawing is a function of plain data.
@@ -249,7 +253,7 @@ A feature whose screen is not visible still keeps time but costs nothing. While 
 
 ## Deadlines and frames
 
-Deadlines replace a periodic tick. Each feature reports when it will next change without input: Wade's next blink or the next frame of a running animation, the moment the timer ends, the next second at which the timer's digits change, the next chime repeat. `App::next_deadline` returns the earliest.
+Deadlines replace a periodic tick. Each feature reports when it will next change without input: Wade's next blink or the next frame of a running animation, the moment the timer ends, the next second at which the timer's digits change, the next chime repeat, a pending settings save. `App::next_deadline` returns the earliest.
 
 The platform guarantees a `Deadline` event at or after that time. It may arrive late (after a slow frame), and extra `Deadline` events may arrive (after a spurious wakeup). The core must produce the same result either way: behavior depends on elapsed time, never on how many events arrived. An invariant test checks this (see [testing.md](testing.md#invariants)). One bound: past a gap of `STALL_LIMIT` (an hour), Wade restarts his idle schedule instead of replaying it ([D20](decisions.md#d20-a-gap-over-an-hour-restarts-wades-idle-schedule)).
 
