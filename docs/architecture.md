@@ -5,7 +5,7 @@
 The project splits into one core crate and one crate per platform. The core decides what Wade does; a platform connects the core to real inputs, a real clock, and real outputs.
 
 ```text
- Platform (wade-desktop, wade-cores3)          Core (wade-core)
+ Platform (desktop; device planned)          Core (wade-core)
 ┌──────────────────────────────┐             ┌────────────────────┐
 │ clock, touch, sensors        │── Event ───►│                    │
 │ deadline timer               │── Event ───►│        App         │
@@ -32,47 +32,9 @@ Its dependencies are limited to `embedded-graphics` (drawing), `heapless` (fixed
 
 ## Crates
 
-```text
-wade/
-├── Cargo.toml       workspace: wade-core, wade-desktop; excludes wade-cores3 and spikes/
-├── wade-core/       no_std library: behavior, layout, drawing
-├── wade-desktop/    std binary: simulator window, audio, record and replay
-├── wade-cores3/     no_std firmware for the CoreS3 Lite
-├── spikes/          throwaway experiments, such as the hardware spike
-├── .github/         CI workflows (see testing.md)
-└── docs/
-```
+The workspace currently contains an allocation-free `no_std` core and a desktop simulator. Platforms depend on the core; the core depends on no platform. The CoreS3 Lite firmware is planned for M3 and will use its own Xtensa toolchain outside the root workspace.
 
-Platforms depend on the core. The core depends on no platform.
-
-`wade-cores3` is excluded from the root workspace because it needs Espressif's Xtensa toolchain and its own build target; inside the workspace it would break `cargo test` at the root. It has its own `rust-toolchain.toml` and `.cargo/config.toml` and depends on `wade-core` by path.
-
-Any package that sits under the root directory but is not a workspace member must be listed in the root `Cargo.toml`'s `workspace.exclude`, or Cargo refuses to build it. This applies to `wade-cores3` and to everything under `spikes/`:
-
-```toml
-[workspace]
-members = ["wade-core", "wade-desktop"]
-exclude = ["wade-cores3", "spikes"]
-```
-
-Module layout inside `wade-core`:
-
-```text
-wade-core/src/
-├── lib.rs       public API
-├── time.rs      Instant
-├── event.rs     Event, EventKind, Touch
-├── app.rs       App, Output, Effect, screen routing
-├── input.rs     TouchTracker: raw touch samples → taps
-├── layout.rs    screen geometry shared by drawing and hit-testing
-├── rng.rs       seeded pseudo-random number generator
-├── settings.rs  Settings and their stored form
-├── sound.rs     tone sequences (the chime)
-├── character/   Wade: state, expressions, animation, pose rig
-├── timer.rs     TimerState machine
-├── view.rs      View types
-└── render/      drawing: palette, face, screens, widgets, digits
-```
+Cargo requires packages under the repository root that are not workspace members to be excluded explicitly. The workspace reserves exclusions for the future firmware and hardware spikes.
 
 ## Time
 

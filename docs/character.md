@@ -36,7 +36,7 @@ The look is tuned on the real screen in M4. The screen is 2.0" at about 200 pixe
 | Color | Flat fills. No gradients, which band visibly in Rgb565. |
 | Transforms | None. `embedded-graphics` cannot rotate shapes, so the rig moves, reshapes, and cuts features instead of rotating them. |
 
-Props are part of the character. A keyboard and a cup appear during idle activities (M4).
+Props are part of the character. A keyboard and a cup are planned for idle activities in M4.
 
 ## Pose rig
 
