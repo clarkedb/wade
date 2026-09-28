@@ -1,6 +1,6 @@
 # Platforms
 
-Both platforms run the loop in [architecture.md](architecture.md#core-api): stamp events with the current time, pass them to `App::handle`, carry out effects, redraw when asked, and wake at `App::next_deadline`.
+The desktop platform runs the loop in [architecture.md](architecture.md#core-api). The planned CoreS3 Lite firmware will use the same core API: stamp events, handle effects, redraw when asked, and wake at `App::next_deadline`.
 
 ## Desktop (`wade-desktop`)
 
@@ -8,7 +8,7 @@ Both platforms run the loop in [architecture.md](architecture.md#core-api): stam
 |---|---|
 | Window | `embedded-graphics-simulator`: a 320×240 Rgb565 display shown at 2× scale. Requires SDL2. |
 | Clock | `std::time::Instant` captured at startup; `Instant::from_millis(elapsed_ms)`. |
-| Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. The simulator's mouse events should already be in display coordinates (it undoes the window scale); confirm this in M1 and divide by the scale only if not. Number keys 0–9, Z, and P → `Key` events, which show an expression, put Wade to sleep, or switch his eye style (see [character.md](character.md#m1)). |
+| Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. The simulator reports display coordinates after undoing the window scale. Number keys 0–9, Z, and P → `Key` events, which show an expression, put Wade to sleep, or switch his eye style (see [character.md](character.md#m1)). |
 | Loop | The simulator offers only non-blocking event polling. The loop polls window events, then sleeps until the next deadline or for 10 ms, whichever is sooner. This polling stays inside the desktop crate. |
 | Audio | `rodio`, synthesizing `wade_core::sound::CHIME` as bell-like notes on its own thread, so the loop never waits. No audio files; without an output device, Wade runs silent. |
 | Settings | A `settings` file under `wade/` in the user's config directory (`~/Library/Application Support` on macOS), replaced atomically on each `SaveSettings`, and on quitting if a change has not been saved yet. A missing, unreadable, or corrupt file starts Wade with the defaults. A replay starts with the settings it recorded and saves nothing. |
@@ -23,9 +23,9 @@ Development flags:
 | `--replay <file>` | Play a recording back in real time instead of reading the mouse |
 | `--time-scale <x>` | Run the clock `x` times faster, for example to watch a 5-minute timer finish in 30 s. Affects only the desktop clock. |
 
-macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homebrew's SDL2; if so, add `export LIBRARY_PATH="$LIBRARY_PATH:$(brew --prefix)/lib"` to your shell profile. Linux support is deferred; it will need SDL2 and ALSA (`libasound2-dev`) from the distribution's package manager, and serial-port permissions for flashing the device.
+macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homebrew's SDL2; if so, add `export LIBRARY_PATH="${LIBRARY_PATH:+$LIBRARY_PATH:}$(brew --prefix)/lib"` to your shell profile. Linux support is deferred; it will need SDL2 and ALSA (`libasound2-dev`) from the distribution's package manager, and serial-port permissions for flashing the device.
 
-## M5Stack CoreS3 Lite (`wade-cores3`)
+## M5Stack CoreS3 Lite (planned `wade-cores3`)
 
 ### Hardware
 
