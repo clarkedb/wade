@@ -159,3 +159,9 @@ Rejected: requesting hidden transitions as deadlines, which wakes the device eve
 Reason: Wade speaks only through expression, gaze, and small actions, and the screens around him should too. Icons drawn from primitives need no font, read at a glance from across a desk, and need no translation.
 
 Rejected: text labels and titles in the built-in mono font, which put a word on every button.
+
+## D27. Brightness waits for the device
+
+Reason: M5 is built desktop first, and the desktop has no backlight, so a brightness setting would do nothing real there. Brightness (4 levels, `Effect::SetBrightness`) joins the settings with the device, once the hardware spike has found how to drive the backlight. Colors join now instead: color or mono accents are a real choice about Wade's look, and the desktop can show and test it. The desktop P key stays as a shortcut that changes the eye style setting, since switching styles is how looks are reviewed on desktop.
+
+Rejected: brightness now, faked on desktop by dimming the window, which tests the stand-in rather than the backlight; no new setting until the device arrives, which holds back a choice the desktop can already offer.

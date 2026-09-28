@@ -11,7 +11,7 @@ use wade_core::harness::Harness;
 use wade_core::layout::{Target, Tile};
 use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
 use wade_core::view::{EyeStyle, View};
-use wade_core::{App, Instant, TouchPhase, render};
+use wade_core::{App, Instant, Settings, TouchPhase, render};
 
 /// The whole screen for `view`.
 fn snapshot(name: &str, view: &View) {
@@ -43,7 +43,7 @@ fn still_phase(accent: Accent) -> f32 {
 
 #[test]
 fn buddy_at_start() {
-    let app = App::new(Instant::from_millis(0), common::SEED);
+    let app = App::new(Instant::from_millis(0), common::SEED, Settings::DEFAULT);
     snapshot("buddy_at_start", &app.view());
 }
 

@@ -19,6 +19,7 @@ pub mod input;
 pub mod layout;
 pub mod render;
 pub mod rng;
+pub mod settings;
 pub mod sound;
 pub mod time;
 pub mod timer;
@@ -29,5 +30,6 @@ pub mod harness;
 
 pub use app::{App, Effect, Output};
 pub use event::{Digit, Event, EventKind, Key, Touch, TouchPhase};
+pub use settings::Settings;
 pub use time::{Duration, Instant};
 pub use view::View;

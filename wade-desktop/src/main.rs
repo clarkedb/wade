@@ -21,7 +21,8 @@ use embedded_graphics_simulator::{
 use wade_core::harness::recording::{Entry, Input, Recording};
 use wade_core::harness::state_hash;
 use wade_core::{
-    App, Digit, Effect, Event, EventKind, Instant, Key, Output, TouchPhase, layout, render,
+    App, Digit, Effect, Event, EventKind, Instant, Key, Output, Settings, TouchPhase, layout,
+    render,
 };
 
 use audio::Audio;
@@ -94,7 +95,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let audio = Audio::open();
     let clock = Clock::new(args.time_scale);
-    let mut app = App::new(Instant::from_millis(0), seed);
+    let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
 
     let mut display = SimulatorDisplay::<Rgb565>::new(layout::SCREEN_SIZE);
     let settings = OutputSettingsBuilder::new().scale(2).build();
@@ -321,7 +322,7 @@ mod tests {
 
     #[test]
     fn captured_session_replays_and_omits_deadlines() {
-        let mut app = App::new(Instant::from_millis(0), 42);
+        let mut app = App::new(Instant::from_millis(0), 42, Settings::DEFAULT);
         let mut output = Recording::new(42).to_string().into_bytes();
         let deadline = Event::deadline(Instant::from_millis(500));
         let _ = app.handle(deadline);

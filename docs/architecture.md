@@ -66,6 +66,7 @@ wade-core/src/
 ├── input.rs     TouchTracker: raw touch samples → taps
 ├── layout.rs    screen geometry shared by drawing and hit-testing
 ├── rng.rs       seeded pseudo-random number generator
+├── settings.rs  Settings and their stored form
 ├── sound.rs     tone sequences (the chime)
 ├── character/   Wade: state, expressions, animation, pose rig
 ├── timer.rs     TimerState machine
@@ -168,7 +169,7 @@ Signatures only:
 pub struct App { /* private */ }
 
 impl App {
-    pub fn new(now: Instant, seed: u64) -> App;
+    pub fn new(now: Instant, seed: u64, settings: Settings) -> App;
 
     pub fn handle(&mut self, event: Event) -> Output;
 
@@ -206,7 +207,7 @@ Separating `view` from `draw` lets behavior tests assert on data (which screen, 
 Every platform runs the same loop:
 
 ```text
-app = App::new(now(), seed)
+app = App::new(now(), seed, load_settings())
 draw(app.view())
 loop:
     event = the next input event, or a Deadline event if app.next_deadline() passes first
@@ -225,7 +226,7 @@ pub struct App {
     timer: TimerState,   // keeps running on every screen
     touch: TouchTracker, // turns raw touch samples into taps
     rng: Rng,            // seeded PRNG for behavior
-    eye_style: EyeStyle, // how Wade's eyes are drawn; a setting
+    settings: Settings,  // eye style, colors, chime, timer duration
 }
 
 enum Screen {
@@ -266,6 +267,6 @@ New event kinds, effects, and constructor arguments are added only when a milest
 |---|---|---|---|
 | M2 Timer | none | `Chime` | none |
 | M3 Device port | none | none | `render::damage`, only if the spike's flush measurements require it (see [ui.md](ui.md#rendering)) |
-| M5 Settings | none | `SaveSettings(Settings)`, `SetBrightness(u8)` | `App::new` takes loaded `Settings` |
+| M5 Settings | none | `SaveSettings(Settings)`; `SetBrightness(u8)` once the device can use it ([D27](decisions.md#d27-brightness-waits-for-the-device)) | `App::new` takes loaded `Settings` |
 | M6 Power | `Power(PowerStatus)`, `Proximity(Proximity)` | `DisplayPower(bool)` | none |
 | M7 Weather | `Weather(WeatherUpdate)` | `FetchWeather` | none |

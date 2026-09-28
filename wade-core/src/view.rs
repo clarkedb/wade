@@ -68,3 +68,23 @@ impl EyeStyle {
         }
     }
 }
+
+/// How Wade's accents are colored: their own colors, or mono, the eyes' color.
+/// A setting, not part of his behavior.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum ColorMode {
+    #[default]
+    Color,
+    Mono,
+}
+
+impl ColorMode {
+    /// The other mode.
+    #[must_use]
+    pub const fn toggled(self) -> ColorMode {
+        match self {
+            ColorMode::Color => ColorMode::Mono,
+            ColorMode::Mono => ColorMode::Color,
+        }
+    }
+}
