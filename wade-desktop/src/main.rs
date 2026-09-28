@@ -352,6 +352,85 @@ mod tests {
     use super::*;
 
     #[test]
+    fn keyboard_input_maps_keys_and_ignores_repeats() {
+        let at = Instant::from_millis(123);
+        let mut mouse_down = false;
+        let press = |keycode, repeat| SimulatorEvent::KeyDown {
+            keycode,
+            keymod: Mod::NOMOD,
+            repeat,
+        };
+        for (keycode, expected) in [
+            (Keycode::NUM_0, Key::Digit(Digit::new(0).unwrap())),
+            (Keycode::NUM_3, Key::Digit(Digit::new(3).unwrap())),
+            (Keycode::NUM_9, Key::Digit(Digit::new(9).unwrap())),
+            (Keycode::Z, Key::Z),
+            (Keycode::P, Key::P),
+        ] {
+            assert_eq!(
+                input_event(press(keycode, false), at, &mut mouse_down),
+                Some(Event::key(at, expected))
+            );
+            assert_eq!(input_event(press(keycode, true), at, &mut mouse_down), None);
+        }
+        assert_eq!(
+            input_event(press(Keycode::A, false), at, &mut mouse_down),
+            None
+        );
+    }
+
+    #[test]
+    fn mouse_input_tracks_only_a_left_button_press() {
+        let at = Instant::from_millis(123);
+        let mut mouse_down = false;
+        let down = |mouse_btn, point| SimulatorEvent::MouseButtonDown { mouse_btn, point };
+        let up = |mouse_btn, point| SimulatorEvent::MouseButtonUp { mouse_btn, point };
+        let start = Point::new(12, 34);
+        let moved = Point::new(56, 78);
+
+        assert_eq!(
+            input_event(up(MouseButton::Left, start), at, &mut mouse_down),
+            None
+        );
+        assert_eq!(
+            input_event(
+                SimulatorEvent::MouseMove { point: moved },
+                at,
+                &mut mouse_down
+            ),
+            None
+        );
+        assert_eq!(
+            input_event(down(MouseButton::Right, start), at, &mut mouse_down),
+            None
+        );
+        assert_eq!(
+            input_event(down(MouseButton::Left, start), at, &mut mouse_down),
+            Some(Event::touch(at, TouchPhase::Down, start))
+        );
+        assert_eq!(
+            input_event(
+                SimulatorEvent::MouseMove { point: moved },
+                at,
+                &mut mouse_down
+            ),
+            Some(Event::touch(at, TouchPhase::Move, moved))
+        );
+        assert_eq!(
+            input_event(up(MouseButton::Right, moved), at, &mut mouse_down),
+            None
+        );
+        assert_eq!(
+            input_event(up(MouseButton::Left, moved), at, &mut mouse_down),
+            Some(Event::touch(at, TouchPhase::Up, moved))
+        );
+        assert_eq!(
+            input_event(up(MouseButton::Left, moved), at, &mut mouse_down),
+            None
+        );
+    }
+
+    #[test]
     fn captured_session_replays_and_omits_deadlines() {
         let mut app = App::new(Instant::from_millis(0), 42, Settings::DEFAULT);
         let mut output = Recording::new(42, Settings::DEFAULT)
