@@ -5,6 +5,7 @@
 
 mod audio;
 mod clock;
+mod storage;
 
 use std::error::Error;
 use std::fs::{self, File};
@@ -27,6 +28,7 @@ use wade_core::{
 
 use audio::Audio;
 use clock::Clock;
+use storage::Storage;
 
 /// Longest the loop sleeps before polling window events again.
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
@@ -38,7 +40,7 @@ struct Args {
     #[arg(long, conflicts_with = "replay")]
     seed: Option<u64>,
 
-    /// Write the seed and every input event to a recording.
+    /// Write the seed, the starting settings, and every input event to a recording.
     #[arg(long, value_name = "FILE", conflicts_with = "replay")]
     record: Option<PathBuf>,
 
@@ -93,13 +95,24 @@ fn run() -> Result<(), Box<dyn Error>> {
         );
     }
 
+    // A replay starts with the settings it recorded, and saves nothing.
+    let storage = recording.is_none().then(Storage::in_config_dir).flatten();
+    if recording.is_none() && storage.is_none() {
+        eprintln!("no config directory, so settings are not kept");
+    }
+    let settings = match (&recording, &storage) {
+        (Some(recording), _) => recording.settings,
+        (None, Some(storage)) => storage.load(),
+        (None, None) => Settings::DEFAULT,
+    };
+
     let audio = Audio::open();
     let clock = Clock::new(args.time_scale);
-    let mut app = App::new(Instant::from_millis(0), seed, Settings::DEFAULT);
+    let mut app = App::new(Instant::from_millis(0), seed, settings);
 
     let mut display = SimulatorDisplay::<Rgb565>::new(layout::SCREEN_SIZE);
-    let settings = OutputSettingsBuilder::new().scale(2).build();
-    let mut window = Window::new("Wade", &settings);
+    let output_settings = OutputSettingsBuilder::new().scale(2).build();
+    let mut window = Window::new("Wade", &output_settings);
     // The loop decides when to sleep; don't let the window throttle updates.
     window.set_max_fps(1_000);
 
@@ -124,12 +137,13 @@ fn run() -> Result<(), Box<dyn Error>> {
         .map(|path| File::create(path).map(BufWriter::new))
         .transpose()?;
     if let Some(writer) = writer.as_mut() {
-        write!(writer, "{}", Recording::new(seed))?;
+        write!(writer, "{}", Recording::new(seed, settings))?;
         writer.flush()?;
     }
     live_loop(
         &clock,
         audio.as_ref(),
+        storage.as_ref(),
         &mut app,
         &mut display,
         &mut window,
@@ -140,6 +154,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 fn live_loop(
     clock: &Clock,
     audio: Option<&Audio>,
+    storage: Option<&Storage>,
     app: &mut App,
     display: &mut SimulatorDisplay<Rgb565>,
     window: &mut Window,
@@ -152,6 +167,9 @@ fn live_loop(
         for sim_event in window.events() {
             let now = clock.now();
             if sim_event == SimulatorEvent::Quit {
+                if let (Some(storage), Some(settings)) = (storage, app.unsaved_settings()) {
+                    store(storage, settings);
+                }
                 if let Some(writer) = writer.as_mut() {
                     writer.flush()?;
                 }
@@ -159,7 +177,7 @@ fn live_loop(
             }
             let event = input_event(sim_event, now, &mut mouse_down);
             if let Some(event) = event {
-                redraw |= carry_out(&app.handle(event), audio);
+                redraw |= carry_out(&app.handle(event), audio, storage);
                 if let Some(writer) = writer.as_mut() {
                     record_event(writer, event, app)?;
                     writer.flush()?;
@@ -169,7 +187,7 @@ fn live_loop(
 
         let now = clock.now();
         if app.next_deadline().is_some_and(|d| d <= now) {
-            redraw |= carry_out(&app.handle(Event::deadline(now)), audio);
+            redraw |= carry_out(&app.handle(Event::deadline(now)), audio, storage);
         }
 
         if redraw {
@@ -185,19 +203,31 @@ fn live_loop(
 }
 
 /// Carry out the core's effects and return whether to redraw. Nothing here
-/// waits: the chime plays on the audio thread (D17).
-fn carry_out(output: &Output, audio: Option<&Audio>) -> bool {
-    for effect in &output.effects {
+/// waits long: the chime plays on the audio thread (D17), and a save writes
+/// five bytes.
+fn carry_out(output: &Output, audio: Option<&Audio>, storage: Option<&Storage>) -> bool {
+    for &effect in &output.effects {
         match effect {
             Effect::Chime => {
                 if let Some(audio) = audio {
                     audio.chime();
                 }
             }
-            Effect::SaveSettings(_) => {}
+            Effect::SaveSettings(settings) => {
+                if let Some(storage) = storage {
+                    store(storage, settings);
+                }
+            }
         }
     }
     output.redraw
+}
+
+/// Save `settings`, reporting a failure rather than stopping Wade.
+fn store(storage: &Storage, settings: Settings) {
+    if let Err(error) = storage.save(settings) {
+        eprintln!("{}: settings not saved: {error}", storage.path().display());
+    }
 }
 
 fn input_event(sim_event: SimulatorEvent, now: Instant, mouse_down: &mut bool) -> Option<Event> {
@@ -268,7 +298,7 @@ fn replay_loop(
                 .next_deadline()
                 .filter(|deadline| *deadline <= entry.at && *deadline <= now)
             {
-                if carry_out(&app.handle(Event::deadline(deadline)), audio) {
+                if carry_out(&app.handle(Event::deadline(deadline)), audio, None) {
                     let Ok(()) = render::draw(&app.view(), display);
                     window.update(display);
                 }
@@ -280,7 +310,7 @@ fn replay_loop(
                 if let Some(mismatch) = entry.mismatch(index, state_hash(app)) {
                     return Err(format!("{}: {mismatch}", path.display()).into());
                 }
-                if carry_out(&output, audio) {
+                if carry_out(&output, audio, None) {
                     let Ok(()) = render::draw(&app.view(), display);
                     window.update(display);
                 }
@@ -324,7 +354,9 @@ mod tests {
     #[test]
     fn captured_session_replays_and_omits_deadlines() {
         let mut app = App::new(Instant::from_millis(0), 42, Settings::DEFAULT);
-        let mut output = Recording::new(42).to_string().into_bytes();
+        let mut output = Recording::new(42, Settings::DEFAULT)
+            .to_string()
+            .into_bytes();
         let deadline = Event::deadline(Instant::from_millis(500));
         let _ = app.handle(deadline);
         record_event(&mut output, deadline, &app).unwrap();

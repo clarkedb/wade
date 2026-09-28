@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 wade-core = { workspace = true, features = ["harness"] }
 clap.workspace = true
+dirs.workspace = true
 embedded-graphics.workspace = true
 embedded-graphics-simulator.workspace = true
 getrandom.workspace = true

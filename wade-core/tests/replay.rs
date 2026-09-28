@@ -9,7 +9,7 @@ use wade_core::app::Screen;
 use wade_core::character::Expression;
 use wade_core::harness::recording::{FILE_SUFFIX, Input, Recording, Replay};
 use wade_core::timer::TimerState;
-use wade_core::view::EyeStyle;
+use wade_core::view::{ColorMode, EyeStyle};
 use wade_core::{Digit, Effect, Key, Settings, TouchPhase};
 
 fn recordings_dir() -> PathBuf {
@@ -113,4 +113,34 @@ fn the_timer_session_ends_back_on_buddy_with_wade_groggy() {
         }
     }
     assert_eq!(chimes, 7);
+}
+
+#[test]
+fn the_settings_session_changes_every_setting_and_saves_twice() {
+    // Starts with the chime off. Opens Settings from the Launcher, switches
+    // the eyes, colors, and chime, and goes back, which saves. Then adds two
+    // minutes on the Timer, returns to Buddy, and taps Wade after that change
+    // saves.
+    let (recording, replay) = replay("settings-session");
+    assert_eq!(recording.settings, Settings::DEFAULT.with_chime(false));
+    let toggled = Settings::DEFAULT
+        .with_eye_style(EyeStyle::Plain)
+        .with_color(ColorMode::Mono);
+    let changed = toggled
+        .with_timer(Duration::from_mins(7))
+        .expect("7 minutes");
+    let h = &replay.harness;
+    assert_eq!(h.app.settings(), changed);
+    assert_eq!(
+        h.effects,
+        [Effect::SaveSettings(toggled), Effect::SaveSettings(changed)]
+    );
+    assert_eq!(
+        h.app.timer_state(),
+        TimerState::Ready {
+            set: changed.timer()
+        }
+    );
+    assert_eq!(h.app.screen(), Screen::Buddy);
+    assert_eq!(h.buddy().color, ColorMode::Mono);
 }
