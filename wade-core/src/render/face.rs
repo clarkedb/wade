@@ -13,7 +13,7 @@ use embedded_graphics::{
 use crate::character::{Accent, Pose};
 use crate::layout;
 use crate::render::palette;
-use crate::view::EyeStyle;
+use crate::view::{ColorMode, EyeStyle};
 
 /// Space between the eyes.
 const EYE_GAP: f32 = 40.0;
@@ -111,20 +111,25 @@ impl Face {
     }
 }
 
-/// Draw Wade's face for `pose` in `style`, without the rest of the Buddy
-/// screen and without clearing `target` first.
+/// Draw Wade's face for `pose` in `style`, its accents colored by `mode`,
+/// without the rest of the Buddy screen and without clearing `target` first.
 ///
 /// # Errors
 ///
 /// Returns the first error from `target`.
-pub fn draw<D>(pose: &Pose, style: EyeStyle, target: &mut D) -> Result<(), D::Error>
+pub fn draw<D>(
+    pose: &Pose,
+    style: EyeStyle,
+    mode: ColorMode,
+    target: &mut D,
+) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565>,
 {
     let face = Face::new(pose, style);
     draw_eye(pose, style, face.left, target)?;
     draw_eye(pose, style, face.right, target)?;
-    draw_accent(pose, &face, target)
+    draw_accent(pose, &face, mode, target)
 }
 
 fn draw_eye<D>(pose: &Pose, style: EyeStyle, eye: Eye, target: &mut D) -> Result<(), D::Error>
@@ -202,17 +207,22 @@ where
     Ok(())
 }
 
-fn draw_accent<D>(pose: &Pose, face: &Face, target: &mut D) -> Result<(), D::Error>
+fn draw_accent<D>(pose: &Pose, face: &Face, mode: ColorMode, target: &mut D) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565>,
 {
+    // Mono draws every accent in the eyes' color.
+    let tint = |color| match mode {
+        ColorMode::Color => color,
+        ColorMode::Mono => palette::EYE,
+    };
     let phase = pose.accent_phase;
     let (outer_left, outer_right) = face.outer();
     let fill = PrimitiveStyle::with_fill(palette::EYE);
     match pose.accent {
         Accent::None => Ok(()),
         Accent::Blush => {
-            let style = PrimitiveStyle::with_stroke(palette::BLUSH, LINE);
+            let style = PrimitiveStyle::with_stroke(tint(palette::BLUSH), LINE);
             for dx in [0.0, 8.0] {
                 for x in [outer_left - 20.0 + dx, outer_right + 8.0 + dx] {
                     line(x, face.bottom + 2.0, x + 8.0, face.bottom - 8.0)
@@ -237,7 +247,12 @@ where
         Accent::Tear => {
             let start = face.bottom + 12.0;
             let end = coord(layout::SCREEN_SIZE.height.cast_signed()) + 20.0;
-            water_drop(outer_right - 8.0, start + (end - start) * phase, target)
+            water_drop(
+                outer_right - 8.0,
+                start + (end - start) * phase,
+                tint(palette::WATER),
+                target,
+            )
         }
         Accent::Dots => {
             let count = usize::try_from(px(phase * 3.0)).unwrap_or(0);
@@ -273,7 +288,7 @@ where
                 return Ok(());
             }
             let (cx, cy) = (outer_right + 14.0, face.top - 6.0);
-            let style = PrimitiveStyle::with_stroke(palette::SPARKLE, LINE);
+            let style = PrimitiveStyle::with_stroke(tint(palette::SPARKLE), LINE);
             line(cx - reach, cy, cx + reach, cy)
                 .into_styled(style)
                 .draw(target)?;
@@ -281,7 +296,12 @@ where
                 .into_styled(style)
                 .draw(target)
         }
-        Accent::SweatDrop => water_drop(outer_left - 16.0, face.top + 16.0 + 36.0 * phase, target),
+        Accent::SweatDrop => water_drop(
+            outer_left - 16.0,
+            face.top + 16.0 + 36.0 * phase,
+            tint(palette::WATER),
+            target,
+        ),
         Accent::Zs => {
             let newest = phase - libm::floorf(phase);
             draw_z(newest / 2.0, target)?;
@@ -293,12 +313,12 @@ where
     }
 }
 
-/// A drop of water, point up, its round bottom centered on (x, y).
-fn water_drop<D>(x: f32, y: f32, target: &mut D) -> Result<(), D::Error>
+/// A drop of water in `color`, point up, its round bottom centered on (x, y).
+fn water_drop<D>(x: f32, y: f32, color: Rgb565, target: &mut D) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    let fill = PrimitiveStyle::with_fill(palette::WATER);
+    let fill = PrimitiveStyle::with_fill(color);
     Triangle::new(
         point(x - 5.0, y - 2.0),
         point(x + 5.0, y - 2.0),

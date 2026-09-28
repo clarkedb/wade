@@ -25,7 +25,7 @@ where
     target.clear(palette::BACKGROUND)?;
     match view {
         View::Buddy(buddy) => {
-            face::draw(&buddy.pose, buddy.eye_style, target)?;
+            face::draw(&buddy.pose, buddy.eye_style, buddy.color, target)?;
             widgets::apps_button(buddy.apps_pressed, target)
         }
         View::Launcher(launcher) => launcher::draw(*launcher, target),

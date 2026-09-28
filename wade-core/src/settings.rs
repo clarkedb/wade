@@ -14,6 +14,17 @@ pub const ENCODED_LEN: usize = 5;
 /// survive the change.
 const VERSION: u8 = 1;
 
+/// A toggle on the Settings screen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SettingsButton {
+    /// Switch between pupils and plain eyes.
+    EyeStyle,
+    /// Switch between color and mono.
+    Color,
+    /// Turn the chime on or off.
+    Chime,
+}
+
 /// Every setting. Always valid: the timer is whole minutes from 1 to 99.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Settings {
@@ -47,7 +58,7 @@ impl Settings {
         self.chime
     }
 
-    /// The duration the timer is set to while Ready.
+    /// The timer's duration as last set, which it starts at.
     #[must_use]
     pub fn timer(&self) -> Duration {
         Duration::from_mins(u64::from(self.timer_minutes))
@@ -78,6 +89,16 @@ impl Settings {
                 ..self
             }),
             None => None,
+        }
+    }
+
+    /// These settings with `button`'s setting switched.
+    #[must_use]
+    pub const fn toggled(self, button: SettingsButton) -> Settings {
+        match button {
+            SettingsButton::EyeStyle => self.with_eye_style(self.eye_style.toggled()),
+            SettingsButton::Color => self.with_color(self.color.toggled()),
+            SettingsButton::Chime => self.with_chime(!self.chime),
         }
     }
 
@@ -179,6 +200,25 @@ mod tests {
         assert_eq!(s.with_timer(MAX_SET + MIN_SET), None);
         assert_eq!(s.with_timer(Duration::from_secs(90)), None);
         assert_eq!(s.with_timer(MIN_SET + Duration::from_nanos(1)), None);
+    }
+
+    #[test]
+    fn each_toggle_switches_its_setting_and_back() {
+        for (button, changed) in [
+            (
+                SettingsButton::EyeStyle,
+                Settings::DEFAULT.with_eye_style(EyeStyle::Plain),
+            ),
+            (
+                SettingsButton::Color,
+                Settings::DEFAULT.with_color(ColorMode::Mono),
+            ),
+            (SettingsButton::Chime, Settings::DEFAULT.with_chime(false)),
+        ] {
+            let s = Settings::DEFAULT.toggled(button);
+            assert_eq!(s, changed);
+            assert_eq!(s.toggled(button), Settings::DEFAULT);
+        }
     }
 
     #[test]

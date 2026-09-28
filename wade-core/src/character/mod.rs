@@ -19,7 +19,7 @@ pub const HAPPY_DURATION: Duration = Duration::from_millis(2_000);
 pub const WAKE_DURATION: Duration = Duration::from_millis(1_000);
 /// How long Wade stays Proud after a finished timer is dismissed.
 pub const TIMER_REACTION: Duration = Duration::from_millis(2_000);
-/// How long Wade stays Sleepy after dismissing a timer whose chime woke him.
+/// How long Wade stays Sleepy after dismissing a timer that woke him.
 /// Then a coin flip decides whether he wakes up or dozes off again.
 pub const GROGGY_DURATION: Duration = Duration::from_millis(3_000);
 /// How long a blink takes, closing and reopening.
@@ -267,7 +267,7 @@ pub(crate) struct Wade {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Groggy {
     No,
-    /// The chime woke him, so dismissing the timer leaves him Sleepy
+    /// The timer woke him, so dismissing it leaves him Sleepy
     /// instead of Proud.
     Woken,
     /// When the timed expression expires, he falls back asleep instead of
@@ -475,9 +475,9 @@ impl Wade {
         true
     }
 
-    /// The timer finished and its chime sounded. If he was asleep, it wakes
-    /// him, Sleepy, and he stays groggy until the timer is dismissed.
-    pub fn hear_chime(&mut self, now: Instant) {
+    /// The timer finished. If he was asleep, it wakes him, Sleepy, and he
+    /// stays groggy until the timer is dismissed.
+    pub fn timer_finished(&mut self, now: Instant) {
         self.now = now;
         if self.asleep {
             self.change(now, Expression::Sleepy);
@@ -486,7 +486,7 @@ impl Wade {
     }
 
     /// A finished timer was dismissed: Proud for `TIMER_REACTION`. If its
-    /// chime woke him, he is Sleepy for `GROGGY_DURATION` instead, and a coin
+    /// timer woke him, he is Sleepy for `GROGGY_DURATION` instead, and a coin
     /// flip from `behavior` decides whether he then wakes up or dozes off.
     /// Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]

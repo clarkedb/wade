@@ -91,17 +91,17 @@ Behavior tests assert on discrete values such as the screen, the expression, and
 | Inserting extra `Deadline` events anywhere in a sequence, or delivering requested ones late by up to `STALL_LIMIT` ([D20](decisions.md#d20-a-gap-over-an-hour-restarts-wades-idle-schedule)), does not change the view at any of the original events. One exception: a gap longer than `STALL_LIMIT` with nothing requested, possible only while Wade is hidden, may change his motion after it, never discrete state ([D25](decisions.md#d25-hidden-features-request-no-deadlines)). | Platforms may wake late or spuriously. Behavior must depend on elapsed time only. |
 | `next_deadline()` is `None` or strictly later than the last handled event | A deadline in the past or present would make the platform loop spin. |
 | `handle` never panics, including for timestamps that go backwards or near `u64::MAX` | Timestamps from different tasks can arrive slightly out of order. |
-| Each timer completion emits between 1 and 10 `Chime` effects, the first at `ends_at`, repeats exactly 2 s apart, none after Dismiss | Duplicate, missing, or runaway chimes are easy to introduce when deadlines arrive late. |
+| Each timer completion emits between 1 and 10 `Chime` effects (none with the chime off), the first at `ends_at`, repeats exactly 2 s apart, none after Dismiss | Duplicate, missing, or runaway chimes are easy to introduce when deadlines arrive late. |
 | A tap is never delivered to a screen other than the one its `Down` landed on | Screens can change mid-touch when the timer finishes. |
 | From M3, if `render::damage` exists: every pixel that differs between drawing `prev` and `next` lies inside `damage(prev, next)` | A too-small rectangle leaves stale pixels on the device, which desktop never shows. |
 
-These are property tests: `proptest` generates random event sequences and checks each invariant.
+These are property tests: `proptest` generates random event sequences, from random starting settings, and checks each invariant.
 
 ## Snapshots
 
 A snapshot test builds a `View`, draws it into an in-memory 320×240 test framebuffer, and compares the result with `wade-core/tests/snapshots/<name>.png`. On a mismatch, the test writes `<name>.actual.png` next to the golden image and fails. Running `UPDATE_SNAPSHOTS=1 cargo test` rewrites the golden images, and the diff is reviewed in version control.
 
-Snapshot cases include each expression at rest with its accent, and a glance, in both eye styles, and Wade asleep and mid-blink; these draw his face alone. Whole-screen cases cover Buddy at startup, once awake, and with the apps button pressed, the Launcher with each button pressed, and the Timer screen in each state with each button pressed. Golden images are generated on desktop.
+Snapshot cases include each expression at rest with its accent, and a glance, in both eye styles; each colored accent in mono; and Wade asleep and mid-blink. These draw his face alone. Whole-screen cases cover Buddy at startup, once awake, and with the apps button pressed; the Launcher with each button pressed; the Timer screen in each state with each button pressed; and the Settings screen at its defaults, with every setting changed, and with each button pressed. Golden images are generated on desktop.
 
 ## Recording and replay
 

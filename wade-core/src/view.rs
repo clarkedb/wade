@@ -2,6 +2,7 @@
 
 use crate::character::{Expression, Pose};
 use crate::layout::Target;
+use crate::settings::Settings;
 use crate::timer::{Digits, RowButton, TimerPhase};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -23,6 +24,7 @@ pub struct BuddyView {
     /// The continuous pose that drawing reads. Behavior tests do not compare it.
     pub pose: Pose,
     pub eye_style: EyeStyle,
+    pub color: ColorMode,
     /// True while a touch that began on the apps button stays on it.
     pub apps_pressed: bool,
 }
@@ -46,6 +48,8 @@ pub struct TimerView {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SettingsView {
+    /// The settings the toggles show.
+    pub settings: Settings,
     /// The button under a touch in progress, drawn pressed.
     pub pressed: Option<Target>,
 }

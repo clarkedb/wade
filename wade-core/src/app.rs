@@ -5,7 +5,7 @@ use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
 use crate::input::TouchTracker;
 use crate::layout::{self, Target, Tile};
 use crate::rng::Rng;
-use crate::settings::Settings;
+use crate::settings::{Settings, SettingsButton};
 use crate::time::{Duration, Instant};
 use crate::timer::{Chime, Digits, TimerButton, TimerPhase, TimerState};
 use crate::view::{BuddyView, LauncherView, SettingsView, View};
@@ -30,7 +30,7 @@ pub const TOUCH_GUARD: Duration = Duration::from_millis(500);
 pub enum Effect {
     /// Play the timer-finished chime, the tone sequence in
     /// [`crate::sound::CHIME`]. Emitted when the timer finishes and repeated
-    /// while it stays Done (docs/ui.md#rules).
+    /// while it stays Done, unless the chime setting is off (docs/ui.md#rules).
     Chime,
 }
 
@@ -134,7 +134,16 @@ impl App {
             Some(Target::Tile(Tile::Settings)) => self.switch_to(Screen::Settings, out),
             Some(Target::Back) => self.back(out),
             Some(Target::Timer(TimerButton::Dismiss)) => self.dismiss(out),
-            Some(Target::Timer(button)) => out.redraw |= self.timer.press(button, self.now),
+            Some(Target::Timer(button)) => {
+                if self.timer.press(button, self.now) {
+                    out.redraw = true;
+                    self.remember_duration();
+                }
+            }
+            Some(Target::Settings(button)) => {
+                self.settings = self.settings.toggled(button);
+                out.redraw = true;
+            }
             None => {}
         }
     }
@@ -156,6 +165,13 @@ impl App {
         self.switch_to(Screen::Buddy, out);
     }
 
+    /// Store the timer's duration in the settings, so it survives a restart.
+    fn remember_duration(&mut self) {
+        if let Some(settings) = self.settings.with_timer(self.timer.duration()) {
+            self.settings = settings;
+        }
+    }
+
     fn on_key(&mut self, key: Key) -> bool {
         match key {
             Key::Digit(digit) => self
@@ -163,23 +179,22 @@ impl App {
                 .show(Expression::ALL[usize::from(digit.get())], self.now),
             Key::Z => self.wade.sleep(self.now),
             Key::P => {
-                let eye_style = self.settings.eye_style().toggled();
-                self.settings = self.settings.with_eye_style(eye_style);
+                self.settings = self.settings.toggled(SettingsButton::EyeStyle);
                 true
             }
         }
     }
 
-    /// The timer chimed at `now`. Finishing brings up the Timer screen, from
-    /// any screen, and the chime wakes Wade if he is asleep.
+    /// A chime fell due at `now`. The first brings up the Timer screen, from
+    /// any screen, and wakes Wade if he is asleep, even with the chime off.
     fn on_chime(&mut self, chime: Chime, out: &mut Output) {
         if chime == Chime::First {
-            self.wade.hear_chime(self.now);
+            self.wade.timer_finished(self.now);
             self.switch_to(Screen::Timer, out);
             self.touch_guard_until = self.now + TOUCH_GUARD;
         }
         // Chimes that fall due in one event, after a late wake, ring once.
-        if !out.effects.contains(&Effect::Chime) {
+        if self.settings.chime() && !out.effects.contains(&Effect::Chime) {
             let _ = out.effects.push(Effect::Chime);
         }
     }
@@ -308,6 +323,7 @@ impl App {
                 blinking: self.wade.blinking(self.now),
                 pose: self.wade.pose(self.now),
                 eye_style: self.settings.eye_style(),
+                color: self.settings.color(),
                 apps_pressed: self.touch.pressed() == Some(Target::Apps),
             }),
             Screen::Launcher => View::Launcher(LauncherView {
@@ -315,6 +331,7 @@ impl App {
             }),
             Screen::Timer => View::Timer(self.timer.view(self.now, self.pressed_button())),
             Screen::Settings => View::Settings(SettingsView {
+                settings: self.settings,
                 pressed: self.pressed_button(),
             }),
         }

@@ -5,6 +5,7 @@ use embedded_graphics::{
     primitives::Rectangle,
 };
 
+use crate::settings::SettingsButton;
 use crate::timer::{RowButton, TimerButton};
 
 /// Logical screen size: 320×240, landscape, origin top-left.
@@ -58,6 +59,23 @@ const TILE_SIZE: Size = Size::new(88, 88);
 /// left; Settings always takes the bottom right.
 pub const TILES: [(Tile, Rectangle); 2] = [(Tile::Timer, GRID[0]), (Tile::Settings, GRID[3])];
 
+/// The Settings screen's toggles for the eye style, colors, and chime: a row
+/// of tiles across the middle, the size of the Launcher's.
+pub const SETTINGS_BUTTONS: [(SettingsButton, Rectangle); 3] = [
+    (
+        SettingsButton::EyeStyle,
+        Rectangle::new(Point::new(8, 76), TILE_SIZE),
+    ),
+    (
+        SettingsButton::Color,
+        Rectangle::new(Point::new(116, 76), TILE_SIZE),
+    ),
+    (
+        SettingsButton::Chime,
+        Rectangle::new(Point::new(224, 76), TILE_SIZE),
+    ),
+];
+
 /// An app the Launcher opens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Tile {
@@ -73,6 +91,7 @@ pub enum Target {
     Back,
     Tile(Tile),
     Timer(TimerButton),
+    Settings(SettingsButton),
 }
 
 /// The target under `point` on the Buddy screen, if any.
@@ -100,7 +119,13 @@ pub fn hit_launcher(point: Point) -> Option<Target> {
 /// The target under `point` on the Settings screen, if any.
 #[must_use]
 pub fn hit_settings(point: Point) -> Option<Target> {
-    BACK.contains(point).then_some(Target::Back)
+    if BACK.contains(point) {
+        return Some(Target::Back);
+    }
+    SETTINGS_BUTTONS
+        .iter()
+        .find(|(_, area)| area.contains(point))
+        .map(|&(button, _)| Target::Settings(button))
 }
 
 /// The target under `point` on the Timer screen, whose row holds `row`, if
@@ -147,6 +172,11 @@ mod tests {
             TILES
                 .iter()
                 .map(|&(tile, area)| (Screen::Launcher, Target::Tile(tile), area, None)),
+        );
+        areas.extend(
+            SETTINGS_BUTTONS
+                .iter()
+                .map(|&(button, area)| (Screen::Settings, Target::Settings(button), area, None)),
         );
         let row = TimerState::new().row();
         areas.extend(TIMER_ROW.iter().zip(row).filter_map(|(&area, button)| {
