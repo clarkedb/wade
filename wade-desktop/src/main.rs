@@ -8,8 +8,8 @@ mod clock;
 mod storage;
 
 use std::error::Error;
-use std::fs::{self, File};
-use std::io::{self, BufWriter, Write};
+use std::fs::File;
+use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -33,6 +33,7 @@ use storage::{SettingsSaver, Storage};
 
 /// Longest the loop sleeps before polling window events again.
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
+const MAX_REPLAY_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Parser, Debug)]
 #[command(version, about = "Wade desktop simulator")]
@@ -73,11 +74,15 @@ fn main() {
 fn run() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let recording = if let Some(path) = &args.replay {
-        let text = fs::read_to_string(path)?;
-        Some(
-            text.parse::<Recording>()
-                .map_err(|error| format!("{}: {error}", path.display()))?,
-        )
+        let text = read_limited(File::open(path)?, MAX_REPLAY_BYTES)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        let recording: Recording = text
+            .parse()
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        recording
+            .replay()
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        Some(recording)
     } else {
         None
     };
@@ -151,6 +156,18 @@ fn run() -> Result<(), Box<dyn Error>> {
         &mut window,
         &mut writer,
     )
+}
+
+fn read_limited(reader: impl Read, max_bytes: usize) -> io::Result<String> {
+    let mut bytes = Vec::new();
+    reader.take(max_bytes as u64 + 1).read_to_end(&mut bytes)?;
+    if bytes.len() > max_bytes {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("recording exceeds {max_bytes} bytes"),
+        ));
+    }
+    String::from_utf8(bytes).map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
 }
 
 fn live_loop(
@@ -394,6 +411,7 @@ fn key(keycode: Keycode) -> Option<Key> {
 mod tests {
     use embedded_graphics::geometry::Point;
     use embedded_graphics_simulator::sdl2::Mod;
+    use std::io::Cursor;
 
     use super::*;
 
@@ -580,5 +598,13 @@ mod tests {
             panic!("expected the Buddy screen");
         };
         assert_eq!(replay.harness.buddy().eye_style, buddy.eye_style);
+    }
+
+    #[test]
+    fn replay_file_limit_accepts_the_boundary_and_rejects_one_byte_more() {
+        assert_eq!(read_limited(Cursor::new(b"hello"), 5).unwrap(), "hello");
+        let error = read_limited(Cursor::new(b"hello"), 4).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("exceeds 4 bytes"));
     }
 }

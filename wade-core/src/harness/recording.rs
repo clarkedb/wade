@@ -37,6 +37,9 @@ const SETTINGS_SINCE: u32 = 2;
 /// Filename suffix for recordings in `wade-core/tests/recordings/`.
 pub const FILE_SUFFIX: &str = ".events.wade";
 
+/// Maximum scheduled wakeups a replay will process before rejecting it.
+pub const MAX_REPLAY_DEADLINES: usize = 100_000;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Recording {
     pub seed: u64,
@@ -107,6 +110,34 @@ impl fmt::Display for Mismatch {
 
 impl core::error::Error for Mismatch {}
 
+/// A recording either diverged from its stored state or exceeded replay work limits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReplayError {
+    Mismatch(Mismatch),
+    TooManyDeadlines { at: Instant },
+}
+
+impl fmt::Display for ReplayError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReplayError::Mismatch(mismatch) => mismatch.fmt(f),
+            ReplayError::TooManyDeadlines { at } => write!(
+                f,
+                "replay exceeded {MAX_REPLAY_DEADLINES} deadlines by {} ms",
+                at.as_millis()
+            ),
+        }
+    }
+}
+
+impl core::error::Error for ReplayError {}
+
+impl From<Mismatch> for ReplayError {
+    fn from(mismatch: Mismatch) -> Self {
+        ReplayError::Mismatch(mismatch)
+    }
+}
+
 impl Entry {
     #[must_use]
     pub fn mismatch(self, index: usize, actual: u32) -> Option<Mismatch> {
@@ -163,12 +194,12 @@ impl Recording {
     ///
     /// # Errors
     ///
-    /// Returns the first entry whose recorded hash differs from the replayed state.
+    /// Returns the first hash mismatch or a deadline-work limit error.
     ///
     /// # Panics
     ///
     /// Panics if entries are not ordered by timestamp.
-    pub fn replay(&self) -> Result<Replay, Mismatch> {
+    pub fn replay(&self) -> Result<Replay, ReplayError> {
         self.run(true)
     }
 
@@ -176,18 +207,28 @@ impl Recording {
     ///
     /// # Panics
     ///
-    /// Panics if entries are not ordered by timestamp.
+    /// Panics if entries are not ordered by timestamp or exceed the replay limit.
     pub fn refresh_hashes(&mut self) {
-        let replay = self.run(false).expect("unchecked replay cannot mismatch");
+        let replay = self
+            .run(false)
+            .unwrap_or_else(|error| panic!("cannot refresh recording: {error}"));
         for (entry, hash) in self.entries.iter_mut().zip(replay.hashes) {
             entry.hash = hash;
         }
     }
 
-    fn run(&self, check: bool) -> Result<Replay, Mismatch> {
+    fn run(&self, check: bool) -> Result<Replay, ReplayError> {
         let mut harness = Harness::with_settings(self.seed, self.settings);
         let mut hashes = Vec::with_capacity(self.entries.len());
+        let mut deadlines_left = MAX_REPLAY_DEADLINES;
         for (index, entry) in self.entries.iter().enumerate() {
+            while let Some(deadline) = harness.app.next_deadline().filter(|&d| d <= entry.at) {
+                if deadlines_left == 0 {
+                    return Err(ReplayError::TooManyDeadlines { at: entry.at });
+                }
+                deadlines_left -= 1;
+                harness.handle(Event::deadline(deadline));
+            }
             harness.run_until(entry.at);
             harness.handle(Event {
                 at: entry.at,
@@ -195,7 +236,7 @@ impl Recording {
             });
             let hash = harness.state_hash();
             if check && let Some(mismatch) = entry.mismatch(index, hash) {
-                return Err(mismatch);
+                return Err(mismatch.into());
             }
             hashes.push(hash);
         }
@@ -456,9 +497,26 @@ mod tests {
         assert!(recording.replay().is_ok());
         recording.entries[1].hash ^= 1;
         recording.entries[2].hash ^= 1;
-        let mismatch = recording.replay().unwrap_err();
+        let error = recording.replay().unwrap_err();
+        let ReplayError::Mismatch(mismatch) = error else {
+            panic!("expected a hash mismatch, got {error}");
+        };
         assert_eq!(mismatch.index, 1);
         assert_eq!(mismatch.at, Instant::from_millis(2_000));
-        assert!(mismatch.to_string().contains("entry 1 at 2000 ms"));
+        assert!(error.to_string().contains("entry 1 at 2000 ms"));
+    }
+
+    #[test]
+    fn replay_stops_after_the_deadline_budget() {
+        let mut recording = Recording::new(42, Settings::DEFAULT);
+        recording.entries.push(Entry {
+            at: Instant::MAX,
+            input: Input::Key(Key::P),
+            hash: 0,
+        });
+        assert_eq!(
+            recording.replay().unwrap_err(),
+            ReplayError::TooManyDeadlines { at: Instant::MAX }
+        );
     }
 }
