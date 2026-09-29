@@ -28,7 +28,7 @@ use wade_core::{
 
 use audio::Audio;
 use clock::Clock;
-use storage::Storage;
+use storage::{SettingsSaver, Storage};
 
 /// Longest the loop sleeps before polling window events again.
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
@@ -140,10 +140,11 @@ fn run() -> Result<(), Box<dyn Error>> {
         write!(writer, "{}", Recording::new(seed, settings))?;
         writer.flush()?;
     }
+    let mut saver = storage.as_ref().map(SettingsSaver::new);
     live_loop(
         &clock,
         audio.as_ref(),
-        storage.as_ref(),
+        &mut saver,
         &mut app,
         &mut display,
         &mut window,
@@ -154,7 +155,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 fn live_loop(
     clock: &Clock,
     audio: Option<&Audio>,
-    storage: Option<&Storage>,
+    saver: &mut Option<SettingsSaver<'_>>,
     app: &mut App,
     display: &mut SimulatorDisplay<Rgb565>,
     window: &mut Window,
@@ -167,8 +168,8 @@ fn live_loop(
         for sim_event in window.events() {
             let now = clock.now();
             if sim_event == SimulatorEvent::Quit {
-                if let (Some(storage), Some(settings)) = (storage, app.unsaved_settings()) {
-                    store(storage, settings);
+                if let Some(saver) = saver.as_mut() {
+                    saver.flush(app.unsaved_settings());
                 }
                 if let Some(writer) = writer.as_mut() {
                     writer.flush()?;
@@ -177,7 +178,7 @@ fn live_loop(
             }
             let event = input_event(sim_event, now, &mut mouse_down);
             if let Some(event) = event {
-                redraw |= carry_out(&app.handle(event), audio, storage);
+                redraw |= carry_out(&app.handle(event), audio, saver.as_mut());
                 if let Some(writer) = writer.as_mut() {
                     record_event(writer, event, app)?;
                     writer.flush()?;
@@ -187,7 +188,11 @@ fn live_loop(
 
         let now = clock.now();
         if app.next_deadline().is_some_and(|d| d <= now) {
-            redraw |= carry_out(&app.handle(Event::deadline(now)), audio, storage);
+            redraw |= carry_out(&app.handle(Event::deadline(now)), audio, saver.as_mut());
+        }
+
+        if let Some(saver) = saver.as_mut() {
+            saver.retry_if_due();
         }
 
         if redraw {
@@ -205,7 +210,11 @@ fn live_loop(
 /// Carry out the core's effects and return whether to redraw. Nothing here
 /// waits long: the chime plays on the audio thread (D17), and a save writes
 /// five bytes.
-fn carry_out(output: &Output, audio: Option<&Audio>, storage: Option<&Storage>) -> bool {
+fn carry_out(
+    output: &Output,
+    audio: Option<&Audio>,
+    mut saver: Option<&mut SettingsSaver<'_>>,
+) -> bool {
     for &effect in &output.effects {
         match effect {
             Effect::Chime => {
@@ -214,20 +223,13 @@ fn carry_out(output: &Output, audio: Option<&Audio>, storage: Option<&Storage>) 
                 }
             }
             Effect::SaveSettings(settings) => {
-                if let Some(storage) = storage {
-                    store(storage, settings);
+                if let Some(saver) = saver.as_mut() {
+                    saver.save(settings);
                 }
             }
         }
     }
     output.redraw
-}
-
-/// Save `settings`, reporting a failure rather than stopping Wade.
-fn store(storage: &Storage, settings: Settings) {
-    if let Err(error) = storage.save(settings) {
-        eprintln!("{}: settings not saved: {error}", storage.path().display());
-    }
 }
 
 fn input_event(sim_event: SimulatorEvent, now: Instant, mouse_down: &mut bool) -> Option<Event> {

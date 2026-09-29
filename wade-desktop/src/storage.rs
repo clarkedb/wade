@@ -4,12 +4,70 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use wade_core::Settings;
 
 /// Where settings are kept between runs.
 pub struct Storage {
     path: PathBuf,
+}
+
+const RETRY_DELAY: Duration = Duration::from_secs(2);
+
+pub struct SettingsSaver<'a> {
+    storage: &'a Storage,
+    pending: Option<Settings>,
+    retry_at: Option<Instant>,
+}
+
+impl<'a> SettingsSaver<'a> {
+    pub fn new(storage: &'a Storage) -> Self {
+        Self {
+            storage,
+            pending: None,
+            retry_at: None,
+        }
+    }
+
+    pub fn save(&mut self, settings: Settings) {
+        self.pending = Some(settings);
+        self.attempt();
+    }
+
+    pub fn retry_if_due(&mut self) {
+        if self.retry_at.is_some_and(|at| Instant::now() >= at) {
+            self.attempt();
+        }
+    }
+
+    pub fn flush(&mut self, unsaved: Option<Settings>) {
+        if let Some(settings) = unsaved {
+            self.pending = Some(settings);
+        }
+        if self.pending.is_some() {
+            self.attempt();
+        }
+    }
+
+    fn attempt(&mut self) {
+        let Some(settings) = self.pending else {
+            return;
+        };
+        match self.storage.save(settings) {
+            Ok(()) => {
+                self.pending = None;
+                self.retry_at = None;
+            }
+            Err(error) => {
+                eprintln!(
+                    "{}: settings not saved: {error}",
+                    self.storage.path().display()
+                );
+                self.retry_at = Some(Instant::now() + RETRY_DELAY);
+            }
+        }
+    }
 }
 
 impl Storage {
@@ -110,5 +168,45 @@ mod tests {
         fs::remove_file(&storage.path).unwrap();
         fs::create_dir(&storage.path).unwrap();
         assert_eq!(storage.load(), Settings::DEFAULT);
+    }
+
+    #[test]
+    fn a_failed_save_retries_the_latest_settings_after_recovery() {
+        let scratch = Scratch::new("retry");
+        fs::create_dir_all(&scratch.0).unwrap();
+        let blocked_dir = scratch.0.join("wade");
+        fs::write(&blocked_dir, b"blocking file").unwrap();
+        let storage = scratch.storage();
+        let mut saver = SettingsSaver::new(&storage);
+        let mono = Settings::DEFAULT.with_color(ColorMode::Mono);
+        saver.save(mono);
+        assert_eq!(saver.pending, Some(mono));
+        assert_eq!(storage.load(), Settings::DEFAULT);
+
+        let latest = mono.with_chime(false);
+        saver.save(latest);
+        fs::remove_file(blocked_dir).unwrap();
+        saver.retry_at = Some(Instant::now());
+        saver.retry_if_due();
+        assert_eq!(storage.load(), latest);
+        assert_eq!(saver.pending, None);
+        assert_eq!(saver.retry_at, None);
+    }
+
+    #[test]
+    fn shutdown_flushes_a_failed_save() {
+        let scratch = Scratch::new("flush");
+        fs::create_dir_all(&scratch.0).unwrap();
+        let blocked_dir = scratch.0.join("wade");
+        fs::write(&blocked_dir, b"blocking file").unwrap();
+        let storage = scratch.storage();
+        let mut saver = SettingsSaver::new(&storage);
+        let changed = Settings::DEFAULT.with_chime(false);
+        saver.save(changed);
+        fs::remove_file(blocked_dir).unwrap();
+        saver.flush(None);
+        assert_eq!(storage.load(), changed);
+        saver.flush(None);
+        assert_eq!(saver.pending, None);
     }
 }
