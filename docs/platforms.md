@@ -22,6 +22,7 @@ Development flags:
 | `--record <file>` | Write the seed, the starting settings, and every input event to a recording (format in [testing.md](testing.md#recording-and-replay)) |
 | `--replay <file>` | Play a recording back in real time instead of reading the mouse |
 | `--time-scale <x>` | Run the clock `x` times faster, for example to watch a 5-minute timer finish in 30 s. Affects only the desktop clock. |
+| `--band-rows <n>` | Draw each frame in strips of `n` rows through `render::Band`, as a low-memory board would ([ui.md](ui.md#banded-rendering)) |
 
 macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homebrew's SDL2; if so, add `export LIBRARY_PATH="${LIBRARY_PATH:+$LIBRARY_PATH:}$(brew --prefix)/lib"` to your shell profile. Linux support is deferred; it will need SDL2 and ALSA (`libasound2-dev`) from the distribution's package manager, and serial-port permissions for flashing the device.
 
