@@ -24,6 +24,11 @@ impl Framebuffer {
         }
     }
 
+    /// Row `y` of the screen.
+    pub fn row(&self, y: usize) -> &[Rgb565] {
+        &self.pixels[y * W..(y + 1) * W]
+    }
+
     fn to_rgb8(&self) -> Vec<u8> {
         self.pixels
             .iter()
