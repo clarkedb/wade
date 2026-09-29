@@ -171,3 +171,9 @@ Rejected: brightness now, faked on desktop by dimming the window, which tests th
 Reason: a default-duration control on the Settings screen repeated the Timer screen's −1m and +1m and looked like a second timer. Remembering whatever the timer was last set to gives the same result with one control. The duration is saved with the settings, so it survives a restart.
 
 Rejected: a default duration on the Settings screen, as first planned; always starting at 5:00, which makes a regular duration a chore to set every time.
+
+## D29. Banded rendering for low-memory boards
+
+Reason: a stand-in board, the classic-ESP32 CYD, has no PSRAM, and a 150 KB framebuffer would crowd out its stack and any future Wi-Fi. Drawing the frame in strips through a draw target keeps `render::draw` unchanged and lets any platform choose full-frame or banded drawing. It lives in `wade-core` so both firmware crates can use it and its correctness is a desktop test.
+
+Rejected: a low-memory mode inside the drawing code, which couples every widget to strip bookkeeping; per-board drawing code, which the snapshots would not cover.

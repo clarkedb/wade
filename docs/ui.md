@@ -188,6 +188,14 @@ This keeps a single 150 KB framebuffer; double buffering would need a second one
 
 `damage` is built in M3 only if the spike's numbers call for it ([D14](decisions.md#d14-partial-flush-via-a-damage-rectangle)).
 
+### Banded rendering
+
+A board without RAM for a 150 KB framebuffer, such as the classic ESP32 with no PSRAM, draws each frame in horizontal strips instead. `render::Band<H>` holds `H` full-width rows (25 KB at 40 rows). As a draw target it covers the whole screen and keeps only the pixels in its strip, so the platform calls `band.draw(&view, top)` for each of `Band::tops()` and flushes each strip's rows to the display window at `band.area()`.
+
+Every strip redraws the whole view and discards what falls outside, which is cheap next to the flush; the bytes sent are the same as a full-frame flush. With `damage`, only the strips that overlap the damaged rectangle need drawing and sending. A desktop test draws every screen, and the final view of random sessions, through bands of several heights, including a short last band, and checks each strip against the full frame pixel for pixel.
+
+Left to the device: the band height, the panel's byte order, and whether two bands let DMA send one while the next is drawn ([D29](decisions.md#d29-banded-rendering-for-low-memory-boards)).
+
 ### Text
 
 | Use | Approach |
