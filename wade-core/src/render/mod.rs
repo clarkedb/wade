@@ -14,7 +14,7 @@ use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 
 use crate::view::View;
 
-pub use band::Band;
+pub use band::{Band, ROW_BYTES};
 
 /// Draw a complete frame for `view` into `target`.
 ///

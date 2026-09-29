@@ -5,51 +5,56 @@ mod common;
 use std::time::Duration;
 
 use common::framebuffer::Framebuffer;
-use embedded_graphics::geometry::Point;
+use embedded_graphics::prelude::*;
 use proptest::prelude::*;
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
 use wade_core::layout::{SCREEN_SIZE, Tile};
-use wade_core::render::{self, Band};
+use wade_core::render::{self, Band, ROW_BYTES};
 use wade_core::timer::TimerState;
 use wade_core::view::{BuddyView, ColorMode, EyeStyle, SettingsView};
 use wade_core::{Instant, Key, Settings, View};
 
-/// Draw `view` through `H`-row bands and check each band against the full frame.
-fn assert_banded_matches<const H: usize>(view: &View) {
+/// Draw `view` through strips of `rows` rows and check each against the full frame.
+fn assert_banded_matches(view: &View, rows: usize) {
     let mut full = Framebuffer::new();
     let Ok(()) = render::draw(view, &mut full);
 
-    let mut band = Band::<H>::new();
+    // Reused across strips, as a platform would, to show that every pixel is redrawn.
+    let mut buf = vec![0; ROW_BYTES * rows];
     let mut covered = 0;
-    for top in Band::<H>::tops() {
-        band.draw(view, top);
+    for top in Band::tops(rows) {
+        let mut band = Band::new(&mut buf, top);
+        band.draw(view);
         assert_eq!(
             band.area().top_left,
             Point::new(0, i32::try_from(top).unwrap())
         );
-        for (i, row) in band.rows().iter().enumerate() {
+        for (i, row) in band.bytes().as_chunks::<ROW_BYTES>().0.iter().enumerate() {
             let y = top as usize + i;
+            let expected: Vec<u8> = full
+                .row(y)
+                .iter()
+                .flat_map(|c| c.into_storage().to_be_bytes())
+                .collect();
             assert!(
-                row[..] == *full.row(y),
-                "{H}-row band differs at row {y} for {view:?}"
+                row[..] == expected[..],
+                "{rows}-row band differs at row {y} for {view:?}"
             );
+            covered += 1;
         }
-        covered += band.rows().len();
     }
     assert_eq!(
         covered, SCREEN_SIZE.height as usize,
-        "{H}-row bands miss rows"
+        "{rows}-row bands miss rows"
     );
 }
 
 /// Band heights that divide the screen, leave a short last band, or exceed it.
 fn assert_every_height(view: &View) {
-    assert_banded_matches::<1>(view);
-    assert_banded_matches::<7>(view);
-    assert_banded_matches::<40>(view);
-    assert_banded_matches::<64>(view);
-    assert_banded_matches::<300>(view);
+    for rows in [1, 7, 40, 64, 300] {
+        assert_banded_matches(view, rows);
+    }
 }
 
 fn buddy(pose: Pose, eye_style: EyeStyle, color: ColorMode) -> View {
@@ -168,7 +173,7 @@ proptest! {
             }
         }
         let view = h.app.view();
-        assert_banded_matches::<7>(&view);
-        assert_banded_matches::<40>(&view);
+        assert_banded_matches(&view, 7);
+        assert_banded_matches(&view, 40);
     }
 }
