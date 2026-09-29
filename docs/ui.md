@@ -188,6 +188,16 @@ This keeps a single 150 KB framebuffer; double buffering would need a second one
 
 `damage` is built in M3 only if the spike's numbers call for it ([D14](decisions.md#d14-partial-flush-via-a-damage-rectangle)).
 
+### Banded rendering
+
+A platform short of internal RAM for a 150 KB framebuffer can draw each frame in horizontal strips instead. `render::Band` draws into a buffer the platform lends it, as many full-width rows as the buffer holds (25 KB for 40 rows). As a draw target it covers the whole screen and keeps only the pixels in its strip. For each of `Band::tops(rows)`, the platform makes a band over its buffer, calls `draw(&view)`, and sends `bytes()` to the display window at `area()`.
+
+The bytes are big-endian Rgb565, the order SPI panels expect, so the buffer goes to DMA without a conversion pass. Because the band borrows its buffer, a platform can alternate two DMA buffers, drawing one strip while the last is sent.
+
+Every strip redraws the whole view and discards what falls outside. That is expected to be cheap next to the flush; the spike measures it. The bytes sent match a full-frame flush. With `damage`, only strips that overlap the damaged rectangle need drawing and sending, but strips are full width, so they send more than the tight rectangle in the partial-flush table.
+
+A desktop test draws every screen, and the final view of random sessions, through strips of several heights, including a short last strip, and checks each against the full frame byte for byte. The strip height and whether to double-buffer wait for measurements on the device ([D29](decisions.md#d29-banded-rendering-for-low-memory-boards)).
+
 ### Text
 
 | Use | Approach |

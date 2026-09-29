@@ -5,6 +5,7 @@
 
 mod audio;
 mod clock;
+mod screen;
 mod storage;
 
 use std::error::Error;
@@ -14,21 +15,18 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use clap::Parser;
-use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics_simulator::{
-    OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
+    OutputSettingsBuilder, SimulatorEvent, Window,
     sdl2::{Keycode, MouseButton},
 };
 use wade_core::harness::recording::{Entry, Input, Recording};
 use wade_core::harness::state_hash;
 use wade_core::timer::TimerPhase;
-use wade_core::{
-    App, Digit, Effect, Event, EventKind, Instant, Key, Output, Settings, TouchPhase, layout,
-    render,
-};
+use wade_core::{App, Digit, Effect, Event, EventKind, Instant, Key, Output, Settings, TouchPhase};
 
 use audio::Audio;
 use clock::Clock;
+use screen::Screen;
 use storage::{SettingsSaver, Storage};
 
 /// Longest the loop sleeps before polling window events again.
@@ -53,6 +51,10 @@ struct Args {
     /// Run the clock this many times faster (0.01 to 1000).
     #[arg(long, value_name = "X", default_value_t = 1.0, value_parser = parse_time_scale)]
     time_scale: f64,
+
+    /// Draw each frame in strips of this many rows, as a low-memory board would (1 to 240).
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u16).range(1..=240))]
+    band_rows: Option<u16>,
 }
 
 fn parse_time_scale(s: &str) -> Result<f64, String> {
@@ -116,14 +118,13 @@ fn run() -> Result<(), Box<dyn Error>> {
     let clock = Clock::new(args.time_scale);
     let mut app = App::new(Instant::from_millis(0), seed, settings);
 
-    let mut display = SimulatorDisplay::<Rgb565>::new(layout::SCREEN_SIZE);
+    let mut screen = Screen::new(args.band_rows.map(usize::from));
     let output_settings = OutputSettingsBuilder::new().scale(2).build();
     let mut window = Window::new("Wade", &output_settings);
     // The loop decides when to sleep; don't let the window throttle updates.
     window.set_max_fps(1_000);
 
-    let Ok(()) = render::draw(&app.view(), &mut display);
-    window.update(&display);
+    screen.show(&app.view(), &mut window);
 
     if let Some(recording) = &recording {
         return replay_loop(
@@ -132,7 +133,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             &clock,
             audio.as_ref(),
             &mut app,
-            &mut display,
+            &mut screen,
             &mut window,
         );
     }
@@ -152,7 +153,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         audio.as_ref(),
         &mut saver,
         &mut app,
-        &mut display,
+        &mut screen,
         &mut window,
         &mut writer,
     )
@@ -175,7 +176,7 @@ fn live_loop(
     audio: Option<&Audio>,
     saver: &mut Option<SettingsSaver<'_>>,
     app: &mut App,
-    display: &mut SimulatorDisplay<Rgb565>,
+    screen: &mut Screen,
     window: &mut Window,
     writer: &mut Option<BufWriter<File>>,
 ) -> Result<(), Box<dyn Error>> {
@@ -189,8 +190,7 @@ fn live_loop(
             if let Some((output, became_done)) = due_deadline(app, now) {
                 redraw |= carry_out(&output, audio, saver.as_mut());
                 if became_done {
-                    let Ok(()) = render::draw(&app.view(), display);
-                    window.update(display);
+                    screen.show(&app.view(), window);
                     redraw = false;
                     skip_queued_touch = true;
                 }
@@ -218,8 +218,7 @@ fn live_loop(
         if let Some((output, became_done)) = due_deadline(app, now) {
             redraw |= carry_out(&output, audio, saver.as_mut());
             if became_done {
-                let Ok(()) = render::draw(&app.view(), display);
-                window.update(display);
+                screen.show(&app.view(), window);
                 redraw = false;
             }
         }
@@ -229,8 +228,7 @@ fn live_loop(
         }
 
         if redraw {
-            let Ok(()) = render::draw(&app.view(), display);
-            window.update(display);
+            screen.show(&app.view(), window);
         }
 
         let sleep = app
@@ -345,7 +343,7 @@ fn replay_loop(
     clock: &Clock,
     audio: Option<&Audio>,
     app: &mut App,
-    display: &mut SimulatorDisplay<Rgb565>,
+    screen: &mut Screen,
     window: &mut Window,
 ) -> Result<(), Box<dyn Error>> {
     for (index, entry) in recording.entries.iter().enumerate() {
@@ -362,8 +360,7 @@ fn replay_loop(
                 .filter(|deadline| *deadline <= entry.at && *deadline <= now)
             {
                 if carry_out(&app.handle(Event::deadline(deadline)), audio, None) {
-                    let Ok(()) = render::draw(&app.view(), display);
-                    window.update(display);
+                    screen.show(&app.view(), window);
                 }
             } else if entry.at <= now {
                 let output = app.handle(Event {
@@ -374,8 +371,7 @@ fn replay_loop(
                     return Err(format!("{}: {mismatch}", path.display()).into());
                 }
                 if carry_out(&output, audio, None) {
-                    let Ok(()) = render::draw(&app.view(), display);
-                    window.update(display);
+                    screen.show(&app.view(), window);
                 }
                 break;
             } else {
@@ -412,6 +408,7 @@ mod tests {
     use embedded_graphics::geometry::Point;
     use embedded_graphics_simulator::sdl2::Mod;
     use std::io::Cursor;
+    use wade_core::layout;
 
     use super::*;
 

@@ -1,5 +1,6 @@
 //! Drawing. A pure function of a `View` (D9): every call draws a complete frame.
 
+mod band;
 mod digits;
 pub mod face;
 mod icons;
@@ -12,6 +13,8 @@ mod widgets;
 use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 
 use crate::view::View;
+
+pub use band::{Band, ROW_BYTES};
 
 /// Draw a complete frame for `view` into `target`.
 ///

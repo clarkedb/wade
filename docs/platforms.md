@@ -22,6 +22,7 @@ Development flags:
 | `--record <file>` | Write the seed, the starting settings, and every input event to a recording (format in [testing.md](testing.md#recording-and-replay)) |
 | `--replay <file>` | Play a recording back in real time instead of reading the mouse |
 | `--time-scale <x>` | Run the clock `x` times faster, for example to watch a 5-minute timer finish in 30 s. Affects only the desktop clock. |
+| `--band-rows <n>` | Draw each frame in strips of `n` rows through `render::Band`, as a low-memory board would ([ui.md](ui.md#banded-rendering)) |
 
 macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homebrew's SDL2; if so, add `export LIBRARY_PATH="${LIBRARY_PATH:+$LIBRARY_PATH:}$(brew --prefix)/lib"` to your shell profile. Linux support is deferred; it will need SDL2 and ALSA (`libasound2-dev`) from the distribution's package manager, and serial-port permissions for flashing the device.
 
@@ -103,7 +104,7 @@ loop {
 
 Touch input: if the touch controller's interrupt line is usable (on this board it may be routed through the IO expander), the touch task waits on it. Otherwise it polls at 50 Hz while the display is on. Either way, polling stays inside the platform and the core sees only events.
 
-Memory: the framebuffer is 153,600 bytes. It fits in internal SRAM today, but in M7 the Wi-Fi stack, its heap, and TLS all need internal RAM too, and moving the framebuffer to PSRAM then would reopen the flush-time measurements. The hardware spike therefore makes the placement decision with M7's needs in mind: it measures flush time from both internal SRAM and PSRAM, and records the choice and the reasoning in `docs/hardware-notes.md`.
+Memory: the framebuffer is 153,600 bytes. It fits in internal SRAM today, but in M7 the Wi-Fi stack, its heap, and TLS all need internal RAM too, and moving the framebuffer to PSRAM then would reopen the flush-time measurements. The hardware spike therefore makes the placement decision with M7's needs in mind: it measures flush time from both internal SRAM and PSRAM, and records the choice and the reasoning in `docs/hardware-notes.md`. Drawing in strips ([ui.md](ui.md#banded-rendering)) avoids the full framebuffer if internal RAM runs short.
 
 ### Boot sequence
 
