@@ -21,6 +21,7 @@ use embedded_graphics_simulator::{
 };
 use wade_core::harness::recording::{Entry, Input, Recording};
 use wade_core::harness::state_hash;
+use wade_core::timer::TimerPhase;
 use wade_core::{
     App, Digit, Effect, Event, EventKind, Instant, Key, Output, Settings, TouchPhase, layout,
     render,
@@ -164,9 +165,19 @@ fn live_loop(
     let mut mouse_down = false;
     loop {
         let mut redraw = false;
-
-        for sim_event in window.events() {
+        let mut skip_queued_touch = false;
+        let events: Vec<_> = window.events().collect();
+        for sim_event in events {
             let now = clock.now();
+            if let Some((output, became_done)) = due_deadline(app, now) {
+                redraw |= carry_out(&output, audio, saver.as_mut());
+                if became_done {
+                    let Ok(()) = render::draw(&app.view(), display);
+                    window.update(display);
+                    redraw = false;
+                    skip_queued_touch = true;
+                }
+            }
             if sim_event == SimulatorEvent::Quit {
                 if let Some(saver) = saver.as_mut() {
                     saver.flush(app.unsaved_settings());
@@ -176,7 +187,7 @@ fn live_loop(
                 }
                 return Ok(());
             }
-            let event = input_event(sim_event, now, &mut mouse_down);
+            let event = queued_input_event(sim_event, now, &mut mouse_down, skip_queued_touch);
             if let Some(event) = event {
                 redraw |= carry_out(&app.handle(event), audio, saver.as_mut());
                 if let Some(writer) = writer.as_mut() {
@@ -187,8 +198,13 @@ fn live_loop(
         }
 
         let now = clock.now();
-        if app.next_deadline().is_some_and(|d| d <= now) {
-            redraw |= carry_out(&app.handle(Event::deadline(now)), audio, saver.as_mut());
+        if let Some((output, became_done)) = due_deadline(app, now) {
+            redraw |= carry_out(&output, audio, saver.as_mut());
+            if became_done {
+                let Ok(()) = render::draw(&app.view(), display);
+                window.update(display);
+                redraw = false;
+            }
         }
 
         if let Some(saver) = saver.as_mut() {
@@ -205,6 +221,34 @@ fn live_loop(
             .map_or(POLL_INTERVAL, |d| clock.real_until(d).min(POLL_INTERVAL));
         std::thread::sleep(sleep);
     }
+}
+
+fn due_deadline(app: &mut App, now: Instant) -> Option<(Output, bool)> {
+    app.next_deadline().filter(|&deadline| deadline <= now)?;
+    let was_done = app.timer_state().phase() == TimerPhase::Done;
+    let output = app.handle(Event::deadline(now));
+    let became_done = !was_done && app.timer_state().phase() == TimerPhase::Done;
+    Some((output, became_done))
+}
+
+fn queued_input_event(
+    sim_event: SimulatorEvent,
+    now: Instant,
+    mouse_down: &mut bool,
+    skip_touch: bool,
+) -> Option<Event> {
+    if skip_touch
+        && matches!(
+            sim_event,
+            SimulatorEvent::MouseButtonDown { .. }
+                | SimulatorEvent::MouseMove { .. }
+                | SimulatorEvent::MouseButtonUp { .. }
+        )
+    {
+        *mouse_down = false;
+        return None;
+    }
+    input_event(sim_event, now, mouse_down)
 }
 
 /// Carry out the core's effects and return whether to redraw. Nothing here
@@ -352,6 +396,59 @@ mod tests {
     use embedded_graphics_simulator::sdl2::Mod;
 
     use super::*;
+
+    #[test]
+    fn late_completion_displays_done_before_queued_touches_can_dismiss_it() {
+        use wade_core::timer::TimerState;
+
+        let settings = Settings::DEFAULT
+            .with_timer(Duration::from_secs(60))
+            .unwrap();
+        let mut app = App::new(Instant::from_millis(0), 42, settings);
+        let tap = |app: &mut App, at, point| {
+            let _ = app.handle(Event::touch(at, TouchPhase::Down, point));
+            let _ = app.handle(Event::touch(at, TouchPhase::Up, point));
+        };
+        let at = Instant::from_millis(1_000);
+        tap(&mut app, at, layout::APPS.center());
+        tap(&mut app, at, layout::TILES[0].1.center());
+        tap(
+            &mut app,
+            Instant::from_millis(2_000),
+            layout::TIMER_ROW[1].center(),
+        );
+        tap(&mut app, Instant::from_millis(3_000), layout::BACK.center());
+        tap(&mut app, Instant::from_millis(3_000), layout::BACK.center());
+        assert_eq!(app.screen(), wade_core::app::Screen::Buddy);
+        assert!(matches!(app.timer_state(), TimerState::Running { .. }));
+
+        let late = Instant::from_millis(62_600);
+        let (_, became_done) = due_deadline(&mut app, late).unwrap();
+        assert!(became_done);
+        let point = layout::TIMER_ROW[1].center();
+        let mut mouse_down = false;
+        for sim_event in [
+            SimulatorEvent::MouseButtonDown {
+                mouse_btn: MouseButton::Left,
+                point,
+            },
+            SimulatorEvent::MouseButtonUp {
+                mouse_btn: MouseButton::Left,
+                point,
+            },
+        ] {
+            assert_eq!(
+                queued_input_event(sim_event, late, &mut mouse_down, became_done),
+                None
+            );
+        }
+        assert!(matches!(app.timer_state(), TimerState::Done { .. }));
+        assert_eq!(app.screen(), wade_core::app::Screen::Timer);
+
+        tap(&mut app, Instant::from_millis(63_200), point);
+        assert!(matches!(app.timer_state(), TimerState::Ready { .. }));
+        assert_eq!(app.screen(), wade_core::app::Screen::Buddy);
+    }
 
     #[test]
     fn keyboard_input_maps_keys_and_ignores_repeats() {
