@@ -103,7 +103,7 @@ loop {
 
 Touch input: if the touch controller's interrupt line is usable (on this board it may be routed through the IO expander), the touch task waits on it. Otherwise it polls at 50 Hz while the display is on. Either way, polling stays inside the platform and the core sees only events.
 
-Memory: the framebuffer is 153,600 bytes. It fits in internal SRAM today, but in M7 the Wi-Fi stack, its heap, and TLS all need internal RAM too, and moving the framebuffer to PSRAM then would reopen the flush-time measurements. The hardware spike therefore makes the placement decision with M7's needs in mind: it measures flush time from both internal SRAM and PSRAM, and records the choice and the reasoning in `docs/hardware-notes.md`.
+Memory: the framebuffer is 153,600 bytes. It fits in internal SRAM today, but in M7 the Wi-Fi stack, its heap, and TLS all need internal RAM too, and moving the framebuffer to PSRAM then would reopen the flush-time measurements. The hardware spike therefore makes the placement decision with M7's needs in mind: it measures flush time from both internal SRAM and PSRAM, and records the choice and the reasoning in `docs/hardware-notes.md`. Drawing in strips ([ui.md](ui.md#banded-rendering)) avoids the full framebuffer if internal RAM runs short.
 
 ### Boot sequence
 
