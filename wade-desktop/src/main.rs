@@ -28,7 +28,7 @@ use wade_core::{
 
 use audio::Audio;
 use clock::Clock;
-use storage::Storage;
+use storage::{SettingsSaver, Storage};
 
 /// Longest the loop sleeps before polling window events again.
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
@@ -145,10 +145,11 @@ fn run() -> Result<(), Box<dyn Error>> {
         write!(writer, "{}", Recording::new(seed, settings))?;
         writer.flush()?;
     }
+    let mut saver = storage.as_ref().map(SettingsSaver::new);
     live_loop(
         &clock,
         audio.as_ref(),
-        storage.as_ref(),
+        &mut saver,
         &mut app,
         &mut display,
         &mut window,
@@ -171,7 +172,7 @@ fn read_limited(reader: impl Read, max_bytes: usize) -> io::Result<String> {
 fn live_loop(
     clock: &Clock,
     audio: Option<&Audio>,
-    storage: Option<&Storage>,
+    saver: &mut Option<SettingsSaver<'_>>,
     app: &mut App,
     display: &mut SimulatorDisplay<Rgb565>,
     window: &mut Window,
@@ -184,8 +185,8 @@ fn live_loop(
         for sim_event in window.events() {
             let now = clock.now();
             if sim_event == SimulatorEvent::Quit {
-                if let (Some(storage), Some(settings)) = (storage, app.unsaved_settings()) {
-                    store(storage, settings);
+                if let Some(saver) = saver.as_mut() {
+                    saver.flush(app.unsaved_settings());
                 }
                 if let Some(writer) = writer.as_mut() {
                     writer.flush()?;
@@ -194,7 +195,7 @@ fn live_loop(
             }
             let event = input_event(sim_event, now, &mut mouse_down);
             if let Some(event) = event {
-                redraw |= carry_out(&app.handle(event), audio, storage);
+                redraw |= carry_out(&app.handle(event), audio, saver.as_mut());
                 if let Some(writer) = writer.as_mut() {
                     record_event(writer, event, app)?;
                     writer.flush()?;
@@ -204,7 +205,11 @@ fn live_loop(
 
         let now = clock.now();
         if app.next_deadline().is_some_and(|d| d <= now) {
-            redraw |= carry_out(&app.handle(Event::deadline(now)), audio, storage);
+            redraw |= carry_out(&app.handle(Event::deadline(now)), audio, saver.as_mut());
+        }
+
+        if let Some(saver) = saver.as_mut() {
+            saver.retry_if_due();
         }
 
         if redraw {
@@ -222,7 +227,11 @@ fn live_loop(
 /// Carry out the core's effects and return whether to redraw. Nothing here
 /// waits long: the chime plays on the audio thread (D17), and a save writes
 /// five bytes.
-fn carry_out(output: &Output, audio: Option<&Audio>, storage: Option<&Storage>) -> bool {
+fn carry_out(
+    output: &Output,
+    audio: Option<&Audio>,
+    mut saver: Option<&mut SettingsSaver<'_>>,
+) -> bool {
     for &effect in &output.effects {
         match effect {
             Effect::Chime => {
@@ -231,20 +240,13 @@ fn carry_out(output: &Output, audio: Option<&Audio>, storage: Option<&Storage>) 
                 }
             }
             Effect::SaveSettings(settings) => {
-                if let Some(storage) = storage {
-                    store(storage, settings);
+                if let Some(saver) = saver.as_mut() {
+                    saver.save(settings);
                 }
             }
         }
     }
     output.redraw
-}
-
-/// Save `settings`, reporting a failure rather than stopping Wade.
-fn store(storage: &Storage, settings: Settings) {
-    if let Err(error) = storage.save(settings) {
-        eprintln!("{}: settings not saved: {error}", storage.path().display());
-    }
 }
 
 fn input_event(sim_event: SimulatorEvent, now: Instant, mouse_down: &mut bool) -> Option<Event> {
@@ -370,11 +372,82 @@ mod tests {
     use super::*;
 
     #[test]
-    fn replay_file_limit_accepts_the_boundary_and_rejects_one_byte_more() {
-        assert_eq!(read_limited(Cursor::new(b"hello"), 5).unwrap(), "hello");
-        let error = read_limited(Cursor::new(b"hello"), 4).unwrap_err();
-        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
-        assert!(error.to_string().contains("exceeds 4 bytes"));
+    fn keyboard_input_maps_keys_and_ignores_repeats() {
+        let at = Instant::from_millis(123);
+        let mut mouse_down = false;
+        let press = |keycode, repeat| SimulatorEvent::KeyDown {
+            keycode,
+            keymod: Mod::NOMOD,
+            repeat,
+        };
+        for (keycode, expected) in [
+            (Keycode::NUM_0, Key::Digit(Digit::new(0).unwrap())),
+            (Keycode::NUM_3, Key::Digit(Digit::new(3).unwrap())),
+            (Keycode::NUM_9, Key::Digit(Digit::new(9).unwrap())),
+            (Keycode::Z, Key::Z),
+            (Keycode::P, Key::P),
+        ] {
+            assert_eq!(
+                input_event(press(keycode, false), at, &mut mouse_down),
+                Some(Event::key(at, expected))
+            );
+            assert_eq!(input_event(press(keycode, true), at, &mut mouse_down), None);
+        }
+        assert_eq!(
+            input_event(press(Keycode::A, false), at, &mut mouse_down),
+            None
+        );
+    }
+
+    #[test]
+    fn mouse_input_tracks_only_a_left_button_press() {
+        let at = Instant::from_millis(123);
+        let mut mouse_down = false;
+        let down = |mouse_btn, point| SimulatorEvent::MouseButtonDown { mouse_btn, point };
+        let up = |mouse_btn, point| SimulatorEvent::MouseButtonUp { mouse_btn, point };
+        let start = Point::new(12, 34);
+        let moved = Point::new(56, 78);
+
+        assert_eq!(
+            input_event(up(MouseButton::Left, start), at, &mut mouse_down),
+            None
+        );
+        assert_eq!(
+            input_event(
+                SimulatorEvent::MouseMove { point: moved },
+                at,
+                &mut mouse_down
+            ),
+            None
+        );
+        assert_eq!(
+            input_event(down(MouseButton::Right, start), at, &mut mouse_down),
+            None
+        );
+        assert_eq!(
+            input_event(down(MouseButton::Left, start), at, &mut mouse_down),
+            Some(Event::touch(at, TouchPhase::Down, start))
+        );
+        assert_eq!(
+            input_event(
+                SimulatorEvent::MouseMove { point: moved },
+                at,
+                &mut mouse_down
+            ),
+            Some(Event::touch(at, TouchPhase::Move, moved))
+        );
+        assert_eq!(
+            input_event(up(MouseButton::Right, moved), at, &mut mouse_down),
+            None
+        );
+        assert_eq!(
+            input_event(up(MouseButton::Left, moved), at, &mut mouse_down),
+            Some(Event::touch(at, TouchPhase::Up, moved))
+        );
+        assert_eq!(
+            input_event(up(MouseButton::Left, moved), at, &mut mouse_down),
+            None
+        );
     }
 
     #[test]
@@ -428,5 +501,13 @@ mod tests {
             panic!("expected the Buddy screen");
         };
         assert_eq!(replay.harness.buddy().eye_style, buddy.eye_style);
+    }
+
+    #[test]
+    fn replay_file_limit_accepts_the_boundary_and_rejects_one_byte_more() {
+        assert_eq!(read_limited(Cursor::new(b"hello"), 5).unwrap(), "hello");
+        let error = read_limited(Cursor::new(b"hello"), 4).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("exceeds 4 bytes"));
     }
 }

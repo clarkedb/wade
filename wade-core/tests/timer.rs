@@ -151,6 +151,36 @@ fn chimes_repeat_on_the_interval_ten_times() {
 }
 
 #[test]
+fn a_late_repeat_rings_once_and_keeps_the_original_schedule() {
+    for audible in [true, false] {
+        let mut h = Harness::with_settings(SEED, Settings::DEFAULT.with_chime(audible));
+        set_one_minute(&mut h, 1_000);
+        h.tap(ms(2_000), button(TimerButton::Start));
+        home(&mut h, ms(3_000));
+        h.run_until(ENDS_AT);
+        assert_eq!(chimes(&h), usize::from(audible));
+
+        // Miss two repeats, then wake between the second and third.
+        let late = after(chime(2), 500);
+        let out = h.handle(Event::deadline(late));
+        assert_eq!(
+            out.effects.iter().filter(|&&e| e == Effect::Chime).count(),
+            usize::from(audible)
+        );
+        assert_eq!(chimes(&h), 2 * usize::from(audible));
+        assert!(h.handle(Event::deadline(late)).effects.is_empty());
+
+        if audible {
+            assert_eq!(h.app.next_deadline(), Some(chime(3)));
+            h.run_until(before(chime(3), 1));
+            assert_eq!(chimes(&h), 2);
+            h.run_until(chime(3));
+            assert_eq!(chimes(&h), 3);
+        }
+    }
+}
+
+#[test]
 fn dismissing_stops_the_chimes() {
     let mut h = one_minute_timer_from_buddy();
     h.run_until(chime(2));
