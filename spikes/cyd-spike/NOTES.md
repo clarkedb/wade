@@ -45,3 +45,22 @@ Running findings; they move to `docs/` when the spike is written up.
 - Pressure (z1) depends on position: about 160 top-left, 1,300 bottom-right. A threshold of 60 works.
 - Filter that works: only while IRQ is low, three samples, all with z1 ≥ 60, median of each axis. ~100 Hz.
 - Stylus: dots land under the tip, edges included. Finger: a 2–3 px cluster, fine for 48 px targets.
+
+## Audio
+
+- Speaker connector: 2-pin JST 1.25 mm (MX1.25), "SPEAK", fed by the amp on GPIO 26 (DAC2, not DAC1).
+- Untested: no speaker on hand. The chime test (`examples/chime.rs`) plays the chime as PWM square waves with a hardware duty fade (LEDC) and as 16 kHz DAC samples of the desktop's bell synthesis.
+- Leaning PWM: hardware-timed and faded, so the CPU stays free; the DAC path busy-waits for the whole chime.
+
+## Backlight
+
+- GPIO 21 takes PWM: LEDC low-speed timer, 5 kHz, 10-bit duty. 25/50/75/100% are clearly distinct; 25% is a usable dim level.
+- Hardware duty fades (`start_duty_fade`) are smooth, with no visible flicker. Brightness (D27) is buildable on this board.
+
+## Memory
+
+- Data RAM is two regions: `dram_seg` 192 KB (statics, `.data`, `.bss`, and the main stack takes what is left) and `dram2_seg` about 96 KB (heap or explicitly placed buffers only).
+- Banded build (two 25.6 KB DMA band buffers): `.data` 9 KB, `.bss` 52 KB, stack 136 KB; `dram2` untouched.
+- Full 150 KB framebuffer: links, leaving a 39 KB stack for an otherwise empty program. `StaticCell::init([0; N])` builds the array on the stack first and overflows it; `ConstStaticCell::new([0; N])` places it in `.bss` and runs.
+- A full framebuffer would also need sending in chunks (32,736-byte DMA limit) and buys no speed at 40 MHz, where the bus is the bottleneck. Wi-Fi's heap would have to fit in `dram2`.
+- Choice: bands. They leave about 100 KB more stack headroom, and `dram2` free for Wi-Fi.

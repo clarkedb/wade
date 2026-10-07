@@ -191,6 +191,7 @@ dependencies = [
  "esp-hal",
  "esp-println",
  "esp-rtos",
+ "libm",
  "log",
  "static_cell",
  "wade-core",
