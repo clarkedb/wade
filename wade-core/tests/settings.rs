@@ -11,7 +11,7 @@ use proptest::prelude::*;
 use wade_core::app::{SAVE_DELAY, Screen};
 use wade_core::harness::Harness;
 use wade_core::layout::{Target, Tile};
-use wade_core::settings::{ENCODED_LEN, SettingsButton};
+use wade_core::settings::{Brightness, ENCODED_LEN, SettingsButton};
 use wade_core::timer::{MIN_SET, TimerButton, TimerPhase, TimerState};
 use wade_core::view::{ColorMode, EyeStyle};
 use wade_core::{Effect, Key, Settings, TouchPhase};
@@ -19,7 +19,7 @@ use wade_core::{Effect, Key, Settings, TouchPhase};
 #[test]
 fn every_value_survives_encoding() {
     let all: Vec<_> = every_settings().collect();
-    assert_eq!(all.len(), 2 * 2 * 2 * 99);
+    assert_eq!(all.len(), 2 * 2 * 2 * 4 * 99);
     for settings in all {
         assert_eq!(Settings::decode(&settings.encode()), settings);
     }
@@ -30,13 +30,20 @@ proptest! {
     fn any_bytes_decode_to_the_defaults_or_to_what_they_encode(
         bytes in prop_oneof![
             prop::collection::vec(any::<u8>(), 0..=2 * ENCODED_LEN),
-            // Near misses: the right length, each byte at or just past its valid range.
+            // Near misses, in this layout and the first: the right length, each
+            // byte at or just past its valid range.
+            (0u8..4, 0u8..3, 0u8..3, 0u8..3, 0u8..=100, 0u8..5)
+                .prop_map(|(v, e, c, h, m, b)| vec![v, e, c, h, m, b]),
             (0u8..3, 0u8..3, 0u8..3, 0u8..3, 0u8..=100)
                 .prop_map(|(v, e, c, h, m)| vec![v, e, c, h, m]),
         ],
     ) {
         if let Some(settings) = Settings::try_decode(&bytes) {
-            prop_assert_eq!(&settings.encode()[..], &bytes[..]);
+            // Older layouts come back in the current one.
+            prop_assert_eq!(Settings::try_decode(&settings.encode()), Some(settings));
+            if bytes.len() == ENCODED_LEN {
+                prop_assert_eq!(&settings.encode()[..], &bytes[..]);
+            }
         } else {
             prop_assert_eq!(Settings::decode(&bytes), Settings::DEFAULT);
         }
@@ -181,7 +188,7 @@ fn saves(h: &Harness) -> Vec<Settings> {
         .iter()
         .filter_map(|&e| match e {
             Effect::SaveSettings(settings) => Some(settings),
-            Effect::Chime => None,
+            Effect::Chime | Effect::SetBrightness(_) => None,
         })
         .collect()
 }
@@ -281,4 +288,48 @@ fn a_change_is_unsaved_until_it_is_saved() {
     h.run_until(ms(1_000) + SAVE_DELAY);
     assert_eq!(saves(&h), [plain]);
     assert_eq!(h.app.unsaved_settings(), None);
+}
+
+#[test]
+fn brightness_applies_at_once_and_saves_with_the_rest() {
+    let mut h = Harness::new(SEED);
+    open(&mut h, ms(1_000), Tile::Settings);
+    h.tap(ms(2_000), setting(SettingsButton::Brightness));
+    h.tap(ms(2_500), setting(SettingsButton::Brightness));
+    let set: Vec<_> = h
+        .effects
+        .iter()
+        .filter_map(|&e| match e {
+            Effect::SetBrightness(b) => Some(b),
+            Effect::Chime | Effect::SaveSettings(_) => None,
+        })
+        .collect();
+    assert_eq!(set, [Brightness::ThreeQuarters, Brightness::Half]);
+    assert!(saves(&h).is_empty(), "saved only once the changes stop");
+    h.tap(ms(3_000), back());
+    assert_eq!(
+        saves(&h),
+        [Settings::DEFAULT.with_brightness(Brightness::Half)]
+    );
+}
+
+#[test]
+fn other_toggles_do_not_touch_the_backlight() {
+    let mut h = Harness::new(SEED);
+    open(&mut h, ms(1_000), Tile::Settings);
+    for (i, button) in [
+        SettingsButton::EyeStyle,
+        SettingsButton::Color,
+        SettingsButton::Chime,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        h.tap(ms(2_000 + 500 * u64::try_from(i).unwrap()), setting(button));
+    }
+    assert!(
+        !h.effects
+            .iter()
+            .any(|e| matches!(e, Effect::SetBrightness(_)))
+    );
 }

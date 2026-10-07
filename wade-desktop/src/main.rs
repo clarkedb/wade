@@ -118,7 +118,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let clock = Clock::new(args.time_scale);
     let mut app = App::new(Instant::from_millis(0), seed, settings);
 
-    let mut screen = Screen::new(args.band_rows.map(usize::from));
+    let mut screen = Screen::new(args.band_rows.map(usize::from), settings.brightness());
     let output_settings = OutputSettingsBuilder::new().scale(2).build();
     let mut window = Window::new("Wade", &output_settings);
     // The loop decides when to sleep; don't let the window throttle updates.
@@ -188,7 +188,7 @@ fn live_loop(
         for sim_event in events {
             let now = clock.now();
             if let Some((output, became_done)) = due_deadline(app, now) {
-                redraw |= carry_out(&output, audio, saver.as_mut());
+                redraw |= carry_out(&output, audio, saver.as_mut(), screen);
                 if became_done {
                     screen.show(&app.view(), window);
                     redraw = false;
@@ -206,7 +206,7 @@ fn live_loop(
             }
             let event = queued_input_event(sim_event, now, &mut mouse_down, skip_queued_touch);
             if let Some(event) = event {
-                redraw |= carry_out(&app.handle(event), audio, saver.as_mut());
+                redraw |= carry_out(&app.handle(event), audio, saver.as_mut(), screen);
                 if let Some(writer) = writer.as_mut() {
                     record_event(writer, event, app)?;
                     writer.flush()?;
@@ -216,7 +216,7 @@ fn live_loop(
 
         let now = clock.now();
         if let Some((output, became_done)) = due_deadline(app, now) {
-            redraw |= carry_out(&output, audio, saver.as_mut());
+            redraw |= carry_out(&output, audio, saver.as_mut(), screen);
             if became_done {
                 screen.show(&app.view(), window);
                 redraw = false;
@@ -268,11 +268,12 @@ fn queued_input_event(
 
 /// Carry out the core's effects and return whether to redraw. Nothing here
 /// waits long: the chime plays on the audio thread (D17), and a save writes
-/// five bytes.
+/// six bytes.
 fn carry_out(
     output: &Output,
     audio: Option<&Audio>,
     mut saver: Option<&mut SettingsSaver<'_>>,
+    screen: &mut Screen,
 ) -> bool {
     for &effect in &output.effects {
         match effect {
@@ -286,6 +287,7 @@ fn carry_out(
                     saver.save(settings);
                 }
             }
+            Effect::SetBrightness(brightness) => screen.set_brightness(brightness),
         }
     }
     output.redraw
@@ -359,7 +361,7 @@ fn replay_loop(
                 .next_deadline()
                 .filter(|deadline| *deadline <= entry.at && *deadline <= now)
             {
-                if carry_out(&app.handle(Event::deadline(deadline)), audio, None) {
+                if carry_out(&app.handle(Event::deadline(deadline)), audio, None, screen) {
                     screen.show(&app.view(), window);
                 }
             } else if entry.at <= now {
@@ -370,7 +372,7 @@ fn replay_loop(
                 if let Some(mismatch) = entry.mismatch(index, state_hash(app)) {
                     return Err(format!("{}: {mismatch}", path.display()).into());
                 }
-                if carry_out(&output, audio, None) {
+                if carry_out(&output, audio, None, screen) {
                     screen.show(&app.view(), window);
                 }
                 break;

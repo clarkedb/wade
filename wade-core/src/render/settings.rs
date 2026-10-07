@@ -41,5 +41,6 @@ fn icon(button: SettingsButton, settings: Settings, pressed: bool) -> Icon {
                 Icon::Muted
             }
         }
+        SettingsButton::Brightness => Icon::Sun(settings.brightness()),
     }
 }

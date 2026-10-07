@@ -45,8 +45,8 @@ pub const TIMER_ROW: [Rectangle; 3] = [
     Rectangle::new(Point::new(240, 136), Size::new(72, 56)),
 ];
 
-/// The Launcher's grid: four square slots, two by two, centered and clear of
-/// the corners.
+/// The grid of the Launcher and Settings screens: four square slots, two by
+/// two, centered and clear of the corners.
 const GRID: [Rectangle; 4] = [
     Rectangle::new(Point::new(64, 24), TILE_SIZE),
     Rectangle::new(Point::new(168, 24), TILE_SIZE),
@@ -59,21 +59,13 @@ const TILE_SIZE: Size = Size::new(88, 88);
 /// left; Settings always takes the bottom right.
 pub const TILES: [(Tile, Rectangle); 2] = [(Tile::Timer, GRID[0]), (Tile::Settings, GRID[3])];
 
-/// The Settings screen's toggles for the eye style, colors, and chime: a row
-/// of tiles across the middle, the size of the Launcher's.
-pub const SETTINGS_BUTTONS: [(SettingsButton, Rectangle); 3] = [
-    (
-        SettingsButton::EyeStyle,
-        Rectangle::new(Point::new(8, 76), TILE_SIZE),
-    ),
-    (
-        SettingsButton::Color,
-        Rectangle::new(Point::new(116, 76), TILE_SIZE),
-    ),
-    (
-        SettingsButton::Chime,
-        Rectangle::new(Point::new(224, 76), TILE_SIZE),
-    ),
+/// The Settings screen's toggles, in the Launcher's grid: Wade's look on top,
+/// the chime and brightness below.
+pub const SETTINGS_BUTTONS: [(SettingsButton, Rectangle); 4] = [
+    (SettingsButton::EyeStyle, GRID[0]),
+    (SettingsButton::Color, GRID[1]),
+    (SettingsButton::Chime, GRID[2]),
+    (SettingsButton::Brightness, GRID[3]),
 ];
 
 /// An app the Launcher opens.

@@ -141,22 +141,23 @@ Each button is its icon alone, and the title is a stopwatch ([D26](decisions.md#
 ```text
 ┌──────────────────────────────────────────┐
 │ ‹                                   gear │  y 0–48: back button (48×48), title icon
+│            eyes        dots              │  y 24–112: toggles, 88×88
 │                                          │
-│   eyes           dots           bell     │  y 76–164: toggles, 88×88
+│            bell        sun               │  y 128–216: toggles, 88×88
 │                                          │
-│                                          │  y 192–240: reserved corners, left empty
 └──────────────────────────────────────────┘
 ```
 
-Three toggles the size of the Launcher's tiles, 20 px apart across the middle. Each shows its setting's current value, at twice the size of a button's icon. Every change applies at once, and is saved 2 s after the last one or on leaving the screen ([M5](roadmap.md#m5-settings)).
+Four toggles in the Launcher's grid, clear of the corners: Wade's look on top, the chime and brightness below. Each shows its setting's current value, at twice the size of a button's icon. Every change applies at once, and is saved 2 s after the last one or on leaving the screen ([M5](roadmap.md#m5-settings)).
 
 | Toggle | Shows | Effect |
 |---|---|---|
 | Eye style | A small pair of eyes, with pupils or plain | Switches Wade's eyes. The desktop P key does the same. |
 | Colors | Three dots, pink, blue, and yellow, or all white for mono | Mono draws every accent in the eyes' color. |
 | Chime | A bell, struck through when off | Off silences every chime; see [Rules](#rules). |
+| Brightness | A sun, its rays longer the brighter | Steps the backlight down through 100, 75, 50, and 25%, then back to 100%. Applies at once through `SetBrightness`; the desktop dims its window to match ([D32](decisions.md#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)). |
 
-The timer's duration is saved with the settings but has no control here: the timer remembers whatever −1m and +1m last set ([D28](decisions.md#d28-the-timer-remembers-its-duration)). Brightness joins these toggles with the device ([D27](decisions.md#d27-brightness-waits-for-the-device)).
+The timer's duration is saved with the settings but has no control here: the timer remembers whatever −1m and +1m last set ([D28](decisions.md#d28-the-timer-remembers-its-duration)).
 
 ## Rendering
 

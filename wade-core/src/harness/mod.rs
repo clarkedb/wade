@@ -206,8 +206,8 @@ enum Discrete {
 }
 
 /// A hash of discrete state only: the screen, Wade's expression and sleep
-/// state (on every screen), the timer's state, duration, and digits, and the
-/// settings (later also the activity). Excludes `Pose` and pixels, so tuning
+/// state (on every screen), the timer's state, duration, and digits, and every
+/// setting (later also the activity). Excludes `Pose` and pixels, so tuning
 /// animation does not invalidate recordings (D16, D24). FNV-1a is stable
 /// across platforms.
 #[must_use]
@@ -263,6 +263,7 @@ pub fn state_hash(app: &App) -> u32 {
         color,
         u8::from(settings.chime()),
         minutes(settings.timer()),
+        settings.brightness().percent(),
     ])
 }
 

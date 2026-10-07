@@ -6,13 +6,15 @@ use crate::timer::{DEFAULT_SET, MAX_SET, MIN_SET};
 use crate::view::{ColorMode, EyeStyle};
 
 /// The length of an encoding: the version, then one byte each for the eye
-/// style, colors, chime, and timer minutes.
-pub const ENCODED_LEN: usize = 5;
+/// style, colors, chime, timer minutes, and brightness.
+pub const ENCODED_LEN: usize = 6;
 
 /// The first byte of every encoding. A new layout gets a new version, and
 /// decoding keeps reading every older one, so stored settings and recordings
 /// survive the change.
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
+/// The layout before brightness, which decodes at full brightness.
+const VERSION_1: u8 = 1;
 
 /// A toggle on the Settings screen.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -23,6 +25,69 @@ pub enum SettingsButton {
     Color,
     /// Turn the chime on or off.
     Chime,
+    /// Step the backlight down a level, from the lowest back to full.
+    Brightness,
+}
+
+/// The display's backlight level.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Brightness {
+    Quarter,
+    Half,
+    ThreeQuarters,
+    #[default]
+    Full,
+}
+
+impl Brightness {
+    /// Every level, dimmest first.
+    pub const ALL: [Brightness; 4] = [
+        Brightness::Quarter,
+        Brightness::Half,
+        Brightness::ThreeQuarters,
+        Brightness::Full,
+    ];
+
+    /// The backlight's share of full power.
+    #[must_use]
+    pub const fn percent(self) -> u8 {
+        match self {
+            Brightness::Quarter => 25,
+            Brightness::Half => 50,
+            Brightness::ThreeQuarters => 75,
+            Brightness::Full => 100,
+        }
+    }
+
+    /// The next level down, or full after the lowest.
+    #[must_use]
+    pub const fn dimmer(self) -> Brightness {
+        match self {
+            Brightness::Full => Brightness::ThreeQuarters,
+            Brightness::ThreeQuarters => Brightness::Half,
+            Brightness::Half => Brightness::Quarter,
+            Brightness::Quarter => Brightness::Full,
+        }
+    }
+
+    const fn encode(self) -> u8 {
+        match self {
+            Brightness::Quarter => 0,
+            Brightness::Half => 1,
+            Brightness::ThreeQuarters => 2,
+            Brightness::Full => 3,
+        }
+    }
+
+    const fn decode(byte: u8) -> Option<Brightness> {
+        match byte {
+            0 => Some(Brightness::Quarter),
+            1 => Some(Brightness::Half),
+            2 => Some(Brightness::ThreeQuarters),
+            3 => Some(Brightness::Full),
+            _ => None,
+        }
+    }
 }
 
 /// Every setting. Always valid: the timer is whole minutes from 1 to 99.
@@ -32,6 +97,7 @@ pub struct Settings {
     color: ColorMode,
     chime: bool,
     timer_minutes: u8,
+    brightness: Brightness,
 }
 
 impl Settings {
@@ -40,6 +106,7 @@ impl Settings {
         color: ColorMode::Color,
         chime: true,
         timer_minutes: whole_minutes(DEFAULT_SET).expect("the default timer is whole minutes"),
+        brightness: Brightness::Full,
     };
 
     #[must_use]
@@ -65,6 +132,11 @@ impl Settings {
     }
 
     #[must_use]
+    pub const fn brightness(&self) -> Brightness {
+        self.brightness
+    }
+
+    #[must_use]
     pub const fn with_eye_style(self, eye_style: EyeStyle) -> Settings {
         Settings { eye_style, ..self }
     }
@@ -77,6 +149,11 @@ impl Settings {
     #[must_use]
     pub const fn with_chime(self, chime: bool) -> Settings {
         Settings { chime, ..self }
+    }
+
+    #[must_use]
+    pub const fn with_brightness(self, brightness: Brightness) -> Settings {
+        Settings { brightness, ..self }
     }
 
     /// These settings with the timer at `timer`, or `None` unless it is whole
@@ -99,6 +176,7 @@ impl Settings {
             SettingsButton::EyeStyle => self.with_eye_style(self.eye_style.toggled()),
             SettingsButton::Color => self.with_color(self.color.toggled()),
             SettingsButton::Chime => self.with_chime(!self.chime),
+            SettingsButton::Brightness => self.with_brightness(self.brightness.dimmer()),
         }
     }
 
@@ -119,6 +197,7 @@ impl Settings {
             color,
             u8::from(self.chime),
             self.timer_minutes,
+            self.brightness.encode(),
         ]
     }
 
@@ -130,11 +209,21 @@ impl Settings {
     }
 
     /// Settings from their stored form, or `None` unless `bytes` is exactly
-    /// an encoding of some settings.
+    /// an encoding of some settings, in this layout or an older one.
     #[must_use]
     pub fn try_decode(bytes: &[u8]) -> Option<Settings> {
-        let &[VERSION, eye_style, color, chime, minutes] = bytes else {
-            return None;
+        let (eye_style, color, chime, minutes, brightness) = match *bytes {
+            [VERSION, eye_style, color, chime, minutes, brightness] => (
+                eye_style,
+                color,
+                chime,
+                minutes,
+                Brightness::decode(brightness)?,
+            ),
+            [VERSION_1, eye_style, color, chime, minutes] => {
+                (eye_style, color, chime, minutes, Brightness::Full)
+            }
+            _ => return None,
         };
         let eye_style = match eye_style {
             0 => EyeStyle::Pupils,
@@ -155,6 +244,7 @@ impl Settings {
             eye_style,
             color,
             chime,
+            brightness,
             ..Settings::DEFAULT
         }
         .with_timer(Duration::from_mins(u64::from(minutes)))
@@ -188,7 +278,39 @@ mod tests {
 
     #[test]
     fn the_stored_form_of_the_defaults_never_changes() {
-        assert_eq!(Settings::default().encode(), [VERSION, 0, 0, 1, 5]);
+        assert_eq!(Settings::default().encode(), [VERSION, 0, 0, 1, 5, 3]);
+    }
+
+    #[test]
+    fn the_first_layout_still_decodes_at_full_brightness() {
+        let v1 = [VERSION_1, 1, 1, 0, 12];
+        let expected = Settings::DEFAULT
+            .with_eye_style(EyeStyle::Plain)
+            .with_color(ColorMode::Mono)
+            .with_chime(false)
+            .with_timer(Duration::from_mins(12))
+            .unwrap();
+        assert_eq!(Settings::try_decode(&v1), Some(expected));
+    }
+
+    #[test]
+    fn every_brightness_round_trips() {
+        for b in Brightness::ALL {
+            let s = Settings::DEFAULT.with_brightness(b);
+            assert_eq!(Settings::try_decode(&s.encode()), Some(s));
+        }
+    }
+
+    #[test]
+    fn brightness_steps_down_and_wraps_to_full() {
+        let mut b = Brightness::Full;
+        let mut seen = [0u8; 4];
+        for (i, slot) in seen.iter_mut().enumerate() {
+            b = b.dimmer();
+            *slot = b.percent();
+            assert_eq!(i == 3, b == Brightness::Full);
+        }
+        assert_eq!(seen, [75, 50, 25, 100]);
     }
 
     #[test]
@@ -219,6 +341,11 @@ mod tests {
             assert_eq!(s, changed);
             assert_eq!(s.toggled(button), Settings::DEFAULT);
         }
+        let s = Settings::DEFAULT.toggled(SettingsButton::Brightness);
+        assert_eq!(
+            s,
+            Settings::DEFAULT.with_brightness(Brightness::ThreeQuarters)
+        );
     }
 
     #[test]
@@ -227,14 +354,16 @@ mod tests {
         assert_eq!(Settings::decode(&good), Settings::DEFAULT.with_chime(false));
         for (bytes, why) in [
             (&[][..], "missing"),
-            (&good[..4], "short"),
-            (&[VERSION, 0, 0, 0, 5, 0][..], "long"),
-            (&[2, 0, 0, 0, 5][..], "unknown version"),
-            (&[VERSION, 2, 0, 0, 5][..], "bad eye style"),
-            (&[VERSION, 0, 2, 0, 5][..], "bad colors"),
-            (&[VERSION, 0, 0, 2, 5][..], "bad chime"),
-            (&[VERSION, 0, 0, 0, 0][..], "timer too short"),
-            (&[VERSION, 0, 0, 0, 100][..], "timer too long"),
+            (&good[..5], "short"),
+            (&[VERSION, 0, 0, 0, 5, 3, 0][..], "long"),
+            (&[VERSION_1, 0, 0, 0, 5, 3][..], "first layout, too long"),
+            (&[3, 0, 0, 0, 5, 3][..], "unknown version"),
+            (&[VERSION, 2, 0, 0, 5, 3][..], "bad eye style"),
+            (&[VERSION, 0, 2, 0, 5, 3][..], "bad colors"),
+            (&[VERSION, 0, 0, 2, 5, 3][..], "bad chime"),
+            (&[VERSION, 0, 0, 0, 0, 3][..], "timer too short"),
+            (&[VERSION, 0, 0, 0, 100, 3][..], "timer too long"),
+            (&[VERSION, 0, 0, 0, 5, 4][..], "bad brightness"),
         ] {
             assert_eq!(Settings::try_decode(bytes), None, "{why}");
             assert_eq!(Settings::decode(bytes), Settings::DEFAULT, "{why}");
