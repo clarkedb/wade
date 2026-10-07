@@ -5,4 +5,5 @@
 
 #![no_std]
 
+pub mod settings_store;
 pub mod xpt2046;
