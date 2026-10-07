@@ -100,14 +100,16 @@ Scope: the `wade-cyd` crate as [platforms.md](platforms.md#cyd-stand-in-wade-cyd
 
 Done when:
 
-| # | Criterion |
-|---|---|
-| 1 | The desktop scenarios from M1, M2, and M5 work on the CYD |
-| 2 | Blinks and expression transitions render at 20 fps or better (measured) |
-| 3 | The time from touch to visible response is under 100 ms (measured) |
-| 4 | The CYD runs for 1 hour without panicking or drifting |
-| 5 | Settings survive a restart |
-| 6 | CI builds the firmware on every push |
+| # | Criterion | Status |
+|---|---|---|
+| 1 | The desktop scenarios from M1, M2, and M5 work on the CYD | Met, except that the chime only logs: the audio task waits for a speaker |
+| 2 | Blinks and expression transitions render at 20 fps or better (measured) | Met: 29 fps |
+| 3 | The time from touch to visible response is under 100 ms (measured) | Met: 34–39 ms |
+| 4 | The CYD runs for 1 hour without panicking or drifting | Met: 64 min, 31 ms drift |
+| 5 | Settings survive a restart | Met |
+| 6 | CI builds the firmware on every push | Met |
+
+Measurements are in [hardware-notes.md](hardware-notes.md#measurements); the firmware's `measure` feature reproduces them.
 
 ## Hardware bring-up
 

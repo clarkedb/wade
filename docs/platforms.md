@@ -139,5 +139,7 @@ A classic-ESP32 board with a 2.8" 320×240 resistive touchscreen, used until the
 | Brightness | PWM on the backlight pin |
 | Power | No PMIC or IO expander to configure; no battery, proximity sensor, or RTC, so M6 does not apply |
 
+Build with `--features measure` to log frame times, touch latency, and uptime ([hardware-notes.md](hardware-notes.md#measurements)).
+
 Toolchain: `espup` ships Rust 1.97 for Xtensa, so the workspace's `rust-version` is 1.97 and the firmware builds `wade-core` as is. CI pins the same toolchain version.
 

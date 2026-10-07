@@ -68,3 +68,18 @@ PWM on GPIO 21 (LEDC, 5 kHz, 10-bit). 25, 50, 75, and 100% are distinct, and 25%
 - With two 25.6 KB band buffers: `.data` 9 KB, `.bss` 52 KB, stack 136 KB, `dram2` free.
 - A full 150 KB framebuffer links but leaves a 39 KB stack for an otherwise empty program. `StaticCell::init([0; N])` builds the array on the stack and overflows it; `ConstStaticCell::new([0; N])` places it directly in `.bss`.
 - Bands win: a full framebuffer gains nothing at 40 MHz, where the bus is the limit, and would leave little room for Wi-Fi.
+
+### Measurements
+
+From `wade-cyd` built with its `measure` feature, which logs a summary every 10 s and the uptime every minute.
+
+| What | Result |
+|---|---|
+| Frame, drawn and sent | 33.2 ms on average, 33.4 ms at most while idle; up to 36 ms while touch is busy |
+| Animation | 29 fps, against the core's 33 ms frame |
+| Deadlines | Handled 4 ms late on average, 27 ms at most: one due during a frame waits for it to finish |
+| Touch to screen | From the touch's sample to the end of the frame showing it: 34–36 ms on average, 39 ms at most. Sampling every 10 ms adds up to 10 ms more. |
+| Clock | Over 63 minutes, the board's uptime fell 31 ms behind the host's clock, about 8 ppm. No warnings or restarts in 64 minutes. |
+
+Gaps of up to about 100 ms between frames are the core's own schedule, such as motions that start just after others end; the deadline lateness above shows no frame is held up longer than one frame.
+

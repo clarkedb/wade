@@ -13,6 +13,8 @@
 )]
 
 mod display;
+#[cfg(feature = "measure")]
+mod measure;
 mod storage;
 mod touch;
 
@@ -142,12 +144,22 @@ async fn main(spawner: Spawner) -> ! {
         })
         .expect("the backlight channel configuration is valid");
 
+    #[cfg(feature = "measure")]
+    let mut stats = {
+        spawner.spawn(measure::uptime().expect("the uptime task is spawned once"));
+        measure::Stats::new()
+    };
+
     loop {
         let event = match app.next_deadline() {
             Some(deadline) => {
                 match select(EVENTS.receive(), Timer::at(to_embassy(deadline))).await {
                     Either::First(event) => event,
-                    Either::Second(()) => Event::deadline(now()),
+                    Either::Second(()) => {
+                        #[cfg(feature = "measure")]
+                        stats.deadline(to_embassy(deadline), embassy_time::Instant::now());
+                        Event::deadline(now())
+                    }
                 }
             }
             None => EVENTS.receive().await,
@@ -171,7 +183,15 @@ async fn main(spawner: Spawner) -> ! {
             }
         }
         if output.redraw {
+            #[cfg(feature = "measure")]
+            let started = embassy_time::Instant::now();
             display.show(&app.view()).await;
+            #[cfg(feature = "measure")]
+            stats.frame(
+                started,
+                embassy_time::Instant::now(),
+                matches!(event.kind, wade_core::EventKind::Touch(_)).then(|| to_embassy(event.at)),
+            );
         }
     }
 }
