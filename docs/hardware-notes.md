@@ -12,7 +12,7 @@ The stand-in board ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-ar
 |---|---|
 | Module | ESP32-32E N4: ESP32 rev v3.1, dual core 240 MHz, 4 MB flash, no PSRAM |
 | USB serial | CH340; shows up on macOS as `/dev/cu.usbserial-*` with no driver |
-| Toolchain | `espup` ships Rust 1.97 for Xtensa; `wade-core` declares 1.98 but builds unchanged with `--ignore-rust-version` |
+| Toolchain | `espup` ships Rust 1.97 for Xtensa; `wade-core` builds on it unchanged |
 
 ### Display
 

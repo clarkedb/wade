@@ -32,9 +32,9 @@ Its dependencies are limited to `embedded-graphics` (drawing), `heapless` (fixed
 
 ## Crates
 
-The workspace currently contains an allocation-free `no_std` core and a desktop simulator. Platforms depend on the core; the core depends on no platform. The CoreS3 Lite firmware is planned for M3 and will use its own Xtensa toolchain outside the root workspace.
+The workspace contains an allocation-free `no_std` core and a desktop simulator. Platforms depend on the core; the core depends on no platform. Firmware crates, `wade-cyd` now and `wade-cores3` in M3, sit outside the root workspace because they build with Espressif's Xtensa toolchain.
 
-Cargo requires packages under the repository root that are not workspace members to be excluded explicitly. The workspace reserves exclusions for the future firmware and hardware bring-up.
+Cargo requires packages under the repository root that are not workspace members to be excluded explicitly. The workspace excludes the firmware crates and the bring-up firmware. Its `rust-version` is the oldest toolchain any crate builds with, so the firmware's Xtensa fork can build `wade-core`.
 
 ## Time
 
