@@ -6,8 +6,8 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use cyd_spike::link::Link;
-use cyd_spike::panel::Panel;
+use cyd_bringup::link::Link;
+use cyd_bringup::panel::Panel;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Instant};
 use embedded_graphics::pixelcolor::Rgb565;

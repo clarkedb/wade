@@ -160,7 +160,7 @@ The timer's duration is saved with the settings but has no control here: the tim
 
 ## Rendering
 
-`render::draw` draws a complete frame from a `View` every time. Full redraws keep the drawing code simple. On the device, a full 320×240 Rgb565 frame is 153,600 bytes; at a 40 MHz SPI clock, sending it takes about 31 ms. That leaves almost nothing of a 33 ms frame, and with a single framebuffer the app task cannot draw the next frame while the last one is being sent. The hardware spike measures the real figure.
+`render::draw` draws a complete frame from a `View` every time. Full redraws keep the drawing code simple. On the device, a full 320×240 Rgb565 frame is 153,600 bytes; at a 40 MHz SPI clock, sending it takes about 31 ms. That leaves almost nothing of a 33 ms frame, and with a single framebuffer the app task cannot draw the next frame while the last one is being sent. The hardware bring-up measures the real figure.
 
 ### Partial flush
 
@@ -184,9 +184,9 @@ The platform keeps the last drawn `View`, calls `damage` when `redraw` is set, d
 | Timer tick | the changed digits | a few ms |
 | Screen change | full screen | about 31 ms |
 
-This keeps a single 150 KB framebuffer; double buffering would need a second one. `damage` is a pure function, so it is tested on desktop: a property test draws `prev` and `next`, computes the pixels that differ, and checks that they all lie inside `damage(prev, next)`. The spike also tries a faster SPI clock (60–80 MHz), which would add headroom if the panel and board wiring tolerate it.
+This keeps a single 150 KB framebuffer; double buffering would need a second one. `damage` is a pure function, so it is tested on desktop: a property test draws `prev` and `next`, computes the pixels that differ, and checks that they all lie inside `damage(prev, next)`. The bring-up also tries a faster SPI clock (60–80 MHz), which would add headroom if the panel and board wiring tolerate it.
 
-`damage` is built in M3 only if the spike's numbers call for it ([D14](decisions.md#d14-partial-flush-via-a-damage-rectangle)).
+`damage` is built in M3 only if the bring-up's numbers call for it ([D14](decisions.md#d14-partial-flush-via-a-damage-rectangle)).
 
 ### Banded rendering
 
@@ -194,7 +194,7 @@ A platform short of internal RAM for a 150 KB framebuffer can draw each frame in
 
 The bytes are big-endian Rgb565, the order SPI panels expect, so the buffer goes to DMA without a conversion pass. Because the band borrows its buffer, a platform can alternate two DMA buffers, drawing one strip while the last is sent.
 
-Every strip redraws the whole view and discards what falls outside. That is expected to be cheap next to the flush; the spike measures it. The bytes sent match a full-frame flush. With `damage`, only strips that overlap the damaged rectangle need drawing and sending, but strips are full width, so they send more than the tight rectangle in the partial-flush table.
+Every strip redraws the whole view and discards what falls outside. That is expected to be cheap next to the flush; the bring-up measures it. The bytes sent match a full-frame flush. With `damage`, only strips that overlap the damaged rectangle need drawing and sending, but strips are full width, so they send more than the tight rectangle in the partial-flush table.
 
 A desktop test draws every screen, and the final view of random sessions, through strips of several heights, including a short last strip, and checks each against the full frame byte for byte. The strip height and whether to double-buffer wait for measurements on the device ([D29](decisions.md#d29-banded-rendering-for-low-memory-boards)).
 

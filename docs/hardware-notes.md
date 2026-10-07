@@ -1,10 +1,10 @@
 # Hardware notes
 
-Measured facts about each board, from its hardware spike. [platforms.md](platforms.md) has the design that uses them.
+Measured facts about each board, from its hardware bring-up. [platforms.md](platforms.md) has the design that uses them.
 
 ## CYD (ESP32-2432S028R, single USB-C)
 
-The stand-in board ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). Spike: `spikes/cyd-spike/`, with each test kept as an example.
+The stand-in board ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). Bring-up firmware: `bringup/cyd/`, with each test kept as an example.
 
 ### Board
 

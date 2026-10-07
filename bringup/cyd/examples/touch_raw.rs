@@ -8,7 +8,7 @@
 
 //! Step 4: raw XPT2046 touch readings, summarized per press.
 
-use cyd_spike::panel::{BLACK, HEIGHT, Panel, RED, WHITE, WIDTH};
+use cyd_bringup::panel::{BLACK, HEIGHT, Panel, RED, WHITE, WIDTH};
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;

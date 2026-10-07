@@ -36,7 +36,7 @@ Rejected: platforms sending semantic events such as "open timer" or "back", whic
 
 Reason: Embassy's async tasks, timers, and channels are first-class on `esp-hal`. Wi-Fi is available through `esp-radio` and `embassy-net` without ESP-IDF. The build is pure Rust, and the firmware uses the same `no_std` model as the core.
 
-Cost: HTTPS is less turnkey than with ESP-IDF's built-in HTTP client. M7 spikes TLS before building on it.
+Cost: HTTPS is less turnkey than with ESP-IDF's built-in HTTP client. M7 brings up TLS before building on it.
 
 Rejected: `esp-idf-svc` (`std` on top of ESP-IDF), which has mature networking and storage but treats Embassy as secondary and adds ESP-IDF's C build system.
 
@@ -60,7 +60,7 @@ Rejected: a single `render` method on `App`, which makes behavior testable only 
 
 ## D10. Full-frame redraws first
 
-Reason: the simplest correct approach. The hardware spike measures flush time; partial updates are added only if the measurement requires them.
+Reason: the simplest correct approach. The hardware bring-up measures flush time; partial updates are added only if the measurement requires them.
 
 Rejected: dirty-rectangle tracking from the start, which adds complexity before there is evidence it is needed.
 
@@ -82,7 +82,7 @@ Rejected: a single workspace with per-crate target configuration, which is fragi
 
 ## D14. Partial flush via a damage rectangle
 
-Reason: a full-frame flush takes about 31 ms at 40 MHz, nearly a whole 33 ms frame, and a single framebuffer cannot be drawn into while it is being sent. Drawing the full frame and sending only the changed rectangle cuts a blink to a few milliseconds. `render::damage(prev, next)` is a pure function in the core, so its correctness is a desktop property test. This refines D10: it is built in M3 only if the spike's measurements call for it.
+Reason: a full-frame flush takes about 31 ms at 40 MHz, nearly a whole 33 ms frame, and a single framebuffer cannot be drawn into while it is being sent. Drawing the full frame and sending only the changed rectangle cuts a blink to a few milliseconds. `render::damage(prev, next)` is a pure function in the core, so its correctness is a desktop property test. This refines D10: it is built in M3 only if the bring-up's measurements call for it.
 
 Rejected: double buffering, which needs a second 150 KB framebuffer and still sends every pixel; dirty-rectangle tracking inside the drawing code, which couples every widget to damage bookkeeping.
 
@@ -162,7 +162,7 @@ Rejected: text labels and titles in the built-in mono font, which put a word on 
 
 ## D27. Brightness waits for the device
 
-Reason: M5 is built desktop first, and the desktop has no backlight, so a brightness setting would do nothing real there. Brightness (4 levels, `Effect::SetBrightness`) joins the settings with the device, once the hardware spike has found how to drive the backlight. Colors join now instead: color or mono accents are a real choice about Wade's look, and the desktop can show and test it. The desktop P key stays as a shortcut that changes the eye style setting, since switching styles is how looks are reviewed on desktop.
+Reason: M5 is built desktop first, and the desktop has no backlight, so a brightness setting would do nothing real there. Brightness (4 levels, `Effect::SetBrightness`) joins the settings with the device, once the hardware bring-up has found how to drive the backlight. Colors join now instead: color or mono accents are a real choice about Wade's look, and the desktop can show and test it. The desktop P key stays as a shortcut that changes the eye style setting, since switching styles is how looks are reviewed on desktop.
 
 Rejected: brightness now, faked on desktop by dimming the window, which tests the stand-in rather than the backlight; no new setting until the device arrives, which holds back a choice the desktop can already offer.
 

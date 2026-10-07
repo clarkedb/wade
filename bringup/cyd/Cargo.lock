@@ -179,7 +179,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cyd-spike"
+name = "cyd-bringup"
 version = "0.1.0"
 dependencies = [
  "critical-section",

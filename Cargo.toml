@@ -1,8 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["wade-core", "wade-desktop"]
-# wade-cores3 needs the Xtensa toolchain; spikes/ are throwaway. See docs/architecture.md#crates.
-exclude = ["wade-cores3", "spikes"]
+# wade-cores3 needs the Xtensa toolchain; bringup/ is throwaway. See docs/architecture.md#crates.
+exclude = ["wade-cores3", "bringup"]
 
 [workspace.package]
 version = "0.1.0"

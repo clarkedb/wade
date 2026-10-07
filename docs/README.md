@@ -30,7 +30,7 @@ Camera, microphones, motion sensors, text or speech from Wade, deep sleep, over-
 | [character.md](character.md)       | Persona, face rig, expressions, animation, behavior rules         |
 | [ui.md](ui.md)                     | Screens, navigation, touch handling, layout, and rendering        |
 | [platforms.md](platforms.md)       | Desktop, CoreS3 Lite, and CYD implementations, hardware, toolchain |
-| [hardware-notes.md](hardware-notes.md) | Measured facts from each board's hardware spike               |
+| [hardware-notes.md](hardware-notes.md) | Measured facts from each board's hardware bring-up            |
 | [testing.md](testing.md)           | Test layers, the test harness, snapshots, recording and replay    |
 | [roadmap.md](roadmap.md)           | Milestones with scope and completion criteria                     |
 | [decisions.md](decisions.md)       | Key decisions, the reasons for them, and rejected alternatives    |

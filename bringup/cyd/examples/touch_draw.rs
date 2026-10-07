@@ -8,7 +8,7 @@
 
 //! Step 4: touch with calibration and filtering. Draws a dot under each touch.
 
-use cyd_spike::panel::{BLACK, HEIGHT, Panel, WHITE, WIDTH};
+use cyd_bringup::panel::{BLACK, HEIGHT, Panel, WHITE, WIDTH};
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;

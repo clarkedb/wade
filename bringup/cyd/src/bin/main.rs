@@ -8,7 +8,7 @@
 
 //! Step 6: backlight brightness by PWM on GPIO 21, with Wade on screen.
 
-use cyd_spike::panel::Panel;
+use cyd_bringup::panel::Panel;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;

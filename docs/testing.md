@@ -154,15 +154,15 @@ CI runs the workspace job on GitHub Actions. M3 adds the firmware job:
 | Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev libasound2-dev` (SDL2 and ALSA, which only `wade-desktop` needs), then every check above |
 | Firmware (from M3) | `ubuntu-latest` | Install the Xtensa toolchain with the `esp-rs/xtensa-toolchain` action, then `cargo build --release` in `wade-cores3`, plus `cargo fmt --check` and `cargo clippy` there |
 
-A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The spike under `spikes/` is not built in CI.
+A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The bring-up firmware under `bringup/` is not built in CI.
 
 ## Device testing
 
 Device testing is manual. Each milestone that touches the device lists its checks in [roadmap.md](roadmap.md). Automated tests on the hardware itself are out of scope.
 
-### Hardware spike checklist
+### Bring-up checklist
 
-Every board's spike runs these checks and records the results in [hardware-notes.md](hardware-notes.md). Each ends in something a person can see, hear, or read in the serial log.
+Every board's bring-up runs these checks and records the results in [hardware-notes.md](hardware-notes.md). Each ends in something a person can see, hear, or read in the serial log.
 
 | Check | Method | Records |
 |---|---|---|
