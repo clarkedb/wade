@@ -52,3 +52,36 @@ jobs:
 
       - name: wade-core does not use alloc
         run: test -d wade-core/src && ! grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src
+
+  firmware:
+    name: Firmware (CYD)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: wade-cyd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Espressif's Rust fork for Xtensa, the `esp` channel in wade-cyd/rust-toolchain.toml.
+      # Pinned to the version espup installs locally; bump both together.
+      - uses: esp-rs/xtensa-toolchain@ec6d36527049a7f4fb2cb0c1a644668c1bb8a2a4 # v1.7.0
+        with:
+          buildtargets: esp32
+          version: 1.97.0.0
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: wade-cyd
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --release --locked -- -D warnings
+
+      - name: Build
+        run: cargo build --release --locked
+

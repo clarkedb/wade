@@ -143,16 +143,16 @@ cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf -- -D warnings   
 
 The bare-metal build needs `rustup target add thumbv7em-none-eabihf` once. It proves `wade-core` is `no_std` but not that it avoids `alloc`, because `alloc` exists on that target too; the `grep` covers that.
 
-The firmware builds separately: `cd wade-cores3 && cargo build --release`, which requires the Espressif toolchain.
+Firmware builds separately with the Espressif toolchain: `cd wade-cyd && cargo build --release`, and `wade-cores3` the same way from M3.
 
 ### CI
 
-CI runs the workspace job on GitHub Actions. M3 adds the firmware job:
+CI runs two jobs on GitHub Actions:
 
 | Job | Runner | Steps |
 |---|---|---|
 | Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev libasound2-dev` (SDL2 and ALSA, which only `wade-desktop` needs), then every check above |
-| Firmware (from M3) | `ubuntu-latest` | Install the Xtensa toolchain with the `esp-rs/xtensa-toolchain` action, then `cargo build --release` in `wade-cores3`, plus `cargo fmt --check` and `cargo clippy` there |
+| Firmware | `ubuntu-latest` | Install the Xtensa toolchain with the `esp-rs/xtensa-toolchain` action, at the version `espup` installs locally, then `cargo fmt --check`, `cargo clippy`, and `cargo build --release` in `wade-cyd`; `wade-cores3` joins in M3 |
 
 A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The bring-up firmware under `bringup/` is not built in CI.
 
