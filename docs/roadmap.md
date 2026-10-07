@@ -4,6 +4,8 @@
 |---|---|---|---|
 | [M1 Desktop skeleton](#m1-desktop-skeleton) | Desktop | Core types, Wade's eyes with every expression and sleep, test harness, record and replay | Nothing |
 | [M2 Timer](#m2-timer) | Desktop | Timer screen, navigation, chime | M1 |
+| [CYD spike](#cyd-spike) | CYD | Throwaway firmware proving the stand-in's display, touch, backlight, and memory | A CYD |
+| [CYD port](#cyd-port) | CYD | `wade-cyd` runs everything from M2 and M5 | M5, CYD spike |
 | [Hardware spike](#hardware-spike) | Device | Throwaway firmware proving display, touch, audio, and timing | The device |
 | [M3 Device port](#m3-device-port) | Device | `wade-cores3` runs everything from M2 | M2, spike |
 | [M4 Character](#m4-character) | Both | Look and motion tuned on the device, props and idle activities, personality | M3 |
@@ -11,7 +13,7 @@
 | [M6 Power](#m6-power) | Both | Display sleep, wake on approach, battery status | M5 |
 | [M7 Weather](#m7-weather) | Both | Wi-Fi, weather fetch, weather screen | M5 |
 
-M1 and M2 need no hardware. The hardware spike can start as soon as the device arrives, in parallel with M1 or M2. M4 and M5 are independent of each other.
+M1 and M2 need no hardware. The CYD milestones build the firmware on a stand-in board until the CoreS3 arrives ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). The hardware spike can start as soon as the device arrives, in parallel with M1 or M2. M4 and M5 are independent of each other.
 
 ## M1 Desktop skeleton
 
@@ -87,6 +89,25 @@ Done when:
 | 1 | All checks pass |
 | 2 | On desktop: set 1:00, start, go back to Wade, and at 1:00 the chime plays and the Timer screen shows Done |
 | 3 | With `--time-scale 10`, a 5:00 timer finishes in 30 s of real time |
+
+## CYD spike
+
+Done. A throwaway firmware in `spikes/cyd-spike/`. It confirmed the panel, its orientation and colors; measured flush times and found DMA steady at 40 MHz but not 80; calibrated the resistive touchscreen and found a filter that works; drove the backlight by PWM; and measured memory with bands and with a full framebuffer. Audio is written but unheard, for want of a speaker. Findings are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
+
+## CYD port
+
+Scope: the `wade-cyd` crate as [platforms.md](platforms.md#cyd-stand-in-wade-cyd) describes, with the app, touch, and audio tasks; the banded DMA flush; touch filtering and calibration; settings in flash; brightness by PWM; the CI firmware job. Parts that do not depend on the board, such as the app task's loop and effect routing, are written to carry over to `wade-cores3`.
+
+Done when:
+
+| # | Criterion |
+|---|---|
+| 1 | The desktop scenarios from M1, M2, and M5 work on the CYD |
+| 2 | Blinks and expression transitions render at 20 fps or better (measured) |
+| 3 | The time from touch to visible response is under 100 ms (measured) |
+| 4 | The CYD runs for 1 hour without panicking or drifting |
+| 5 | Settings survive a restart |
+| 6 | CI builds the firmware on every push |
 
 ## Hardware spike
 

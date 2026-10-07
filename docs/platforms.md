@@ -124,3 +124,18 @@ espup install           # installs Espressif's Xtensa Rust toolchain
 ```
 
 If a bad firmware image stops the USB connection from working, the board can be put into download mode with its reset button. See M5Stack's CoreS3 Lite documentation for the exact procedure.
+
+## CYD stand-in (`wade-cyd`)
+
+A classic-ESP32 board with a 2.8" 320×240 resistive touchscreen, used until the CoreS3 Lite arrives ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). It shares the CoreS3's toolchain, HAL, runtime, task layout, and app loop; the boards differ in the parts below. Pins, init sequences, and measurements are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
+
+| Concern | On the CYD |
+|---|---|
+| Display | ILI9341 over SPI with DMA at 40 MHz. No room for a framebuffer beside Wi-Fi, so frames are drawn in 40-row bands ([ui.md](ui.md#banded-rendering)), one drawn while the last is sent. |
+| Touch | XPT2046, resistive. The touch task filters samples and maps raw readings to screen coordinates with fixed calibration constants. |
+| Audio | Amp on a GPIO; the chime as PWM tones with a hardware fade. Needs a speaker plugged into the board. |
+| Brightness | PWM on the backlight pin |
+| Power | No PMIC or IO expander to configure; no battery, proximity sensor, or RTC, so M6 does not apply |
+
+Toolchain: `espup` currently ships Rust 1.97 for Xtensa, below the workspace's `rust-version`, so the firmware builds with `--ignore-rust-version` until they match.
+
