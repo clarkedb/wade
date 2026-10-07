@@ -126,7 +126,7 @@ A throwaway firmware in `spikes/cores3-spike/`, outside both workspaces. `spikes
 | 9 | Find how display brightness is controlled (believed to be an AXP2101 LDO voltage) |
 | 10 | Decide where the framebuffer lives (internal SRAM or PSRAM), with M7's Wi-Fi and TLS memory needs in mind, and confirm DMA from it works |
 
-Output: `docs/hardware-notes.md`, recording initialization sequences, pin and register details, and measured numbers (flush times, memory use). It ends with a decision on whether M3 needs `render::damage`. Done when all ten goals are demonstrated and written up.
+It runs the [spike checklist](testing.md#hardware-spike-checklist) alongside the goals above. Output: a section in `docs/hardware-notes.md`, recording initialization sequences, pin and register details, and measured numbers (flush times, memory use). It ends with a decision on whether M3 needs `render::damage`. Done when all ten goals are demonstrated and written up.
 
 ## M3 Device port
 

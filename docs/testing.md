@@ -159,3 +159,18 @@ A macOS job (`brew install sdl2`) is added only if something platform-specific b
 ## Device testing
 
 Device testing is manual. Each milestone that touches the device lists its checks in [roadmap.md](roadmap.md). Automated tests on the hardware itself are out of scope.
+
+### Hardware spike checklist
+
+Every board's spike runs these checks and records the results in [hardware-notes.md](hardware-notes.md). Each ends in something a person can see, hear, or read in the serial log.
+
+| Check | Method | Records |
+|---|---|---|
+| Board | `espflash board-info` | Chip, revision, flash, PSRAM |
+| Display | Fill red, green, blue, and white, then mark three corners with colored squares | Init sequence, orientation and color-order settings, inversion |
+| Transport | Redraw one unchanging frame with a 1 px border, a phase number shown as squares in a corner, for each bus option (DMA or not, each clock). Any movement or seam is a transport fault, not tearing | Which options are steady |
+| Flush timing | Per frame: the bus alone, draw then send, and draw while sending | Frame time, and how it splits between bus and drawing |
+| Touch | Press crosshairs near each corner, several rounds, summarizing each press; then draw dots under each touch | Axis order and direction, calibration, noise, pressure, a filter that works |
+| Audio | Play the chime each way the board allows | Loudness, quality, CPU cost |
+| Backlight | Step through four levels, then fade | Control method, usable levels, flicker |
+| Memory | Section sizes with the planned buffers; whether a full framebuffer links and runs | Stack and heap headroom, framebuffer or bands |
