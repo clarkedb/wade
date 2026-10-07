@@ -33,3 +33,15 @@ Running findings; they move to `docs/` when the spike is written up.
   - DMA 80 MHz: horizontal jitter; much worse when drawing during transfers, still present when idle
 - Choice: DMA at 40 MHz with two buffers, about 30 fps. 80 MHz DMA is an open question (GPIO-matrix routing is the suspect).
 - Tearing: no TE line, so a changing frame can show a seam. Partial flushes should make it rarer.
+
+## Touch (XPT2046)
+
+- Separate SPI bus: CLK 25, MOSI 32, MISO 39, CS 33, IRQ 36 (low while touched). 2 MHz, mode 0.
+- Control bytes: Z1 `0xB1`, Z2 `0xC1`, X `0xD1`, Y `0x91`, then `0xD0` to power down and re-enable IRQ. Value = 16-bit response `>> 3`, 12 bits.
+- Axes are swapped: the controller's Y runs along the screen's x, its X along the screen's y.
+- Calibration (raw at screen edges): x 0 → 166, x 320 → 3744; y 0 → 272, y 240 → 3908. About 11 raw per px across, 15 down.
+- Repeatability at a crosshair: about ±8 raw, under a pixel.
+- Release: once IRQ goes high, readings go to x 4095 with z1 near 0. Occasional outliers mid-press.
+- Pressure (z1) depends on position: about 160 top-left, 1,300 bottom-right. A threshold of 60 works.
+- Filter that works: only while IRQ is low, three samples, all with z1 ≥ 60, median of each axis. ~100 Hz.
+- Stylus: dots land under the tip, edges included. Finger: a 2–3 px cluster, fine for 48 px targets.

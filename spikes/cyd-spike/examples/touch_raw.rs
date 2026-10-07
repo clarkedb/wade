@@ -6,11 +6,11 @@
     holding buffers for the duration of a data transfer."
 )]
 
-//! Step 4: touch with calibration and filtering. Draws a dot under each touch.
+//! Step 4: raw XPT2046 touch readings, summarized per press.
 
-use cyd_spike::panel::{BLACK, HEIGHT, Panel, WHITE, WIDTH};
+use cyd_spike::panel::{BLACK, HEIGHT, Panel, RED, WHITE, WIDTH};
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
 use esp_hal::Blocking;
 use esp_hal::clock::CpuClock;
@@ -24,26 +24,13 @@ use log::info;
 esp_bootloader_esp_idf::esp_app_desc!();
 
 const MADCTL: u8 = 0x28;
-/// Below this pressure (z1) a sample is noise, not a touch.
-const MIN_PRESSURE: u16 = 60;
-
-/// Raw readings at the screen's edges, from the calibration run. The
-/// controller's Y runs along the screen's x axis and its X along the y axis.
-const LEFT: i32 = 166;
-const RIGHT: i32 = 3744;
-const TOP: i32 = 272;
-const BOTTOM: i32 = 3908;
-
-fn to_screen(raw_x: u16, raw_y: u16) -> (u16, u16) {
-    let x = (i32::from(raw_y) - LEFT) * 320 / (RIGHT - LEFT);
-    let y = (i32::from(raw_x) - TOP) * 240 / (BOTTOM - TOP);
-    (x.clamp(0, 319) as u16, y.clamp(0, 239) as u16)
-}
-
-fn median3(mut v: [u16; 3]) -> u16 {
-    v.sort_unstable();
-    v[1]
-}
+const TARGETS: [(u16, u16, &str); 4] = [
+    (20, 20, "top-left"),
+    (300, 20, "top-right"),
+    (300, 220, "bottom-right"),
+    (20, 220, "bottom-left"),
+];
+const MAX_SAMPLES: usize = 600;
 
 struct Touch<'d> {
     spi: Spi<'d, Blocking>,
@@ -69,6 +56,16 @@ impl Touch<'_> {
         let _ = self.read(0xD0); // power down, re-enabling the IRQ line
         (x, y, z1, z2)
     }
+}
+
+fn crosshair(panel: &mut Panel, x: u16, y: u16, color: u16) {
+    panel.fill(x - 10, y, 21, 1, color);
+    panel.fill(x, y - 10, 1, 21, color);
+}
+
+fn median(values: &mut [u16]) -> u16 {
+    values.sort_unstable();
+    values[values.len() / 2]
 }
 
 #[esp_rtos::main]
@@ -108,24 +105,53 @@ async fn main(_spawner: Spawner) -> ! {
     };
     let irq = Input::new(peripherals.GPIO36, InputConfig::default());
 
-    let mut touches = 0u32;
+    let mut xs = [0u16; MAX_SAMPLES];
+    let mut ys = [0u16; MAX_SAMPLES];
+    let mut target = 0;
     loop {
-        if irq.is_high() {
+        for (i, &(x, y, _)) in TARGETS.iter().enumerate() {
+            crosshair(&mut panel, x, y, if i == target { RED } else { WHITE });
+        }
+        let (_, _, name) = TARGETS[target];
+        info!("press and hold the red crosshair: {name}");
+
+        while irq.is_high() {
             Timer::after(Duration::from_millis(10)).await;
-            continue;
         }
-        // Three samples, all with real pressure, or none.
-        let samples = [touch.sample(), touch.sample(), touch.sample()];
-        if irq.is_low() && samples.iter().all(|s| s.2 >= MIN_PRESSURE) {
-            let raw_x = median3(samples.map(|s| s.0));
-            let raw_y = median3(samples.map(|s| s.1));
-            let (x, y) = to_screen(raw_x, raw_y);
-            panel.fill(x.saturating_sub(1).min(317), y.saturating_sub(1).min(237), 3, 3, WHITE);
-            touches += 1;
-            if touches % 50 == 0 {
-                info!("{touches} points; last at ({x}, {y})");
+        let start = Instant::now();
+        let mut n = 0;
+        let mut first = [(0u16, 0u16, 0u16, 0u16); 3];
+        let mut last = [(0u16, 0u16, 0u16, 0u16); 3];
+        let mut released = 0;
+        while released < 3 {
+            let s = touch.sample();
+            if irq.is_high() {
+                released += 1;
+            } else {
+                released = 0;
             }
+            if n < first.len() {
+                first[n] = s;
+            }
+            last.rotate_left(1);
+            last[2] = s;
+            if n < MAX_SAMPLES {
+                xs[n] = s.0;
+                ys[n] = s.1;
+            }
+            n += 1;
+            Timer::after(Duration::from_millis(10)).await;
         }
-        Timer::after(Duration::from_millis(10)).await;
+        let kept = n.min(MAX_SAMPLES);
+        let (min_x, max_x) = (xs[..kept].iter().min().unwrap(), xs[..kept].iter().max().unwrap());
+        let (min_y, max_y) = (ys[..kept].iter().min().unwrap(), ys[..kept].iter().max().unwrap());
+        info!(
+            "{name}: {n} samples over {} ms; x {min_x}..{max_x}, y {min_y}..{max_y}",
+            start.elapsed().as_millis()
+        );
+        info!("  median x {} y {}", median(&mut xs[..kept]), median(&mut ys[..kept]));
+        info!("  first (x, y, z1, z2): {first:?}");
+        info!("  last  (x, y, z1, z2): {last:?}");
+        target = (target + 1) % TARGETS.len();
     }
 }
