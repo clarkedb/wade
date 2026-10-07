@@ -34,7 +34,7 @@ Its dependencies are limited to `embedded-graphics` (drawing), `heapless` (fixed
 
 The workspace currently contains an allocation-free `no_std` core and a desktop simulator. Platforms depend on the core; the core depends on no platform. The CoreS3 Lite firmware is planned for M3 and will use its own Xtensa toolchain outside the root workspace.
 
-Cargo requires packages under the repository root that are not workspace members to be excluded explicitly. The workspace reserves exclusions for the future firmware and hardware spikes.
+Cargo requires packages under the repository root that are not workspace members to be excluded explicitly. The workspace reserves exclusions for the future firmware and hardware bring-up.
 
 ## Time
 
@@ -236,7 +236,7 @@ New event kinds, effects, and constructor arguments are added only when a milest
 | Milestone | Events | Effects | Other |
 |---|---|---|---|
 | M2 Timer | none | `Chime` | none |
-| M3 Device port | none | none | `render::damage`, only if the spike's flush measurements require it (see [ui.md](ui.md#rendering)) |
+| M3 Device port | none | none | `render::damage`, only if the bring-up's flush measurements require it (see [ui.md](ui.md#rendering)) |
 | M5 Settings | none | `SaveSettings(Settings)`; `SetBrightness(u8)` once the device can use it ([D27](decisions.md#d27-brightness-waits-for-the-device)) | `App::new` takes loaded `Settings` |
 | M6 Power | `Power(PowerStatus)`, `Proximity(Proximity)` | `DisplayPower(bool)` | none |
 | M7 Weather | `Weather(WeatherUpdate)` | `FetchWeather` | none |

@@ -6,6 +6,7 @@ Wade is an animated desk companion. He reacts to touch with facial expressions a
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | Desktop (current; macOS, Linux later) | Development, debugging, and automated tests. No hardware needed.                                                                  |
 | M5Stack CoreS3 Lite (planned)         | The real device: an ESP32-S3 microcontroller with a 2.0" 320×240 capacitive touchscreen, speaker, sensors, and a 200 mAh battery. |
+| CYD (stand-in)                        | A classic-ESP32 board with a 2.8" 320×240 resistive touchscreen, used until the CoreS3 Lite arrives ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). |
 
 ## Goals
 
@@ -28,7 +29,8 @@ Camera, microphones, motion sensors, text or speech from Wade, deep sleep, over-
 | [architecture.md](architecture.md) | Core and platform boundary, time, events, effects, deadlines      |
 | [character.md](character.md)       | Persona, face rig, expressions, animation, behavior rules         |
 | [ui.md](ui.md)                     | Screens, navigation, touch handling, layout, and rendering        |
-| [platforms.md](platforms.md)       | Desktop and CoreS3 Lite implementations, hardware, toolchain      |
+| [platforms.md](platforms.md)       | Desktop, CoreS3 Lite, and CYD implementations, hardware, toolchain |
+| [hardware-notes.md](hardware-notes.md) | Measured facts from each board's hardware bring-up            |
 | [testing.md](testing.md)           | Test layers, the test harness, snapshots, recording and replay    |
 | [roadmap.md](roadmap.md)           | Milestones with scope and completion criteria                     |
 | [decisions.md](decisions.md)       | Key decisions, the reasons for them, and rejected alternatives    |

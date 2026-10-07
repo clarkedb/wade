@@ -4,14 +4,16 @@
 |---|---|---|---|
 | [M1 Desktop skeleton](#m1-desktop-skeleton) | Desktop | Core types, Wade's eyes with every expression and sleep, test harness, record and replay | Nothing |
 | [M2 Timer](#m2-timer) | Desktop | Timer screen, navigation, chime | M1 |
-| [Hardware spike](#hardware-spike) | Device | Throwaway firmware proving display, touch, audio, and timing | The device |
-| [M3 Device port](#m3-device-port) | Device | `wade-cores3` runs everything from M2 | M2, spike |
+| [CYD bring-up](#cyd-bring-up) | CYD | Throwaway firmware proving the stand-in's display, touch, backlight, and memory | A CYD |
+| [CYD port](#cyd-port) | CYD | `wade-cyd` runs everything from M2 and M5 | M5, CYD bring-up |
+| [Hardware bring-up](#hardware-bring-up) | Device | Throwaway firmware proving display, touch, audio, and timing | The device |
+| [M3 Device port](#m3-device-port) | Device | `wade-cores3` runs everything from M2 | M2, bring-up |
 | [M4 Character](#m4-character) | Both | Look and motion tuned on the device, props and idle activities, personality | M3 |
 | [M5 Settings](#m5-settings) | Both | Launcher, settings screen, persistent settings | M2 on desktop, M3 on the device |
 | [M6 Power](#m6-power) | Both | Display sleep, wake on approach, battery status | M5 |
 | [M7 Weather](#m7-weather) | Both | Wi-Fi, weather fetch, weather screen | M5 |
 
-M1 and M2 need no hardware. The hardware spike can start as soon as the device arrives, in parallel with M1 or M2. M4 and M5 are independent of each other.
+M1 and M2 need no hardware. The CYD milestones build the firmware on a stand-in board until the CoreS3 arrives ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). The hardware bring-up can start as soon as the device arrives, in parallel with M1 or M2. M4 and M5 are independent of each other.
 
 ## M1 Desktop skeleton
 
@@ -88,9 +90,28 @@ Done when:
 | 2 | On desktop: set 1:00, start, go back to Wade, and at 1:00 the chime plays and the Timer screen shows Done |
 | 3 | With `--time-scale 10`, a 5:00 timer finishes in 30 s of real time |
 
-## Hardware spike
+## CYD bring-up
 
-A throwaway firmware in `spikes/cores3-spike/`, outside both workspaces. `spikes/` must be listed in the root workspace's `exclude` (see [architecture.md](architecture.md#crates)). Its purpose is to retire hardware risk before the port.
+Done. A throwaway firmware in `bringup/cyd/`. It confirmed the panel, its orientation and colors; measured flush times and found DMA steady at 40 MHz but not 80; calibrated the resistive touchscreen and found a filter that works; drove the backlight by PWM; and measured memory with bands and with a full framebuffer. Audio is written but unheard, for want of a speaker. Findings are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
+
+## CYD port
+
+Scope: the `wade-cyd` crate as [platforms.md](platforms.md#cyd-stand-in-wade-cyd) describes, with the app, touch, and audio tasks; the banded DMA flush; touch filtering and calibration; settings in flash; brightness by PWM; the CI firmware job. Parts that do not depend on the board, such as the app task's loop and effect routing, are written to carry over to `wade-cores3`.
+
+Done when:
+
+| # | Criterion |
+|---|---|
+| 1 | The desktop scenarios from M1, M2, and M5 work on the CYD |
+| 2 | Blinks and expression transitions render at 20 fps or better (measured) |
+| 3 | The time from touch to visible response is under 100 ms (measured) |
+| 4 | The CYD runs for 1 hour without panicking or drifting |
+| 5 | Settings survive a restart |
+| 6 | CI builds the firmware on every push |
+
+## Hardware bring-up
+
+A throwaway firmware in `bringup/cores3/`, outside both workspaces. `bringup/` must be listed in the root workspace's `exclude` (see [architecture.md](architecture.md#crates)). Its purpose is to retire hardware risk before the port.
 
 | # | Goal |
 |---|---|
@@ -105,11 +126,11 @@ A throwaway firmware in `spikes/cores3-spike/`, outside both workspaces. `spikes
 | 9 | Find how display brightness is controlled (believed to be an AXP2101 LDO voltage) |
 | 10 | Decide where the framebuffer lives (internal SRAM or PSRAM), with M7's Wi-Fi and TLS memory needs in mind, and confirm DMA from it works |
 
-Output: `docs/hardware-notes.md`, recording initialization sequences, pin and register details, and measured numbers (flush times, memory use). It ends with a decision on whether M3 needs `render::damage`. Done when all ten goals are demonstrated and written up.
+It runs the [bring-up checklist](testing.md#bring-up-checklist) alongside the goals above. Output: a section in `docs/hardware-notes.md`, recording initialization sequences, pin and register details, and measured numbers (flush times, memory use). It ends with a decision on whether M3 needs `render::damage`. Done when all ten goals are demonstrated and written up.
 
 ## M3 Device port
 
-Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); framebuffer rendering and flushing, with `render::damage` and partial flushes if the spike calls for them ([ui.md](ui.md#partial-flush)); seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`; the CI firmware job.
+Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); framebuffer rendering and flushing, with `render::damage` and partial flushes if the bring-up calls for them ([ui.md](ui.md#partial-flush)); seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`; the CI firmware job.
 
 Done when:
 
@@ -179,9 +200,9 @@ Scope:
 
 No wall-clock time is needed; "updated N min ago" uses `Instant`.
 
-Risk: the API uses HTTPS, and TLS on `no_std` means an additional crate (such as `esp-mbedtls` or `embedded-tls`) and extra memory. Spike this first, before building the screen. Fallback: Open-Meteo is believed to also serve plain HTTP, which avoids TLS entirely at the cost of an unencrypted request (it carries only a location). Confirm before relying on it.
+Risk: the API uses HTTPS, and TLS on `no_std` means an additional crate (such as `esp-mbedtls` or `embedded-tls`) and extra memory. Bring it up first, before building the screen. Fallback: Open-Meteo is believed to also serve plain HTTP, which avoids TLS entirely at the cost of an unencrypted request (it carries only a location). Confirm before relying on it.
 
-Risk: memory. The Wi-Fi stack, its heap, and TLS all need internal RAM, competing with the framebuffer if it lives there. The spike's framebuffer decision should already account for this; if it does not, M7 starts by re-measuring.
+Risk: memory. The Wi-Fi stack, its heap, and TLS all need internal RAM, competing with the framebuffer if it lives there. The bring-up's framebuffer decision should already account for this; if it does not, M7 starts by re-measuring.
 
 Open questions: units (a setting, °C or °F); which weather conditions get icons.
 

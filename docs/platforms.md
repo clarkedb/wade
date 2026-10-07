@@ -45,9 +45,9 @@ macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homeb
 
 The device has no vibration motor, so there is no vibration effect.
 
-M5Stack sells cut-down CoreS3 variants that drop some of these parts. The spike's first job is to confirm this unit has the parts listed above, especially the proximity sensor and battery that M6 depends on. If it does not, the project moves to the standard CoreS3, which the rest of this document also describes.
+M5Stack sells cut-down CoreS3 variants that drop some of these parts. The bring-up's first job is to confirm this unit has the parts listed above, especially the proximity sensor and battery that M6 depends on. If it does not, the project moves to the standard CoreS3, which the rest of this document also describes.
 
-M5Stack's C++ library M5Unified is the reference for the board's initialization sequences (PMIC rails, IO expander pins, display and audio setup). Port only the parts Wade needs, and record them in `docs/hardware-notes.md` during the hardware spike.
+M5Stack's C++ library M5Unified is the reference for the board's initialization sequences (PMIC rails, IO expander pins, display and audio setup). Port only the parts Wade needs, and record them in `docs/hardware-notes.md` during the hardware bring-up.
 
 ### Firmware stack
 
@@ -104,7 +104,7 @@ loop {
 
 Touch input: if the touch controller's interrupt line is usable (on this board it may be routed through the IO expander), the touch task waits on it. Otherwise it polls at 50 Hz while the display is on. Either way, polling stays inside the platform and the core sees only events.
 
-Memory: the framebuffer is 153,600 bytes. It fits in internal SRAM today, but in M7 the Wi-Fi stack, its heap, and TLS all need internal RAM too, and moving the framebuffer to PSRAM then would reopen the flush-time measurements. The hardware spike therefore makes the placement decision with M7's needs in mind: it measures flush time from both internal SRAM and PSRAM, and records the choice and the reasoning in `docs/hardware-notes.md`. Drawing in strips ([ui.md](ui.md#banded-rendering)) avoids the full framebuffer if internal RAM runs short.
+Memory: the framebuffer is 153,600 bytes. It fits in internal SRAM today, but in M7 the Wi-Fi stack, its heap, and TLS all need internal RAM too, and moving the framebuffer to PSRAM then would reopen the flush-time measurements. The hardware bring-up therefore makes the placement decision with M7's needs in mind: it measures flush time from both internal SRAM and PSRAM, and records the choice and the reasoning in `docs/hardware-notes.md`. Drawing in strips ([ui.md](ui.md#banded-rendering)) avoids the full framebuffer if internal RAM runs short.
 
 ### Boot sequence
 
@@ -124,3 +124,18 @@ espup install           # installs Espressif's Xtensa Rust toolchain
 ```
 
 If a bad firmware image stops the USB connection from working, the board can be put into download mode with its reset button. See M5Stack's CoreS3 Lite documentation for the exact procedure.
+
+## CYD stand-in (`wade-cyd`)
+
+A classic-ESP32 board with a 2.8" 320×240 resistive touchscreen, used until the CoreS3 Lite arrives ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). It shares the CoreS3's toolchain, HAL, runtime, task layout, and app loop; the boards differ in the parts below. Pins, init sequences, and measurements are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
+
+| Concern | On the CYD |
+|---|---|
+| Display | ILI9341 over SPI with DMA at 40 MHz. No room for a framebuffer beside Wi-Fi, so frames are drawn in 40-row bands ([ui.md](ui.md#banded-rendering)), one drawn while the last is sent. |
+| Touch | XPT2046, resistive. The touch task filters samples and maps raw readings to screen coordinates with fixed calibration constants. |
+| Audio | Amp on a GPIO; the chime as PWM tones with a hardware fade. Needs a speaker plugged into the board. |
+| Brightness | PWM on the backlight pin |
+| Power | No PMIC or IO expander to configure; no battery, proximity sensor, or RTC, so M6 does not apply |
+
+Toolchain: `espup` currently ships Rust 1.97 for Xtensa, below the workspace's `rust-version`, so the firmware builds with `--ignore-rust-version` until they match.
+
