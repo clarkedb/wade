@@ -50,6 +50,10 @@ XPT2046, resistive, on its own SPI bus at 2 MHz. Pins: CLK 25, MOSI 32, MISO 39,
 
 Amp on GPIO 26 (DAC2) to a 2-pin JST 1.25 mm speaker socket. Untested: no speaker on hand. The chime example plays the chime as PWM square waves with a hardware duty fade, and as 16 kHz DAC samples of the desktop's bell. PWM is preferred because it runs without the CPU.
 
+### Flash
+
+espflash's default partition table reserves `nvs` at `0x9000`, 24 KB (six 4 KB sectors), then `phy_init` and a 3.9 MB `factory` app. Wade claims `nvs` for settings; nothing on the board uses ESP-IDF's NVS format.
+
 ### Backlight
 
 PWM on GPIO 21 (LEDC, 5 kHz, 10-bit). 25, 50, 75, and 100% are distinct, and 25% is a usable dim level. Hardware fades are smooth with no flicker.
