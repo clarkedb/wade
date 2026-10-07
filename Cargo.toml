@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["wade-core", "wade-desktop"]
+members = ["wade-core", "wade-desktop", "wade-firmware"]
 # wade-cyd and wade-cores3 need the Xtensa toolchain; bringup/ is throwaway. See docs/architecture.md#crates.
 exclude = ["wade-cyd", "wade-cores3", "bringup"]
 
@@ -14,6 +14,7 @@ publish = false
 
 [workspace.dependencies]
 wade-core = { path = "wade-core" }
+wade-firmware = { path = "wade-firmware" }
 
 embedded-graphics = "0.8.2"
 heapless = "0.9.3"
