@@ -1529,6 +1529,7 @@ dependencies = [
  "embassy-futures",
  "embedded-graphics",
  "embedded-storage-async",
+ "libm",
  "sequential-storage",
  "wade-core",
 ]
