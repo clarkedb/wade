@@ -12,6 +12,7 @@ publish.workspace = true
 # Keep this no_std and allocation-free, like wade-core: firmware links it.
 wade-core.workspace = true
 embedded-graphics.workspace = true
+libm.workspace = true
 embedded-storage-async.workspace = true
 sequential-storage.workspace = true
 
