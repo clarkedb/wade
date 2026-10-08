@@ -5,7 +5,7 @@ use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
 use crate::input::TouchTracker;
 use crate::layout::{self, Target, Tile};
 use crate::rng::Rng;
-use crate::settings::{Settings, SettingsButton};
+use crate::settings::{Brightness, Settings, SettingsButton};
 use crate::time::{Duration, Instant};
 use crate::timer::{Chime, Digits, TimerButton, TimerPhase, TimerState};
 use crate::view::{BuddyView, LauncherView, SettingsView, View};
@@ -40,6 +40,9 @@ pub enum Effect {
     /// they stop changing, or on leaving the Settings screen, and only when
     /// they differ from the last saved.
     SaveSettings(Settings),
+    /// Set the display's backlight. Emitted when the brightness setting
+    /// changes; at startup the platform applies the loaded setting itself.
+    SetBrightness(Brightness),
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -155,7 +158,13 @@ impl App {
                 }
             }
             Some(Target::Settings(button)) => {
-                self.change_settings(self.settings.toggled(button));
+                let settings = self.settings.toggled(button);
+                if settings.brightness() != self.settings.brightness() {
+                    let _ = out
+                        .effects
+                        .push(Effect::SetBrightness(settings.brightness()));
+                }
+                self.change_settings(settings);
                 out.redraw = true;
             }
             None => {}

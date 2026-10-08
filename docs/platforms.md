@@ -12,6 +12,7 @@ The desktop platform runs the loop in [architecture.md](architecture.md#core-api
 | Loop | The simulator offers only non-blocking event polling. The loop polls window events, then sleeps until the next deadline or for 10 ms, whichever is sooner. This polling stays inside the desktop crate. |
 | Audio | `rodio`, synthesizing `wade_core::sound::CHIME` as bell-like notes on its own thread, so the loop never waits. No audio files; without an output device, Wade runs silent. |
 | Settings | A `settings` file under `wade/` in the user's config directory (`~/Library/Application Support` on macOS), replaced atomically on each `SaveSettings`. Failed writes retain the latest value and retry every two seconds, including on quit. A pending core change is also saved on quit. A missing, unreadable, or corrupt file starts Wade with the defaults. A replay starts with the settings it recorded and saves nothing. |
+| Brightness | A simulated backlight: every pixel is scaled as the backlight would scale its light, gamma-corrected so 25% looks like a quarter of the light rather than a quarter of the pixel value. Applied at startup and on each `SetBrightness` ([D32](decisions.md#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)). |
 | Seed | OS entropy, or `--seed <n>`. |
 
 Development flags:

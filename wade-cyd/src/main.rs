@@ -24,7 +24,10 @@ use embassy_time::Timer;
 use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
 use esp_hal::dma_tx_buffer;
-use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig};
+use esp_hal::gpio::{DriveMode, Input, InputConfig, Level, Output, OutputConfig};
+use esp_hal::ledc::channel::{self, ChannelIFace};
+use esp_hal::ledc::timer::{self, TimerIFace};
+use esp_hal::ledc::{LSGlobalClkSource, Ledc, LowSpeed};
 use esp_hal::rng::Rng;
 use esp_hal::spi::Mode;
 use esp_hal::spi::master::{Config, Spi};
@@ -40,6 +43,8 @@ esp_bootloader_esp_idf::esp_app_desc!();
 
 /// The panel is steady with DMA at 40 MHz but not at 80 (docs/hardware-notes.md).
 const DISPLAY_CLOCK: Rate = Rate::from_mhz(40);
+/// Fast enough to never flicker, even on camera (docs/hardware-notes.md#backlight).
+const BACKLIGHT_PWM: Rate = Rate::from_khz(5);
 /// The XPT2046's conversions need a slow clock.
 const TOUCH_CLOCK: Rate = Rate::from_mhz(2);
 
@@ -118,7 +123,24 @@ async fn main(spawner: Spawner) -> ! {
     let mut app = App::new(now(), seed, settings);
     display.show(&app.view()).await;
     // Turned on only once the first frame is up, so the panel's power-on noise never shows.
-    let _backlight = Output::new(peripherals.GPIO21, Level::High, OutputConfig::default());
+    let mut ledc = Ledc::new(peripherals.LEDC);
+    ledc.set_global_slow_clock(LSGlobalClkSource::APBClk);
+    let mut backlight_timer = ledc.timer::<LowSpeed>(timer::Number::Timer0);
+    backlight_timer
+        .configure(timer::config::Config {
+            duty: timer::config::Duty::Duty10Bit,
+            clock_source: timer::LSClockSource::APBClk,
+            frequency: BACKLIGHT_PWM,
+        })
+        .expect("the backlight timer configuration is valid");
+    let mut backlight = ledc.channel(channel::Number::Channel0, peripherals.GPIO21);
+    backlight
+        .configure(channel::config::Config {
+            timer: &backlight_timer,
+            duty_pct: settings.brightness().percent(),
+            drive_mode: DriveMode::PushPull,
+        })
+        .expect("the backlight channel configuration is valid");
 
     loop {
         let event = match app.next_deadline() {
@@ -134,6 +156,11 @@ async fn main(spawner: Spawner) -> ! {
         for effect in output.effects {
             match effect {
                 Effect::Chime => info!("chime"),
+                Effect::SetBrightness(brightness) => {
+                    if let Err(e) = backlight.set_duty(brightness.percent()) {
+                        warn!("backlight not set: {e:?}");
+                    }
+                }
                 Effect::SaveSettings(settings) => {
                     if let Some(store) = &mut store
                         && let Err(e) = store.save(&settings).await

@@ -237,6 +237,6 @@ New event kinds, effects, and constructor arguments are added only when a milest
 |---|---|---|---|
 | M2 Timer | none | `Chime` | none |
 | M3 Device port | none | none | `render::damage`, only if the bring-up's flush measurements require it (see [ui.md](ui.md#rendering)) |
-| M5 Settings | none | `SaveSettings(Settings)`; `SetBrightness(u8)` once the device can use it ([D27](decisions.md#d27-brightness-waits-for-the-device)) | `App::new` takes loaded `Settings` |
+| M5 Settings | none | `SaveSettings(Settings)`; `SetBrightness(Brightness)` ([D32](decisions.md#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)) | `App::new` takes loaded `Settings` |
 | M6 Power | `Power(PowerStatus)`, `Proximity(Proximity)` | `DisplayPower(bool)` | none |
 | M7 Weather | `Weather(WeatherUpdate)` | `FetchWeather` | none |

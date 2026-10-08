@@ -9,6 +9,7 @@ use embedded_graphics::{
 };
 
 use crate::render::palette;
+use crate::settings::Brightness;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Icon {
@@ -33,6 +34,8 @@ pub enum Icon {
     Bell,
     /// A bell struck through.
     Muted,
+    /// A sun whose rays lengthen with the level.
+    Sun(Brightness),
 }
 
 /// The colors an icon is drawn in: `ink` for its shapes, and `paper`, the
@@ -105,6 +108,7 @@ where
                 .draw(target)?;
             slash.into_styled(pen.stroke(3)).draw(target)
         }
+        Icon::Sun(level) => sun(&pen, level, target),
     }
 }
 
@@ -242,4 +246,35 @@ where
         .draw(target)?;
     pen.rounded(-12, 4, 25, 4, 2).draw(target)?;
     pen.disc(0, 11, 5, ink).draw(target)
+}
+
+fn sun<T>(pen: &Pen, level: Brightness, target: &mut T) -> Result<(), T::Error>
+where
+    T: DrawTarget<Color = Rgb565>,
+{
+    pen.disc(0, 0, 10, pen.colors.ink).draw(target)?;
+    // Rays start clear of the disc; at the lowest level they are short stubs.
+    let length = match level {
+        Brightness::Quarter => 2,
+        Brightness::Half => 3,
+        Brightness::ThreeQuarters => 4,
+        Brightness::Full => 5,
+    };
+    let (start, end) = (8, 8 + length);
+    // Straight rays, then diagonals, which reach about as far at 7/10 of each axis.
+    for (dx, dy) in [(1, 0), (0, 1), (-1, 0), (0, -1)] {
+        Line::new(pen.at(dx * start, dy * start), pen.at(dx * end, dy * end))
+            .into_styled(pen.stroke(2))
+            .draw(target)?;
+    }
+    let diagonal = |n: i32| n * 7 / 10;
+    for (dx, dy) in [(1, 1), (1, -1), (-1, 1), (-1, -1)] {
+        Line::new(
+            pen.at(dx * diagonal(start), dy * diagonal(start)),
+            pen.at(dx * diagonal(end), dy * diagonal(end)),
+        )
+        .into_styled(pen.stroke(2))
+        .draw(target)?;
+    }
+    Ok(())
 }

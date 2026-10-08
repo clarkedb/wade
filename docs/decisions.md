@@ -162,6 +162,8 @@ Rejected: text labels and titles in the built-in mono font, which put a word on 
 
 ## D27. Brightness waits for the device
 
+Superseded by [D32](#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight).
+
 Reason: M5 is built desktop first, and the desktop has no backlight, so a brightness setting would do nothing real there. Brightness (4 levels, `Effect::SetBrightness`) joins the settings with the device, once the hardware bring-up has found how to drive the backlight. Colors join now instead: color or mono accents are a real choice about Wade's look, and the desktop can show and test it. The desktop P key stays as a shortcut that changes the eye style setting, since switching styles is how looks are reviewed on desktop.
 
 Rejected: brightness now, faked on desktop by dimming the window, which tests the stand-in rather than the backlight; no new setting until the device arrives, which holds back a choice the desktop can already offer.
@@ -189,4 +191,10 @@ Rejected: waiting for the CoreS3, which leaves the firmware unstarted; treating 
 Reason: firmware crates build only for their chip, so their code cannot run in `cargo test`. Logic that needs no hardware, such as filtering and calibrating touch readings, goes in `wade-firmware`, a `no_std` workspace crate that both firmware crates link and the host tests. It stays out of `wade-core`, which holds Wade's behavior and knows nothing of particular hardware.
 
 Rejected: keeping that logic in each firmware crate, untested until it runs on the board; putting it in `wade-core`, which would mix board details into Wade's behavior.
+
+## D32. Brightness is a setting, and the desktop simulates the backlight
+
+Reason: the CYD drives its backlight by PWM, so brightness does something real on a device. It is a fourth toggle (100, 75, 50, and 25%), stored in a second settings layout that reads the first at full brightness. The core emits `SetBrightness` when it changes; platforms apply the loaded level at startup. The desktop scales its pixels as a backlight scales light, so the setting shows what it does wherever Wade runs. Core tests cover the setting and its effect, and the device covers the real backlight, which answers D27's worry that dimming the window only tests a stand-in.
+
+Rejected: waiting for the CoreS3, whose backlight runs through its PMIC; driving the host's display brightness, which dims the whole monitor through private APIs; a desktop that ignores the setting, which leaves a toggle that seems broken.
 

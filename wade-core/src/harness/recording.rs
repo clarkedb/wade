@@ -4,7 +4,7 @@
 //! ```text
 //! wade-events 2
 //! seed 8127364512
-//! settings 0100000105
+//! settings 020000010503
 //! 1000 down 160 110 #3f9a1c02
 //! 1080 up 160 110 #b7e0442d
 //! 2400 key 3 #5d21a7c4
@@ -417,14 +417,30 @@ mod tests {
 
     #[test]
     fn parses_and_writes_each_input_kind() {
-        let source = "wade-events 2\nseed 42\nsettings 0101000063\n0 down -1 240 #0123abcd\n0 move 2 3 #89abcdef\n10 up 2 3 #ffffffff\n10 key 9 #00000000\n20 key z #00000001\n30 key p #00000002\n";
+        let source = "wade-events 2\nseed 42\nsettings 020101006301\n0 down -1 240 #0123abcd\n0 move 2 3 #89abcdef\n10 up 2 3 #ffffffff\n10 key 9 #00000000\n20 key z #00000001\n30 key p #00000002\n";
         let recording: Recording = source.parse().unwrap();
         assert_eq!(recording.seed, 42);
         assert_eq!(recording.settings.eye_style(), crate::view::EyeStyle::Plain);
         assert!(!recording.settings.chime());
         assert_eq!(recording.settings.timer(), crate::timer::MAX_SET);
+        assert_eq!(
+            recording.settings.brightness(),
+            crate::settings::Brightness::Half
+        );
         assert_eq!(recording.entries.len(), 6);
         assert_eq!(recording.to_string(), source);
+    }
+
+    #[test]
+    fn settings_in_the_first_layout_still_parse() {
+        let recording: Recording = "wade-events 2\nseed 42\nsettings 0101000063\n"
+            .parse()
+            .unwrap();
+        assert_eq!(recording.settings.eye_style(), crate::view::EyeStyle::Plain);
+        assert_eq!(
+            recording.settings.brightness(),
+            crate::settings::Brightness::Full
+        );
     }
 
     #[test]

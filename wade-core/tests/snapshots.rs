@@ -9,7 +9,7 @@ use std::time::Duration;
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
 use wade_core::layout::{self, Target, Tile};
-use wade_core::settings::SettingsButton;
+use wade_core::settings::{Brightness, SettingsButton};
 use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
 use wade_core::view::{ColorMode, EyeStyle, SettingsView, View};
 use wade_core::{App, Instant, Settings, TouchPhase, render};
@@ -263,8 +263,20 @@ fn settings_screen_with_defaults_and_changed() {
     let changed = Settings::DEFAULT
         .with_eye_style(EyeStyle::Plain)
         .with_color(ColorMode::Mono)
-        .with_chime(false);
+        .with_chime(false)
+        .with_brightness(Brightness::Quarter);
     snapshot("settings_changed", &settings_screen(changed, None));
+}
+
+#[test]
+fn each_brightness_level() {
+    for level in Brightness::ALL {
+        let settings = Settings::DEFAULT.with_brightness(level);
+        snapshot(
+            &format!("settings_brightness_{}", level.percent()),
+            &settings_screen(settings, None),
+        );
+    }
 }
 
 #[test]
@@ -275,6 +287,7 @@ fn each_settings_button_pressed() {
                 SettingsButton::EyeStyle => "eye_style",
                 SettingsButton::Color => "color",
                 SettingsButton::Chime => "chime",
+                SettingsButton::Brightness => "brightness",
             };
             (name.to_owned(), Target::Settings(button))
         }),

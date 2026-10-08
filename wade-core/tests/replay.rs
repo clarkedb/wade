@@ -110,6 +110,7 @@ fn the_timer_session_ends_back_on_buddy_with_wade_groggy() {
         match effect {
             Effect::Chime => chimes += 1,
             Effect::SaveSettings(settings) => assert_eq!(settings, one_minute),
+            Effect::SetBrightness(_) => panic!("the session never changes brightness"),
         }
     }
     assert_eq!(chimes, 7);
