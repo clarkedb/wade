@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Wade is an animated desk companion for the M5Stack CoreS3 Lite, written in Rust and developed on desktop first.
+Wade is an animated desk companion for the M5Stack CoreS3 Lite and CYD, written in Rust and developed on desktop first.
 
 ## Docs
 

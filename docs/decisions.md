@@ -166,7 +166,7 @@ Superseded by [D32](#d32-brightness-is-a-setting-and-the-desktop-simulates-the-b
 
 Reason: M5 is built desktop first, and the desktop has no backlight, so a brightness setting would do nothing real there. Brightness (4 levels, `Effect::SetBrightness`) joins the settings with the device, once the hardware bring-up has found how to drive the backlight. Colors join now instead: color or mono accents are a real choice about Wade's look, and the desktop can show and test it. The desktop P key stays as a shortcut that changes the eye style setting, since switching styles is how looks are reviewed on desktop.
 
-Rejected: brightness now, faked on desktop by dimming the window, which tests the stand-in rather than the backlight; no new setting until the device arrives, which holds back a choice the desktop can already offer.
+Rejected: brightness before a hardware implementation, faked on desktop by dimming the window, which tests the simulation rather than a backlight; deferring all settings work until device firmware, which holds back a choice the desktop can already offer.
 
 ## D28. The timer remembers its duration
 
@@ -176,15 +176,15 @@ Rejected: a default duration on the Settings screen, as first planned; always st
 
 ## D29. Banded rendering for low-memory boards
 
-Reason: a full framebuffer competes for internal RAM with M7's Wi-Fi and TLS, and a board without PSRAM, such as a classic-ESP32 stand-in, may not fit one at all. Drawing the frame in strips through a draw target keeps `render::draw` unchanged and lets each platform choose full-frame or banded drawing. It lives in `wade-core` so any firmware can use it and its correctness is a desktop test. The band borrows its buffer and stores panel byte order so a DMA flush needs no copy.
+Reason: a full framebuffer competes for internal RAM with M7's Wi-Fi and TLS, and a board without PSRAM, such as the classic-ESP32 CYD, may not fit one at all. Drawing the frame in strips through a draw target keeps `render::draw` unchanged and lets each platform choose full-frame or banded drawing. It lives in `wade-core` so any firmware can use it and its correctness is a desktop test. The band borrows its buffer and stores panel byte order so a DMA flush needs no copy.
 
 Rejected: a low-memory mode inside the drawing code, which couples every widget to strip bookkeeping; per-board drawing code, which the snapshots would not cover; a band that owns its pixels as `Rgb565`, which forces a conversion copy before every DMA transfer.
 
-## D30. The CYD stands in until the CoreS3 arrives
+## D30. Add a CYD firmware target
 
-Reason: a CYD was on hand. It shares the CoreS3's toolchain, HAL, runtime, and display bus, so the port's structure, the banded flush, flash storage, and CI can be built and proven before the CoreS3 arrives, leaving the CoreS3 port to swap drivers. Its gaps (resistive touch, no PSRAM, no battery or proximity sensor) are confined to its platform crate.
+Reason: the CYD shares the CoreS3's toolchain, HAL, runtime, and display bus, so the port structure, banded flush, flash storage, and CI can be reused. Its hardware differences—resistive touch and no PSRAM, battery, or proximity sensor—stay in its platform crate.
 
-Rejected: waiting for the CoreS3, which leaves the firmware unstarted; treating the CYD as the target, which loses M6's sensors and the capacitive touchscreen.
+Rejected: duplicating board-independent firmware logic in each platform crate, which makes the ports harder to test and maintain.
 
 ## D31. Device logic lives in a host-tested crate
 
@@ -194,7 +194,12 @@ Rejected: keeping that logic in each firmware crate, untested until it runs on t
 
 ## D32. Brightness is a setting, and the desktop simulates the backlight
 
-Reason: the CYD drives its backlight by PWM, so brightness does something real on a device. It is a fourth toggle (100, 75, 50, and 25%), stored in a second settings layout that reads the first at full brightness. The core emits `SetBrightness` when it changes; platforms apply the loaded level at startup. The desktop scales its pixels as a backlight scales light, so the setting shows what it does wherever Wade runs. Core tests cover the setting and its effect, and the device covers the real backlight, which answers D27's worry that dimming the window only tests a stand-in.
+Reason: the CYD drives its backlight by PWM, so brightness does something real on a device. It is a fourth toggle (100, 75, 50, and 25%), stored in a second settings layout that reads the first at full brightness. The core emits `SetBrightness` when it changes; platforms apply the loaded level at startup. The desktop scales its pixels as a backlight scales light, so the setting shows what it does wherever Wade runs. Core tests cover the setting and its effect, and the CYD covers the real backlight, which answers D27's worry that dimming the window only tests a simulation.
 
-Rejected: waiting for the CoreS3, whose backlight runs through its PMIC; driving the host's display brightness, which dims the whole monitor through private APIs; a desktop that ignores the setting, which leaves a toggle that seems broken.
+Rejected: deferring brightness to the CoreS3 implementation, whose backlight runs through its PMIC; driving the host's display brightness, which dims the whole monitor through private APIs; a desktop that ignores the setting, which leaves a toggle that seems broken.
 
+## D33. Support both CoreS3 and CYD
+
+Reason: both are useful hardware targets. The CoreS3 provides capacitive touch, a battery, and sensors; the CYD supports a lower-memory classic ESP32 with resistive touch. Their shared core and firmware structure keep both ports maintainable.
+
+Rejected: supporting only the CoreS3, which drops the classic ESP32 target; supporting only the CYD, which loses M6's sensors and capacitive touchscreen.

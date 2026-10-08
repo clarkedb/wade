@@ -44,9 +44,9 @@ macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homeb
 | 200 mAh battery | M6 | |
 | BMI270 IMU, BMM150 magnetometer, GC0308 camera, ES7210 microphone codec | Unused | |
 
-The device has no vibration motor, so there is no vibration effect.
+The CoreS3 Lite has no vibration motor, so there is no vibration effect.
 
-M5Stack sells cut-down CoreS3 variants that drop some of these parts. The hardware bring-up confirmed this unit has all of them, including the proximity sensor and battery that M6 depends on.
+M5Stack sells cut-down CoreS3 variants that drop some of these parts. The supported CoreS3 Lite configuration includes all of them, including the proximity sensor and battery that M6 depends on.
 
 M5Stack's C++ library M5Unified is the reference for the board's initialization sequences (PMIC rails, IO expander pins, display and audio setup). Port only the parts Wade needs, and record them in `docs/hardware-notes.md` during the hardware bring-up.
 
@@ -126,9 +126,9 @@ espup install           # installs Espressif's Xtensa Rust toolchain
 
 If a bad firmware image stops the USB connection from working, the board can be put into download mode with its reset button. See M5Stack's CoreS3 Lite documentation for the exact procedure.
 
-## CYD stand-in (`wade-cyd`)
+## CYD (`wade-cyd`)
 
-A classic-ESP32 board with a 2.8" 320×240 resistive touchscreen, used until the CoreS3 Lite arrives ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). It shares the CoreS3's toolchain, HAL, runtime, task layout, and app loop; the boards differ in the parts below. Pins, init sequences, and measurements are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
+A supported classic-ESP32 target with a 2.8" 320×240 resistive touchscreen ([D33](decisions.md#d33-support-both-cores3-and-cyd)). It shares the CoreS3's toolchain, HAL, runtime, task layout, and app loop; the boards differ in the parts below. Pins, init sequences, and measurements are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
 
 | Concern | On the CYD |
 |---|---|
@@ -142,4 +142,3 @@ A classic-ESP32 board with a 2.8" 320×240 resistive touchscreen, used until the
 Build with `--features measure` to log frame times, touch latency, and uptime ([hardware-notes.md](hardware-notes.md#measurements)).
 
 Toolchain: `espup` ships Rust 1.97 for Xtensa, so the workspace's `rust-version` is 1.97 and the firmware builds `wade-core` as is. CI pins the same toolchain version.
-

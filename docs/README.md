@@ -1,12 +1,12 @@
 # Wade: design
 
-Wade is an animated desk companion. He reacts to touch with facial expressions and small actions, and hosts a timer and settings. Weather is planned. The Rust core and desktop simulator are implemented; CoreS3 Lite firmware is planned.
+Wade is an animated desk companion. He reacts to touch with facial expressions and small actions, and hosts a timer and settings. Weather is planned. The Rust core, desktop simulator, and CYD firmware are implemented; CoreS3 Lite firmware is planned.
 
 | Target                               | Role                                                                                                                              |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | Desktop (current; macOS, Linux later) | Development, debugging, and automated tests. No hardware needed.                                                                  |
-| M5Stack CoreS3 Lite (planned)         | The real device: an ESP32-S3 microcontroller with a 2.0" 320×240 capacitive touchscreen, speaker, sensors, and a 200 mAh battery. |
-| CYD (stand-in)                        | A classic-ESP32 board with a 2.8" 320×240 resistive touchscreen, used until the CoreS3 Lite arrives ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). |
+| M5Stack CoreS3 Lite                   | An ESP32-S3 target with a 2.0" 320×240 capacitive touchscreen, speaker, sensors, and a 200 mAh battery.                            |
+| CYD (ESP32-2432S028R)                 | A classic-ESP32 target with a 2.8" 320×240 resistive touchscreen ([D33](decisions.md#d33-support-both-cores3-and-cyd)).             |
 
 ## Goals
 
