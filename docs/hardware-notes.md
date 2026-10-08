@@ -4,7 +4,7 @@ Measured facts about each board, from its hardware bring-up. [platforms.md](plat
 
 ## CYD (ESP32-2432S028R, single USB-C)
 
-The stand-in board ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). Bring-up firmware: `bringup/cyd/`, with each test kept as an example.
+A supported hardware target ([D33](decisions.md#d33-support-both-cores3-and-cyd)). Bring-up firmware: `bringup/cyd/`, with each test kept as an example.
 
 ### Board
 
@@ -48,7 +48,7 @@ XPT2046, resistive, on its own SPI bus at 2 MHz. Pins: CLK 25, MOSI 32, MISO 39,
 
 ### Audio
 
-Amp on GPIO 26 (DAC2) to a 2-pin JST 1.25 mm speaker socket. Untested: no speaker on hand. The chime example plays the chime as PWM square waves with a hardware duty fade, and as 16 kHz DAC samples of the desktop's bell. PWM is preferred because it runs without the CPU.
+Amp on GPIO 26 (DAC2) to a 2-pin JST 1.25 mm speaker socket. Audio is not hardware-validated. The chime example plays the chime as PWM square waves with a hardware duty fade, and as 16 kHz DAC samples of the desktop's bell. PWM is preferred because it runs without the CPU.
 
 ### Flash
 
@@ -86,7 +86,7 @@ Gaps of up to about 100 ms between frames are the core's own schedule, such as m
 
 ## CoreS3 Lite
 
-The real device. Bring-up firmware: `bringup/cores3/`, with each test kept as an example. Initialization follows M5Unified and M5GFX.
+A supported hardware target. Bring-up firmware: `bringup/cores3/`, with each test kept as an example. Initialization follows M5Unified and M5GFX.
 
 ### Board
 

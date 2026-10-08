@@ -1,4 +1,4 @@
-//! The CYD's ILI9341 panel over SPI with DMA (docs/platforms.md#cyd-stand-in-wade-cyd).
+//! The CYD's ILI9341 panel over SPI with DMA (docs/platforms.md#cyd-wade-cyd).
 //!
 //! Frames are drawn in bands (docs/ui.md#banded-rendering): one band is drawn
 //! while the last is sent, from two DMA buffers that the bands borrow in turn.

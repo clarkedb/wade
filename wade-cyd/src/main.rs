@@ -1,4 +1,4 @@
-//! Wade on the CYD, a stand-in for the CoreS3 Lite (docs/platforms.md#cyd-stand-in-wade-cyd).
+//! Wade on the CYD (docs/platforms.md#cyd-wade-cyd).
 //!
 //! Runs the platform loop from docs/architecture.md#core-api: wait for a touch
 //! or the next deadline, hand it to the core, carry out effects, and redraw

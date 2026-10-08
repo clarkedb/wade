@@ -4,16 +4,16 @@
 |---|---|---|---|
 | [M1 Desktop skeleton](#m1-desktop-skeleton) | Desktop | Core types, Wade's eyes with every expression and sleep, test harness, record and replay | Nothing |
 | [M2 Timer](#m2-timer) | Desktop | Timer screen, navigation, chime | M1 |
-| [CYD bring-up](#cyd-bring-up) | CYD | Throwaway firmware proving the stand-in's display, touch, backlight, and memory | A CYD |
+| [CYD bring-up](#cyd-bring-up) | CYD | Throwaway firmware proving the display, touch, backlight, and memory | CYD hardware |
 | [CYD port](#cyd-port) | CYD | `wade-cyd` runs everything from M2 and M5 | M5, CYD bring-up |
-| [Hardware bring-up](#hardware-bring-up) | Device | Throwaway firmware proving display, touch, audio, and timing | The device |
-| [M3 Device port](#m3-device-port) | Device | `wade-cores3` runs everything from M2 | M2, bring-up |
+| [CoreS3 bring-up](#cores3-bring-up) | CoreS3 | Throwaway firmware proving display, touch, audio, and timing | CoreS3 Lite hardware |
+| [M3 CoreS3 port](#m3-cores3-port) | CoreS3 | `wade-cores3` runs everything from M2 | M2, bring-up |
 | [M4 Character](#m4-character) | Both | Look and motion tuned on the device, props and idle activities, personality | M3 |
 | [M5 Settings](#m5-settings) | Both | Launcher, settings screen, persistent settings | M2 on desktop, M3 on the device |
 | [M6 Power](#m6-power) | Both | Display sleep, wake on approach, battery status | M5 |
 | [M7 Weather](#m7-weather) | Both | Wi-Fi, weather fetch, weather screen | M5 |
 
-M1 and M2 need no hardware. The CYD milestones build the firmware on a stand-in board until the CoreS3 arrives ([D30](decisions.md#d30-the-cyd-stands-in-until-the-cores3-arrives)). The hardware bring-up can start as soon as the device arrives, in parallel with M1 or M2. M4 and M5 are independent of each other.
+CoreS3 and CYD are both supported hardware targets ([D33](decisions.md#d33-support-both-cores3-and-cyd)). Their hardware-specific milestones can proceed independently. M1 and M2 need no hardware, and M4 and M5 are independent of each other.
 
 ## M1 Desktop skeleton
 
@@ -92,17 +92,17 @@ Done when:
 
 ## CYD bring-up
 
-Done. A throwaway firmware in `bringup/cyd/`. It confirmed the panel, its orientation and colors; measured flush times and found DMA steady at 40 MHz but not 80; calibrated the resistive touchscreen and found a filter that works; drove the backlight by PWM; and measured memory with bands and with a full framebuffer. Audio is written but unheard, for want of a speaker. Findings are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
+Done. A throwaway firmware in `bringup/cyd/`. It confirmed the panel, its orientation and colors; measured flush times and found DMA steady at 40 MHz but not 80; calibrated the resistive touchscreen and found a filter that works; drove the backlight by PWM; and measured memory with bands and with a full framebuffer. Audio is implemented but not hardware-validated. Findings are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
 
 ## CYD port
 
-Scope: the `wade-cyd` crate as [platforms.md](platforms.md#cyd-stand-in-wade-cyd) describes, with the app, touch, and audio tasks; the banded DMA flush; touch filtering and calibration; settings in flash; brightness by PWM; the CI firmware job. Parts that do not depend on the board, such as the app task's loop and effect routing, are written to carry over to `wade-cores3`.
+Scope: the `wade-cyd` crate as [platforms.md](platforms.md#cyd-wade-cyd) describes, with the app, touch, and audio tasks; the banded DMA flush; touch filtering and calibration; settings in flash; brightness by PWM; the CI firmware job. Parts that do not depend on the board, such as the app task's loop and effect routing, are designed for reuse in `wade-cores3`.
 
 Done when:
 
 | # | Criterion | Status |
 |---|---|---|
-| 1 | The desktop scenarios from M1, M2, and M5 work on the CYD | Met, except that the chime only logs: the audio task waits for a speaker |
+| 1 | The desktop scenarios from M1, M2, and M5 work on the CYD | Met, except that chime output is not hardware-validated |
 | 2 | Blinks and expression transitions render at 20 fps or better (measured) | Met: 29 fps |
 | 3 | The time from touch to visible response is under 100 ms (measured) | Met: 34–39 ms |
 | 4 | The CYD runs for 1 hour without panicking or drifting | Met: 64 min, 31 ms drift |
@@ -111,11 +111,11 @@ Done when:
 
 Measurements are in [hardware-notes.md](hardware-notes.md#measurements); the firmware's `measure` feature reproduces them.
 
-## Hardware bring-up
+## CoreS3 bring-up
 
-Done. A throwaway firmware in `bringup/cores3/`. It confirmed the unit has every part Wade needs; ported the PMIC and IO expander setup; found the panel steady with DMA at 80 MHz, for about 16 ms a frame, so M3 needs no `render::damage`; read touch in screen coordinates with a usable interrupt; played the chime over I²S; drove brightness through the PMIC; and chose bands in internal SRAM over a framebuffer. Findings are in [hardware-notes.md](hardware-notes.md#cores3-lite).
+Done. A throwaway firmware in `bringup/cores3/`. It validated every part Wade needs; ported the PMIC and IO expander setup; found the panel steady with DMA at 80 MHz, for about 16 ms a frame, so M3 needs no `render::damage`; read touch in screen coordinates with a usable interrupt; played the chime over I²S; drove brightness through the PMIC; and chose bands in internal SRAM over a framebuffer. Findings are in [hardware-notes.md](hardware-notes.md#cores3-lite).
 
-## M3 Device port
+## M3 CoreS3 port
 
 Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); banded rendering with a DMA flush at 80 MHz ([ui.md](ui.md#banded-rendering)); seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`; the CI firmware job.
 
@@ -123,10 +123,10 @@ Done when:
 
 | # | Criterion |
 |---|---|
-| 1 | The desktop scenarios from M1 and M2 work on the device |
+| 1 | The desktop scenarios from M1 and M2 work on the CoreS3 |
 | 2 | Blinks and expression transitions render at 20 fps or better (measured) |
 | 3 | The time from touch to visible response is under 100 ms (measured) |
-| 4 | The device runs for 1 hour without panicking or drifting (a 60:00 timer finishes within a second of a phone stopwatch) |
+| 4 | The CoreS3 runs for 1 hour without panicking or drifting (a 60:00 timer finishes within a second of a phone stopwatch) |
 | 5 | `wade-core` needed no changes for the port, or every change is also covered by desktop tests |
 | 6 | CI builds the firmware on every push |
 

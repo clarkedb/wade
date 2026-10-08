@@ -1,6 +1,6 @@
 [package]
 name         = "wade-cyd"
-description  = "Wade firmware for the CYD (ESP32-2432S028R), a stand-in for the CoreS3 Lite"
+description  = "Wade firmware for the CYD (ESP32-2432S028R)"
 version      = "0.1.0"
 edition      = "2024"
 rust-version = "1.97"

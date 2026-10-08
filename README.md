@@ -4,7 +4,7 @@
 
 my desk buddy
 
-Wade is an animated desk companion for the M5Stack CoreS3 Lite. It runs on desktop today; device firmware is planned. Design docs live in [docs/](docs/README.md); the plan is in [docs/roadmap.md](docs/roadmap.md).
+Wade is an animated desk companion for the M5Stack CoreS3 Lite and CYD (ESP32-2432S028R), developed on desktop first. CYD firmware is implemented; CoreS3 Lite firmware is planned. Design docs live in [docs/](docs/README.md); the plan is in [docs/roadmap.md](docs/roadmap.md).
 
 <p align="center">
   <img src="docs/assets/demo.gif" alt="Wade in the desktop simulator, moving through his expressions and falling asleep" width="400">
@@ -30,7 +30,7 @@ Click Wade to tap him, or use the bottom-right corner to open the Launcher, then
 
 ## CYD firmware
 
-Wade also runs on a CYD (ESP32-2432S028R), a stand-in until the CoreS3 Lite arrives. Install Espressif's toolchain once, then flash over USB and watch the log:
+Wade runs on the CYD (ESP32-2432S028R). Install Espressif's toolchain once, then flash over USB and watch the log:
 
 ```sh
 cargo install espup espflash --locked
