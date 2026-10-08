@@ -82,7 +82,7 @@ Rejected: a single workspace with per-crate target configuration, which is fragi
 
 ## D14. Partial flush via a damage rectangle
 
-Reason: a full-frame flush takes about 31 ms at 40 MHz, nearly a whole 33 ms frame, and a single framebuffer cannot be drawn into while it is being sent. Drawing the full frame and sending only the changed rectangle cuts a blink to a few milliseconds. `render::damage(prev, next)` is a pure function in the core, so its correctness is a desktop property test. This refines D10: it is built in M3 only if the bring-up's measurements call for it.
+Reason: a full-frame flush takes about 31 ms at 40 MHz, nearly a whole 33 ms frame, and a single framebuffer cannot be drawn into while it is being sent. Drawing the full frame and sending only the changed rectangle cuts a blink to a few milliseconds. `render::damage(prev, next)` is a pure function in the core, so its correctness is a desktop property test. This refines D10: it is built in M3 only if the bring-up's measurements call for it. They do not: at 80 MHz a full frame takes about 16 ms.
 
 Rejected: double buffering, which needs a second 150 KB framebuffer and still sends every pixel; dirty-rectangle tracking inside the drawing code, which couples every widget to damage bookkeeping.
 

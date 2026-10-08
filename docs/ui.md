@@ -161,11 +161,11 @@ The timer's duration is saved with the settings but has no control here: the tim
 
 ## Rendering
 
-`render::draw` draws a complete frame from a `View` every time. Full redraws keep the drawing code simple. On the device, a full 320×240 Rgb565 frame is 153,600 bytes; at a 40 MHz SPI clock, sending it takes about 31 ms. That leaves almost nothing of a 33 ms frame, and with a single framebuffer the app task cannot draw the next frame while the last one is being sent. The hardware bring-up measures the real figure.
+`render::draw` draws a complete frame from a `View` every time. Full redraws keep the drawing code simple. On the device, a full 320×240 Rgb565 frame is 153,600 bytes; at a 40 MHz SPI clock, sending it takes about 31 ms. That leaves almost nothing of a 33 ms frame, and with a single framebuffer the app task cannot draw the next frame while the last one is being sent. On the CoreS3 the panel runs at 80 MHz, where a full frame takes about 16 ms, so partial flushes are not needed there ([hardware-notes.md](hardware-notes.md#cores3-lite)).
 
 ### Partial flush
 
-If the measurement confirms full-frame flushes are too slow (expected), the fix is to keep drawing full frames into the framebuffer, which is cheap, and send only the part of the screen that changed. The ILI9342C accepts writes to any rectangular window.
+If full-frame flushes are too slow, the fix is to keep drawing full frames into the framebuffer, which is cheap, and send only the part of the screen that changed. The ILI9342C accepts writes to any rectangular window.
 
 ```rust
 // In wade_core::render. The smallest rectangle containing every pixel that
@@ -185,9 +185,9 @@ The platform keeps the last drawn `View`, calls `damage` when `redraw` is set, d
 | Timer tick | the changed digits | a few ms |
 | Screen change | full screen | about 31 ms |
 
-This keeps a single 150 KB framebuffer; double buffering would need a second one. `damage` is a pure function, so it is tested on desktop: a property test draws `prev` and `next`, computes the pixels that differ, and checks that they all lie inside `damage(prev, next)`. The bring-up also tries a faster SPI clock (60–80 MHz), which would add headroom if the panel and board wiring tolerate it.
+This keeps a single 150 KB framebuffer; double buffering would need a second one. `damage` is a pure function, so it is tested on desktop: a property test draws `prev` and `next`, computes the pixels that differ, and checks that they all lie inside `damage(prev, next)`.
 
-`damage` is built in M3 only if the bring-up's numbers call for it ([D14](decisions.md#d14-partial-flush-via-a-damage-rectangle)).
+`damage` is not built: the CoreS3's measurements do not call for it ([D14](decisions.md#d14-partial-flush-via-a-damage-rectangle)).
 
 ### Banded rendering
 
