@@ -1,0 +1,17 @@
+[package]
+name = "wade-firmware"
+description = "Device logic shared by Wade's firmware crates, testable on the host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Keep this no_std and allocation-free, like wade-core: firmware links it.
+wade-core.workspace = true
+embedded-graphics.workspace = true
+
+[lints]
+workspace = true

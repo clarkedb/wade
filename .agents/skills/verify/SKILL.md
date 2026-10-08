@@ -22,12 +22,12 @@ From the repo root, in order; stop and fix at the first failure:
 ```sh
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
-cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf --locked -- -D warnings
-! grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src
+cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf --locked -- -D warnings
+! grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src wade-firmware/src
 cargo test --workspace --locked
 ```
 
-The bare-metal clippy is the only guard that `wade-core` stays `no_std` (workspace builds unify it with `std`), and the grep is the only guard against `alloc`. Never skip either.
+The bare-metal clippy is the only guard that `wade-core` and `wade-firmware` stay `no_std` (workspace builds unify them with `std`), and the grep is the only guard against `alloc`. Never skip either.
 
 `cargo fmt --all` and `cargo clippy --fix --allow-dirty` fix most format and lint failures.
 

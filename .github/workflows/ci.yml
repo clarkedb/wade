@@ -46,12 +46,12 @@ jobs:
         run: cargo test --workspace --locked
 
       # Clippy above only sees wade-core with std (feature unification); lint the
-      # no_std build too. This also proves wade-core builds without std.
-      - name: wade-core builds and lints without std
-        run: cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf --locked -- -D warnings
+      # no_std builds too. This also proves both crates build without std.
+      - name: wade-core and wade-firmware build and lint without std
+        run: cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf --locked -- -D warnings
 
-      - name: wade-core does not use alloc
-        run: test -d wade-core/src && ! grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src
+      - name: wade-core and wade-firmware do not use alloc
+        run: test -d wade-core/src && test -d wade-firmware/src && ! grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src wade-firmware/src
 
   firmware:
     name: Firmware (CYD)

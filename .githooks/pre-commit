@@ -35,11 +35,11 @@ cargo fmt --all --check
 step "clippy (workspace)"
 cargo clippy --workspace --all-targets --locked --quiet -- -D warnings
 
-step "clippy (wade-core, no_std)"
-cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf --locked --quiet -- -D warnings
+step "clippy (wade-core and wade-firmware, no_std)"
+cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf --locked --quiet -- -D warnings
 
-step "wade-core does not use alloc"
-if grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src; then
-  echo "wade-core must not use alloc" >&2
+step "wade-core and wade-firmware do not use alloc"
+if grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src wade-firmware/src; then
+  echo "wade-core and wade-firmware must not use alloc" >&2
   exit 1
 fi

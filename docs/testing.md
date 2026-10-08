@@ -137,11 +137,11 @@ Run before every commit, and in CI:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf -- -D warnings   # proves wade-core builds without std
-! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src           # proves wade-core does not use alloc
+cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf -- -D warnings   # proves both build without std
+! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src wade-firmware/src           # proves neither uses alloc
 ```
 
-The bare-metal build needs `rustup target add thumbv7em-none-eabihf` once. It proves `wade-core` is `no_std` but not that it avoids `alloc`, because `alloc` exists on that target too; the `grep` covers that.
+The bare-metal build needs `rustup target add thumbv7em-none-eabihf` once. It proves `wade-core` and `wade-firmware` are `no_std` but not that they avoid `alloc`, because `alloc` exists on that target too; the `grep` covers that.
 
 Firmware builds separately with the Espressif toolchain: `cd wade-cyd && cargo build --release`, and `wade-cores3` the same way from M3.
 

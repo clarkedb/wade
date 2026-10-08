@@ -1859,6 +1859,8 @@ version = "0.1.0"
 dependencies = [
  "critical-section",
  "embassy-executor",
+ "embassy-futures",
+ "embassy-sync 0.8.0",
  "embassy-time",
  "esp-backtrace",
  "esp-bootloader-esp-idf",
@@ -1867,6 +1869,15 @@ dependencies = [
  "esp-rtos",
  "log",
  "static_cell",
+ "wade-core",
+ "wade-firmware",
+]
+
+[[package]]
+name = "wade-firmware"
+version = "0.1.0"
+dependencies = [
+ "embedded-graphics",
  "wade-core",
 ]
 

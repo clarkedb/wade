@@ -184,3 +184,9 @@ Reason: a CYD was on hand. It shares the CoreS3's toolchain, HAL, runtime, and d
 
 Rejected: waiting for the CoreS3, which leaves the firmware unstarted; treating the CYD as the target, which loses M6's sensors and the capacitive touchscreen.
 
+## D31. Device logic lives in a host-tested crate
+
+Reason: firmware crates build only for their chip, so their code cannot run in `cargo test`. Logic that needs no hardware, such as filtering and calibrating touch readings, goes in `wade-firmware`, a `no_std` workspace crate that both firmware crates link and the host tests. It stays out of `wade-core`, which holds Wade's behavior and knows nothing of particular hardware.
+
+Rejected: keeping that logic in each firmware crate, untested until it runs on the board; putting it in `wade-core`, which would mix board details into Wade's behavior.
+

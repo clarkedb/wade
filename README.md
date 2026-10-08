@@ -47,8 +47,8 @@ CI runs these on every push. The pre-commit hook runs all but the tests, applyin
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo clippy -p wade-core --lib --target thumbv7em-none-eabihf -- -D warnings
-! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src
+cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf -- -D warnings
+! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src wade-firmware/src
 ```
 
 `UPDATE_SNAPSHOTS=1 cargo test` rewrites golden images in `wade-core/tests/snapshots/`.
