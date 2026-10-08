@@ -54,27 +54,37 @@ jobs:
         run: test -d wade-core/src && test -d wade-firmware/src && ! grep -rnE 'extern[[:space:]]+crate[[:space:]]+alloc' wade-core/src wade-firmware/src
 
   firmware:
-    name: Firmware (CYD)
+    name: Firmware (${{ matrix.board }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: CYD
+            crate: wade-cyd
+            chip: esp32
+          - board: CoreS3
+            crate: wade-cores3
+            chip: esp32s3
     defaults:
       run:
-        working-directory: wade-cyd
+        working-directory: ${{ matrix.crate }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      # Espressif's Rust fork for Xtensa, the `esp` channel in wade-cyd/rust-toolchain.toml.
+      # Espressif's Rust fork for Xtensa, the `esp` channel in each firmware crate's rust-toolchain.toml.
       # Pinned to the version espup installs locally; bump both together.
       - uses: esp-rs/xtensa-toolchain@ec6d36527049a7f4fb2cb0c1a644668c1bb8a2a4 # v1.7.0
         with:
-          buildtargets: esp32
+          buildtargets: ${{ matrix.chip }}
           version: 1.97.0.0
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          workspaces: wade-cyd
+          workspaces: ${{ matrix.crate }}
 
       - name: Format
         run: cargo fmt --check
