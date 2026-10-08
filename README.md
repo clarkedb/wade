@@ -28,6 +28,17 @@ cargo run -p wade-desktop -- --seed 42
 
 Click Wade to tap him, or use the bottom-right corner to open the Launcher, then choose Timer. Number keys 0–9 show each expression, Z puts him to sleep, and P switches between pupils and plain eyes. Flags: `--seed <n>`, `--time-scale <x>` (`10` finishes a 5:00 timer in 30 s), `--record <file>`, and `--replay <file>`.
 
+## CYD firmware
+
+Wade also runs on a CYD (ESP32-2432S028R), a stand-in until the CoreS3 Lite arrives. Install Espressif's toolchain once, then flash over USB and watch the log:
+
+```sh
+cargo install espup espflash --locked
+espup install
+. ~/export-esp.sh   # in each new shell
+cd wade-cyd && cargo run --release
+```
+
 ## Checks
 
 CI runs these on every push. The pre-commit hook runs all but the tests, applying format and clippy fixes; enable it with `git config core.hooksPath .githooks`.

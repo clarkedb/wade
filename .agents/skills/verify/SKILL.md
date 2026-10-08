@@ -45,4 +45,4 @@ cargo run -p wade-desktop -- --seed 42
 
 ## Scope
 
-Docs-only or config-only changes need no cargo steps. Firmware in `wade-cores3/` builds separately with the Espressif toolchain (`cd wade-cores3 && cargo build --release`); only run it when that crate changed and the toolchain is installed.
+Docs-only or config-only changes need no cargo steps. Firmware in `wade-cyd/` (and `wade-cores3/` from M3) builds separately with the Espressif toolchain; when a firmware crate or `wade-core` changed and the toolchain is installed, run `. ~/export-esp.sh`, then `cargo fmt --check`, `cargo clippy --release -- -D warnings`, and `cargo build --release` in that crate.
