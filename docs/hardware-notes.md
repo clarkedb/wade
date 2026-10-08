@@ -197,3 +197,19 @@ DLDO1 voltage, register `0x99`: 0.5 V plus 0.1 V per step. Usable from about ste
 DMA from PSRAM is correct (esp-hal writes back the cache), but drawing into it is six times slower.
 
 Choice: bands in internal SRAM, as on the CYD. They are as fast as a full framebuffer, since drawing overlaps the bus, and leave about 100 KB more internal RAM for Wi-Fi and TLS in M7. PSRAM stays free for the heap and large buffers that the CPU touches rarely.
+
+### Measurements
+
+From `wade-cores3` built with its `measure` feature, which logs a summary every 10 s and the uptime every minute.
+
+| What | Result |
+|---|---|
+| Frame, drawn and sent | 17.1 ms on average, 24.3 ms at most, over 15,000 frames in an hour |
+| Animation | 33 fps, against the core's 33 ms frame |
+| Deadlines | Handled 0.7 ms late on average, and never more than one frame (about 17 ms) late, except once at boot: the audio task synthesizes the chime then, holding up the app task for 200 ms before Wade's first blink |
+| Touch to screen | From the touch's sample to the end of the frame showing it: 22 ms on average, 37 ms at most, over 700 touches of continuous dragging. Sampling every 10 ms adds up to 10 ms more. |
+| Clock | A 60:00 timer chimed with a phone stopwatch, within reaction time. No warnings or restarts in two one-hour runs. |
+
+Unlike the CYD's UART, the CoreS3's USB serial holds a short line until more output follows, up to 10 s and longer while Wade is idle, so log arrival times cannot measure drift.
+
+The app task handles every queued event before drawing. Drawing once per event let a drag, which sends a Move every 10 ms, queue frames faster than they finish, and touch latency rose to 134 ms.

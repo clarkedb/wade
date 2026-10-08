@@ -117,18 +117,20 @@ Done. A throwaway firmware in `bringup/cores3/`. It validated every part Wade ne
 
 ## M3 CoreS3 port
 
-Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); banded rendering with a DMA flush at 80 MHz ([ui.md](ui.md#banded-rendering)); seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`; the CI firmware job.
+Done. Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); banded rendering with a DMA flush at 80 MHz ([ui.md](ui.md#banded-rendering)); seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`; the CI firmware job.
 
 Done when:
 
-| # | Criterion |
-|---|---|
-| 1 | The desktop scenarios from M1 and M2 work on the CoreS3 |
-| 2 | Blinks and expression transitions render at 20 fps or better (measured) |
-| 3 | The time from touch to visible response is under 100 ms (measured) |
-| 4 | The CoreS3 runs for 1 hour without panicking or drifting (a 60:00 timer finishes within a second of a phone stopwatch) |
-| 5 | `wade-core` needed no changes for the port, or every change is also covered by desktop tests |
-| 6 | CI builds the firmware on every push |
+| # | Criterion | Status |
+|---|---|---|
+| 1 | The desktop scenarios from M1 and M2 work on the CoreS3 | Met, with the M5 settings too |
+| 2 | Blinks and expression transitions render at 20 fps or better (measured) | Met: 33 fps |
+| 3 | The time from touch to visible response is under 100 ms (measured) | Met: 22 ms on average, 37 ms at most |
+| 4 | The CoreS3 runs for 1 hour without panicking or drifting (a 60:00 timer finishes within a second of a phone stopwatch) | Met: in step with the stopwatch, and no panics in two hours |
+| 5 | `wade-core` needed no changes for the port, or every change is also covered by desktop tests | Met: no changes |
+| 6 | CI builds the firmware on every push | Met |
+
+Measurements are in [hardware-notes.md](hardware-notes.md#cores3-lite); the firmware's `measure` feature reproduces them.
 
 ## M4 Character
 
