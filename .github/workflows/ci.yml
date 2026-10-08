@@ -82,6 +82,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --release --locked -- -D warnings
 
+      - name: Clippy with measurements
+        run: cargo clippy --release --locked --features measure -- -D warnings
+
       - name: Build
         run: cargo build --release --locked
 
