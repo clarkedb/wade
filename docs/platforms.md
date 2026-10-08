@@ -100,7 +100,7 @@ loop {
 }
 ```
 
-Touch input: the touch task waits for the AW9523B's interrupt, which follows the touch controller's, then reads the controller until the touch ends. Polling stays inside the platform and the core sees only events.
+Touch input: the touch task waits for the AW9523B's interrupt, which follows the touch controller's, then reads the controller about 100 times a second until the touch ends. It sleeps before each read, so a line stuck low cannot starve the app task. `wade_firmware::ft6336` turns reports into `Touch` events; the controller reports screen coordinates, so there is no calibration. Polling stays inside the platform and the core sees only events.
 
 Memory: frames are drawn in bands in internal SRAM ([ui.md](ui.md#banded-rendering)), not into a full 150 KB framebuffer. Bands flush as fast, because drawing overlaps the bus, and leave internal RAM for M7's Wi-Fi stack, heap, and TLS. Drawing into PSRAM is six times slower. The measurements are in [hardware-notes.md](hardware-notes.md#cores3-lite).
 
@@ -113,7 +113,7 @@ Build with `--features measure` to log frame times, touch latency, and uptime ([
 1. Initialize clocks, the I²C bus, and logging.
 2. Configure the AXP2101 power rails, with the backlight off. The PMIC keeps its registers across a reset, so every rail is set, and each write is retried: the first transaction after a reset is sometimes not acknowledged.
 3. Configure the AW9523B: release resets, enable the display, touch, and amplifier, and pulse the LCD's reset.
-4. Initialize the display over SPI.
+4. Initialize the display over SPI, then spawn the touch task.
 5. Seed the PRNG from the hardware random number generator and create `App`.
 6. Render the first frame, then turn on the backlight at the saved brightness.
 

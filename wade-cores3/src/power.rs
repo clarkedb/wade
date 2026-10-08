@@ -17,6 +17,8 @@ const DLDO1_VOLTAGE: u8 = 0x99;
 
 const WRITE_ATTEMPTS: u32 = 3;
 
+const AW_INPUT_P0: u8 = 0x00;
+const AW_INPUT_P1: u8 = 0x01;
 const AW_OUTPUT_P0: u8 = 0x02;
 const AW_OUTPUT_P1: u8 = 0x03;
 /// Port 1, bit 1: the LCD's reset, active low.
@@ -103,4 +105,12 @@ pub async fn init<B: I2c>(bus: &mut B) -> Result<(), B::Error> {
 pub async fn set_brightness<B: I2c>(bus: &mut B, brightness: Brightness) -> Result<(), B::Error> {
     write(bus, AXP2101, DLDO1_VOLTAGE, backlight_step(brightness)).await?;
     write(bus, AXP2101, LDO_ENABLE, LDOS_BACKLIGHT_OFF | DLDO1_ON).await
+}
+
+/// Whether the touch controller's interrupt shows a touch. Reading both of
+/// the AW9523B's input ports also releases its own interrupt line, whichever
+/// pin raised it.
+pub async fn touch_held<B: I2c>(bus: &mut B) -> Result<bool, B::Error> {
+    read(bus, AW9523B, AW_INPUT_P0).await?;
+    Ok(read(bus, AW9523B, AW_INPUT_P1).await? & TOUCH_INT == 0)
 }
