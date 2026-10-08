@@ -69,7 +69,7 @@ M5Stack's C++ library M5Unified is the reference for the board's initialization 
 |---|---|---|
 | App | Owns `App`. Waits for an event or the next deadline, handles it, and draws the view to the display in bands. Sets brightness and saves settings itself. | (it is the app task) |
 | Touch | Reads the touch controller and sends `Touch` events | Event channel |
-| Audio | Receives chime requests and plays the chime over I²S | Audio channel |
+| Audio | Receives chime requests and plays the chime over I²S, synthesized once at startup with `wade_firmware::bell`. Powers the amplifier only while it plays. | Audio channel |
 | Power (M6) | Reads the PMIC and proximity sensor | Event channel |
 | Network (M7) | Wi-Fi connection and weather requests | Network channel, event channel |
 
@@ -113,7 +113,7 @@ Build with `--features measure` to log frame times, touch latency, and uptime ([
 1. Initialize clocks, the I²C bus, and logging.
 2. Configure the AXP2101 power rails, with the backlight off. The PMIC keeps its registers across a reset, so every rail is set, and each write is retried: the first transaction after a reset is sometimes not acknowledged.
 3. Configure the AW9523B: release resets, enable the display, touch, and amplifier, and pulse the LCD's reset.
-4. Initialize the display over SPI, then spawn the touch task.
+4. Initialize the display over SPI, then spawn the touch and audio tasks.
 5. Seed the PRNG from the hardware random number generator and create `App`.
 6. Render the first frame, then turn on the backlight at the saved brightness.
 

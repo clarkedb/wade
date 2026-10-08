@@ -12,6 +12,7 @@
     holding buffers for the duration of a data transfer."
 )]
 
+mod audio;
 mod display;
 #[cfg(feature = "measure")]
 mod measure;
@@ -31,6 +32,7 @@ use esp_hal::clock::CpuClock;
 use esp_hal::dma_tx_buffer;
 use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig, Pull};
 use esp_hal::i2c::master::I2c;
+use esp_hal::i2s::master::{Channels, DataFormat, I2s, TdmConfig};
 use esp_hal::rng::Rng;
 use esp_hal::spi::Mode;
 use esp_hal::spi::master::{Config, Spi};
@@ -40,6 +42,7 @@ use log::{info, warn};
 use static_cell::StaticCell;
 use wade_core::{App, Effect, Event, Instant, Settings};
 
+use audio::{CHIME_BYTES, CHIME_CAPACITY, Chime};
 use display::{BAND_BYTES, COMMAND_BYTES, Display};
 
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -52,6 +55,7 @@ const I2C_CLOCK: Rate = Rate::from_khz(400);
 /// wait when it is full.
 pub const EVENT_CAPACITY: usize = 16;
 static EVENTS: Channel<CriticalSectionRawMutex, Event, EVENT_CAPACITY> = Channel::new();
+static CHIMES: Channel<CriticalSectionRawMutex, Chime, CHIME_CAPACITY> = Channel::new();
 
 /// The internal I²C bus, shared by the PMIC, IO expander, touch controller,
 /// and amplifier.
@@ -120,6 +124,32 @@ async fn main(spawner: Spawner) -> ! {
             .expect("the touch task is spawned once"),
     );
 
+    let i2s = I2s::new(
+        peripherals.I2S1,
+        peripherals.DMA_CH1,
+        TdmConfig::new_tdm_philips()
+            .with_sample_rate(Rate::from_hz(audio::SAMPLE_RATE))
+            .with_data_format(DataFormat::Data16Channel16)
+            .with_channels(Channels::STEREO),
+    )
+    .expect("the I2S configuration is valid")
+    .into_async();
+    let tx = i2s
+        .i2s_tx
+        .with_bclk(peripherals.GPIO34)
+        .with_ws(peripherals.GPIO33)
+        .with_dout(peripherals.GPIO13)
+        .build();
+    spawner.spawn(
+        audio::run(
+            Bus::new(i2c),
+            tx,
+            dma_tx_buffer!(CHIME_BYTES).expect("the chime fits DMA limits"),
+            CHIMES.receiver(),
+        )
+        .expect("the audio task is spawned once"),
+    );
+
     let rng = Rng::new();
     let seed = u64::from(rng.random()) << 32 | u64::from(rng.random());
     info!("seed {seed}");
@@ -157,7 +187,11 @@ async fn main(spawner: Spawner) -> ! {
         let output = app.handle(event);
         for effect in output.effects {
             match effect {
-                Effect::Chime => info!("chime"),
+                Effect::Chime => {
+                    if CHIMES.try_send(Chime).is_err() {
+                        warn!("chime queue full; dropped a chime");
+                    }
+                }
                 Effect::SetBrightness(brightness) => {
                     if let Err(e) = power::set_brightness(&mut bus, brightness).await {
                         warn!("backlight not set: {e:?}");
