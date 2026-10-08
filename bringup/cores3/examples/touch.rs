@@ -161,7 +161,7 @@ async fn main(_spawner: Spawner) -> ! {
                 readout(&mut panel, &mut buf, &s);
                 press = None;
                 presses += 1;
-                if presses % 10 == 0 {
+                if presses.is_multiple_of(10) {
                     targets(&mut panel);
                     crosshair(&mut panel, 160, 140, WHITE);
                 }
