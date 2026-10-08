@@ -17,6 +17,7 @@ mod display;
 #[cfg(feature = "measure")]
 mod measure;
 mod power;
+mod storage;
 mod touch;
 
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
@@ -153,7 +154,14 @@ async fn main(spawner: Spawner) -> ! {
     let rng = Rng::new();
     let seed = u64::from(rng.random()) << 32 | u64::from(rng.random());
     info!("seed {seed}");
-    let settings = Settings::DEFAULT;
+    let mut store = storage::open(peripherals.FLASH);
+    let settings = match &mut store {
+        Some(store) => store.load().await.unwrap_or_else(|e| {
+            warn!("settings unreadable ({e:?}); starting with the defaults");
+            Settings::DEFAULT
+        }),
+        None => Settings::DEFAULT,
+    };
     let mut app = App::new(now(), seed, settings);
     display.show(&app.view()).await;
     // Turned on only once the first frame is up, so the panel's power-on noise never shows.
@@ -197,7 +205,13 @@ async fn main(spawner: Spawner) -> ! {
                         warn!("backlight not set: {e:?}");
                     }
                 }
-                Effect::SaveSettings(_) => info!("settings are not kept yet"),
+                Effect::SaveSettings(settings) => {
+                    if let Some(store) = &mut store
+                        && let Err(e) = store.save(&settings).await
+                    {
+                        warn!("settings not saved: {e:?}");
+                    }
+                }
             }
         }
         redraw |= output.redraw;
