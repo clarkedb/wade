@@ -34,9 +34,9 @@ macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homeb
 | Part | Role in Wade | Notes |
 |---|---|---|
 | ESP32-S3: dual-core Xtensa LX7 at 240 MHz, 512 KB internal SRAM, 16 MB flash, 8 MB PSRAM | Runs everything | Xtensa requires Espressif's Rust toolchain |
-| ILI9342C 320×240 IPS LCD over SPI | Display | |
-| Capacitive touch controller on I²C | Touch | Shares the internal I²C bus. Its interrupt line is believed to be routed through the AW9523B (unverified). |
-| AXP2101 PMIC | Power to the display and peripherals; battery and charging status | Must be configured before the display works. The backlight is believed to be one of its LDO outputs (DLDO1 in M5Unified), which would make brightness a PMIC voltage setting (unverified). |
+| ILI9342C 320×240 IPS LCD over SPI | Display | Reset through the AW9523B |
+| FT6336U capacitive touch controller on I²C | Touch | Shares the internal I²C bus. Its interrupt reaches the ESP32 through the AW9523B's interrupt output. |
+| AXP2101 PMIC | Power to the display and peripherals; battery and charging status | Must be configured before the display works. The backlight runs from its DLDO1 output, so brightness is a PMIC voltage setting. |
 | AW9523B IO expander on I²C | Reset and enable lines for the display, touch, and audio | Must be configured before those parts work |
 | AW88298 amplifier over I²S, 1 W speaker | Chime | |
 | LTR-553ALS proximity and ambient-light sensor | M6: wake on approach, possibly auto-brightness | |
@@ -46,7 +46,7 @@ macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homeb
 
 The device has no vibration motor, so there is no vibration effect.
 
-M5Stack sells cut-down CoreS3 variants that drop some of these parts. The bring-up's first job is to confirm this unit has the parts listed above, especially the proximity sensor and battery that M6 depends on. If it does not, the project moves to the standard CoreS3, which the rest of this document also describes.
+M5Stack sells cut-down CoreS3 variants that drop some of these parts. The hardware bring-up confirmed this unit has all of them, including the proximity sensor and battery that M6 depends on.
 
 M5Stack's C++ library M5Unified is the reference for the board's initialization sequences (PMIC rails, IO expander pins, display and audio setup). Port only the parts Wade needs, and record them in `docs/hardware-notes.md` during the hardware bring-up.
 
@@ -58,7 +58,7 @@ M5Stack's C++ library M5Unified is the reference for the board's initialization 
 | Flashing and serial monitor | `espflash`, configured as the cargo runner, so `cargo run --release` flashes and shows logs |
 | Logging | `log` with `esp-println` |
 | Panics | `esp-backtrace`, which prints a backtrace over serial |
-| Display driver | `mipidsi` (which supports the ILI9342C), or a small custom driver if an async DMA flush is needed |
+| Display driver | A small custom driver: DMA at 80 MHz, drawing one band while the last is sent, as on the CYD |
 | Shared I²C bus | `embassy-embedded-hal` shared-bus wrappers, because the touch controller, PMIC, IO expander, and proximity sensor share one bus |
 | Heap | None until Wi-Fi (M7) requires one, then `esp-alloc`, confined to the platform crate |
 | Wi-Fi (M7) | `esp-radio` with `embassy-net` |
@@ -97,15 +97,15 @@ loop {
     if output.redraw {
         let view = app.view();
         wade_core::render::draw(&view, &mut framebuffer).ok();
-        display.flush(&framebuffer).await; // or only render::damage(&last_view, &view); see ui.md
+        display.flush(&framebuffer).await; // in bands; see ui.md
         last_view = view;
     }
 }
 ```
 
-Touch input: if the touch controller's interrupt line is usable (on this board it may be routed through the IO expander), the touch task waits on it. Otherwise it polls at 50 Hz while the display is on. Either way, polling stays inside the platform and the core sees only events.
+Touch input: the touch task waits for the AW9523B's interrupt, which follows the touch controller's, then reads the controller until the touch ends. Polling stays inside the platform and the core sees only events.
 
-Memory: the framebuffer is 153,600 bytes. It fits in internal SRAM today, but in M7 the Wi-Fi stack, its heap, and TLS all need internal RAM too, and moving the framebuffer to PSRAM then would reopen the flush-time measurements. The hardware bring-up therefore makes the placement decision with M7's needs in mind: it measures flush time from both internal SRAM and PSRAM, and records the choice and the reasoning in `docs/hardware-notes.md`. Drawing in strips ([ui.md](ui.md#banded-rendering)) avoids the full framebuffer if internal RAM runs short.
+Memory: frames are drawn in bands in internal SRAM ([ui.md](ui.md#banded-rendering)), not into a full 150 KB framebuffer. Bands flush as fast, because drawing overlaps the bus, and leave internal RAM for M7's Wi-Fi stack, heap, and TLS. Drawing into PSRAM is six times slower. The measurements are in [hardware-notes.md](hardware-notes.md#cores3-lite).
 
 ### Boot sequence
 

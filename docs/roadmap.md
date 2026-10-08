@@ -113,26 +113,11 @@ Measurements are in [hardware-notes.md](hardware-notes.md#measurements); the fir
 
 ## Hardware bring-up
 
-A throwaway firmware in `bringup/cores3/`, outside both workspaces. `bringup/` must be listed in the root workspace's `exclude` (see [architecture.md](architecture.md#crates)). Its purpose is to retire hardware risk before the port.
-
-| # | Goal |
-|---|---|
-| 1 | Confirm the unit has the parts in [platforms.md](platforms.md#hardware), especially the proximity sensor and battery. If not, switch to the standard CoreS3. |
-| 2 | Install the toolchain; flash a program that logs over USB serial |
-| 3 | Configure the PMIC and IO expander; turn the display on |
-| 4 | Fill the screen with solid colors; measure full-frame flush time |
-| 5 | Measure the flush time of partial windows (the blink and expression-change rectangles in [ui.md](ui.md#partial-flush)), and try SPI clocks above 40 MHz |
-| 6 | Draw `embedded-graphics` shapes and text |
-| 7 | Read touch points; confirm they match display coordinates and orientation. Check whether the interrupt line is usable (believed to be routed through the AW9523B). |
-| 8 | Play a tone through the amplifier and speaker |
-| 9 | Find how display brightness is controlled (believed to be an AXP2101 LDO voltage) |
-| 10 | Decide where the framebuffer lives (internal SRAM or PSRAM), with M7's Wi-Fi and TLS memory needs in mind, and confirm DMA from it works |
-
-It runs the [bring-up checklist](testing.md#bring-up-checklist) alongside the goals above. Output: a section in `docs/hardware-notes.md`, recording initialization sequences, pin and register details, and measured numbers (flush times, memory use). It ends with a decision on whether M3 needs `render::damage`. Done when all ten goals are demonstrated and written up.
+Done. A throwaway firmware in `bringup/cores3/`. It confirmed the unit has every part Wade needs; ported the PMIC and IO expander setup; found the panel steady with DMA at 80 MHz, for about 16 ms a frame, so M3 needs no `render::damage`; read touch in screen coordinates with a usable interrupt; played the chime over I²S; drove brightness through the PMIC; and chose bands in internal SRAM over a framebuffer. Findings are in [hardware-notes.md](hardware-notes.md#cores3-lite).
 
 ## M3 Device port
 
-Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); framebuffer rendering and flushing, with `render::damage` and partial flushes if the bring-up calls for them ([ui.md](ui.md#partial-flush)); seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`; the CI firmware job.
+Scope: the `wade-cores3` crate with the app, touch, and audio tasks from [platforms.md](platforms.md#tasks); banded rendering with a DMA flush at 80 MHz ([ui.md](ui.md#banded-rendering)); seeding from the hardware random number generator; the M2 feature set running unchanged from `wade-core`; the CI firmware job.
 
 Done when:
 
@@ -204,7 +189,7 @@ No wall-clock time is needed; "updated N min ago" uses `Instant`.
 
 Risk: the API uses HTTPS, and TLS on `no_std` means an additional crate (such as `esp-mbedtls` or `embedded-tls`) and extra memory. Bring it up first, before building the screen. Fallback: Open-Meteo is believed to also serve plain HTTP, which avoids TLS entirely at the cost of an unencrypted request (it carries only a location). Confirm before relying on it.
 
-Risk: memory. The Wi-Fi stack, its heap, and TLS all need internal RAM, competing with the framebuffer if it lives there. The bring-up's framebuffer decision should already account for this; if it does not, M7 starts by re-measuring.
+Risk: memory. The Wi-Fi stack, its heap, and TLS all need internal RAM. Drawing in bands leaves about 260 KB of it free on the CoreS3; if that is not enough, PSRAM can take large buffers.
 
 Open questions: units (a setting, °C or °F); which weather conditions get icons.
 
