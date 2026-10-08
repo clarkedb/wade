@@ -38,6 +38,7 @@ pub async fn init(i2c: &mut I2c<'_, Blocking>) -> Result<(), Error> {
         (0x93, 28),   // ALDO2 3.3 V: ES7210 microphone codec
         (0x94, 28),   // ALDO3 3.3 V: camera
         (0x95, 28),   // ALDO4 3.3 V: SD card
+        (0x99, 28),   // DLDO1 3.3 V: backlight, full brightness. The PMIC keeps it across resets.
         (0x27, 0x00), // power key: hold 1 s to turn on, 4 s to turn off
         (0x69, 0x11), // charge LED
         (0x10, 0x30), // PMU common config
