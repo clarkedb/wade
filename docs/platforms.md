@@ -1,6 +1,6 @@
 # Platforms
 
-The desktop platform runs the loop in [architecture.md](architecture.md#core-api). The planned CoreS3 Lite firmware will use the same core API: stamp events, handle effects, redraw when asked, and wake at `App::next_deadline`.
+The desktop platform runs the loop in [architecture.md](architecture.md#core-api). The firmware uses the same core API: stamp events, handle effects, redraw when asked, and wake at `App::next_deadline`.
 
 ## Desktop (`wade-desktop`)
 
@@ -27,7 +27,7 @@ Development flags:
 
 macOS setup: `brew install sdl2`. On Apple Silicon the linker may not find Homebrew's SDL2; if so, add `export LIBRARY_PATH="${LIBRARY_PATH:+$LIBRARY_PATH:}$(brew --prefix)/lib"` to your shell profile. Linux support is deferred; it will need SDL2 and ALSA (`libasound2-dev`) from the distribution's package manager, and serial-port permissions for flashing the device.
 
-## M5Stack CoreS3 Lite (planned `wade-cores3`)
+## M5Stack CoreS3 Lite (`wade-cores3`)
 
 ### Hardware
 
@@ -48,7 +48,7 @@ The CoreS3 Lite has no vibration motor, so there is no vibration effect.
 
 M5Stack sells cut-down CoreS3 variants that drop some of these parts. The supported CoreS3 Lite configuration includes all of them, including the proximity sensor and battery that M6 depends on.
 
-M5Stack's C++ library M5Unified is the reference for the board's initialization sequences (PMIC rails, IO expander pins, display and audio setup). Port only the parts Wade needs, and record them in `docs/hardware-notes.md` during the hardware bring-up.
+M5Stack's C++ library M5Unified is the reference for the board's initialization sequences (PMIC rails, IO expander pins, display and audio setup). Wade ports only the parts it needs; [hardware-notes.md](hardware-notes.md#cores3-lite) records them.
 
 ### Firmware stack
 
@@ -59,7 +59,7 @@ M5Stack's C++ library M5Unified is the reference for the board's initialization 
 | Logging | `log` with `esp-println` |
 | Panics | `esp-backtrace`, which prints a backtrace over serial |
 | Display driver | A small custom driver: DMA at 80 MHz, drawing one band while the last is sent, as on the CYD |
-| Shared I²C bus | `embassy-embedded-hal` shared-bus wrappers, because the touch controller, PMIC, IO expander, and proximity sensor share one bus |
+| Shared I²C bus | `embassy-embedded-hal` shared-bus wrappers, because the touch controller, PMIC, IO expander, amplifier, and proximity sensor share one bus |
 | Heap | None until Wi-Fi (M7) requires one, then `esp-alloc`, confined to the platform crate |
 | Wi-Fi (M7) | `esp-radio` with `embassy-net` |
 
@@ -67,7 +67,7 @@ M5Stack's C++ library M5Unified is the reference for the board's initialization 
 
 | Task | Responsibility | Talks to the app task through |
 |---|---|---|
-| App | Owns `App`. Waits for an event or the next deadline, handles it, renders into the framebuffer, and flushes it to the display. | (it is the app task) |
+| App | Owns `App`. Waits for an event or the next deadline, handles it, and draws the view to the display in bands. Sets brightness and saves settings itself. | (it is the app task) |
 | Touch | Reads the touch controller and sends `Touch` events | Event channel |
 | Audio | Receives chime requests and plays the chime over I²S | Audio channel |
 | Power (M6) | Reads the PMIC and proximity sensor | Event channel |
@@ -95,10 +95,7 @@ loop {
         route(effect); // try_send to the consumer's channel; drop and log if full
     }
     if output.redraw {
-        let view = app.view();
-        wade_core::render::draw(&view, &mut framebuffer).ok();
-        display.flush(&framebuffer).await; // in bands; see ui.md
-        last_view = view;
+        display.show(&app.view()).await; // in bands; see ui.md
     }
 }
 ```
@@ -107,14 +104,18 @@ Touch input: the touch task waits for the AW9523B's interrupt, which follows the
 
 Memory: frames are drawn in bands in internal SRAM ([ui.md](ui.md#banded-rendering)), not into a full 150 KB framebuffer. Bands flush as fast, because drawing overlaps the bus, and leave internal RAM for M7's Wi-Fi stack, heap, and TLS. Drawing into PSRAM is six times slower. The measurements are in [hardware-notes.md](hardware-notes.md#cores3-lite).
 
+Brightness: the backlight's DLDO1 voltage, at four steps from 2.8 V to 3.3 V. Below about 2.7 V the screen is dark.
+
+Build with `--features measure` to log frame times, touch latency, and uptime ([hardware-notes.md](hardware-notes.md#cores3-lite)).
+
 ### Boot sequence
 
 1. Initialize clocks, the I²C bus, and logging.
-2. Configure the AXP2101 power rails.
-3. Configure the AW9523B: release resets and enable the display, touch, and amplifier.
-4. Initialize the display over SPI, then touch, then audio.
+2. Configure the AXP2101 power rails, with the backlight off. The PMIC keeps its registers across a reset, so every rail is set, and each write is retried: the first transaction after a reset is sometimes not acknowledged.
+3. Configure the AW9523B: release resets, enable the display, touch, and amplifier, and pulse the LCD's reset.
+4. Initialize the display over SPI.
 5. Seed the PRNG from the hardware random number generator and create `App`.
-6. Spawn tasks and render the first frame.
+6. Render the first frame, then turn on the backlight at the saved brightness.
 
 ### Toolchain setup
 

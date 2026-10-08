@@ -5,7 +5,7 @@
 The project splits into one core crate and one crate per platform. The core decides what Wade does; a platform connects the core to real inputs, a real clock, and real outputs.
 
 ```text
- Platform (desktop; device planned)          Core (wade-core)
+ Platform (desktop or firmware)              Core (wade-core)
 ┌──────────────────────────────┐             ┌────────────────────┐
 │ clock, touch, sensors        │── Event ───►│                    │
 │ deadline timer               │── Event ───►│        App         │
@@ -32,7 +32,7 @@ Its dependencies are limited to `embedded-graphics` (drawing), `heapless` (fixed
 
 ## Crates
 
-The workspace contains an allocation-free `no_std` core, a desktop simulator, and `wade-firmware`: device logic that is neither Wade's behavior nor hardware access, such as filtering and calibrating touch readings, and storing settings in flash. `wade-firmware` follows the core's `no_std` and no-`alloc` rules, so the firmware can link it and its tests run on the host ([D31](decisions.md#d31-device-logic-lives-in-a-host-tested-crate)). Platforms depend on the core; the core depends on no platform. Firmware crates, `wade-cyd` now and `wade-cores3` in M3, sit outside the root workspace because they build with Espressif's Xtensa toolchain.
+The workspace contains an allocation-free `no_std` core, a desktop simulator, and `wade-firmware`: device logic that is neither Wade's behavior nor hardware access, such as filtering and calibrating touch readings, and storing settings in flash. `wade-firmware` follows the core's `no_std` and no-`alloc` rules, so the firmware can link it and its tests run on the host ([D31](decisions.md#d31-device-logic-lives-in-a-host-tested-crate)). Platforms depend on the core; the core depends on no platform. Firmware crates, `wade-cores3` and `wade-cyd`, sit outside the root workspace because they build with Espressif's Xtensa toolchain.
 
 Cargo requires packages under the repository root that are not workspace members to be excluded explicitly. The workspace excludes the firmware crates and the bring-up firmware. Its `rust-version` is the oldest toolchain any crate builds with, so the firmware's Xtensa fork can build `wade-core`.
 

@@ -1,6 +1,6 @@
 # Wade: design
 
-Wade is an animated desk companion. He reacts to touch with facial expressions and small actions, and hosts a timer and settings. Weather is planned. The Rust core, desktop simulator, and CYD firmware are implemented; CoreS3 Lite firmware is planned.
+Wade is an animated desk companion. He reacts to touch with facial expressions and small actions, and hosts a timer and settings. Weather is planned. The Rust core, desktop simulator, and CoreS3 Lite and CYD firmware are implemented.
 
 | Target                               | Role                                                                                                                              |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,7 +20,7 @@ Wade is an animated desk companion. He reacts to touch with facial expressions a
 
 ## Non-goals for now
 
-Camera, microphones, motion sensors, text or speech from Wade, deep sleep, over-the-air updates, and localization are out of scope. Desktop settings persist now; device storage and networking are planned in [roadmap.md](roadmap.md).
+Camera, microphones, motion sensors, text or speech from Wade, deep sleep, over-the-air updates, and localization are out of scope. Settings persist on every platform; networking is planned in [roadmap.md](roadmap.md).
 
 ## Documents
 

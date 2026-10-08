@@ -1,0 +1,2 @@
+stack-size-threshold = 1024
+doc-valid-idents = ["CoreS3", "M5Stack", "M5Unified", ".."]
