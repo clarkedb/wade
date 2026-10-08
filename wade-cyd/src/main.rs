@@ -13,6 +13,7 @@
 )]
 
 mod display;
+mod storage;
 mod touch;
 
 use embassy_executor::Spawner;
@@ -29,7 +30,7 @@ use esp_hal::spi::Mode;
 use esp_hal::spi::master::{Config, Spi};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
-use log::info;
+use log::{info, warn};
 use wade_core::{App, Effect, Event, Instant, Settings};
 
 use display::{BAND_BYTES, COMMAND_BYTES, Display};
@@ -106,7 +107,15 @@ async fn main(spawner: Spawner) -> ! {
     let rng = Rng::new();
     let seed = u64::from(rng.random()) << 32 | u64::from(rng.random());
     info!("seed {seed}");
-    let mut app = App::new(now(), seed, Settings::DEFAULT);
+    let mut store = storage::open(peripherals.FLASH);
+    let settings = match &mut store {
+        Some(store) => store.load().await.unwrap_or_else(|e| {
+            warn!("settings unreadable ({e:?}); starting with the defaults");
+            Settings::DEFAULT
+        }),
+        None => Settings::DEFAULT,
+    };
+    let mut app = App::new(now(), seed, settings);
     display.show(&app.view()).await;
     // Turned on only once the first frame is up, so the panel's power-on noise never shows.
     let _backlight = Output::new(peripherals.GPIO21, Level::High, OutputConfig::default());
@@ -125,7 +134,13 @@ async fn main(spawner: Spawner) -> ! {
         for effect in output.effects {
             match effect {
                 Effect::Chime => info!("chime"),
-                Effect::SaveSettings(_) => info!("settings changed; not stored yet"),
+                Effect::SaveSettings(settings) => {
+                    if let Some(store) = &mut store
+                        && let Err(e) = store.save(&settings).await
+                    {
+                        warn!("settings not saved: {e:?}");
+                    }
+                }
             }
         }
         if output.redraw {

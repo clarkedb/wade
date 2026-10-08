@@ -134,6 +134,7 @@ A classic-ESP32 board with a 2.8" 320×240 resistive touchscreen, used until the
 | Display | ILI9341 over SPI with DMA at 40 MHz. No room for a framebuffer beside Wi-Fi, so frames are drawn in 40-row bands ([ui.md](ui.md#banded-rendering)), one drawn while the last is sent. |
 | Touch | XPT2046, resistive. The touch task waits for the controller's interrupt line, then samples at about 100 Hz until it clears. `wade-firmware` filters the samples and maps them to the screen with fixed calibration constants, turning them into Down, Move, and Up. |
 | Audio | Amp on a GPIO; the chime as PWM tones with a hardware fade. Needs a speaker plugged into the board. |
+| Settings | Stored in the partition table's NVS data partition (24 KB in espflash's default table) through `wade-firmware`'s settings store, which uses `sequential-storage` to spread writes across the partition. A missing or unusable partition is logged and Wade starts with the defaults. |
 | Brightness | PWM on the backlight pin |
 | Power | No PMIC or IO expander to configure; no battery, proximity sensor, or RTC, so M6 does not apply |
 

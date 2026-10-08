@@ -30,6 +30,8 @@ wade-core        = { path = "../wade-core" }
 wade-firmware    = { path = "../wade-firmware" }
 embassy-futures  = "0.1.2"
 embassy-sync     = "0.8.0"
+embassy-embedded-hal = "0.6.0"
+esp-storage      = { version = "0.10.0", features = ["esp32", "embedded-storage"] }
 
 
 # For fine tuning these settings, please refer to https://doc.rust-lang.org/cargo/reference/profiles.html
