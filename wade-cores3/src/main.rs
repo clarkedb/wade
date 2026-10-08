@@ -16,6 +16,7 @@ mod display;
 #[cfg(feature = "measure")]
 mod measure;
 mod power;
+mod touch;
 
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_executor::Spawner;
@@ -28,7 +29,7 @@ use esp_backtrace as _;
 use esp_hal::Async;
 use esp_hal::clock::CpuClock;
 use esp_hal::dma_tx_buffer;
-use esp_hal::gpio::{Level, Output, OutputConfig};
+use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig, Pull};
 use esp_hal::i2c::master::I2c;
 use esp_hal::rng::Rng;
 use esp_hal::spi::Mode;
@@ -67,13 +68,7 @@ fn to_embassy(at: Instant) -> embassy_time::Instant {
 }
 
 #[esp_rtos::main]
-async fn main(
-    #[cfg_attr(
-        not(feature = "measure"),
-        allow(unused_variables, reason = "only the measure build spawns a task")
-    )]
-    spawner: Spawner,
-) -> ! {
+async fn main(spawner: Spawner) -> ! {
     esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
     let timg0 = TimerGroup::new(peripherals.TIMG0);
@@ -116,6 +111,15 @@ async fn main(
     )
     .await;
 
+    let interrupt = Input::new(
+        peripherals.GPIO21,
+        InputConfig::default().with_pull(Pull::Up),
+    );
+    spawner.spawn(
+        touch::run(Bus::new(i2c), interrupt, EVENTS.sender())
+            .expect("the touch task is spawned once"),
+    );
+
     let rng = Rng::new();
     let seed = u64::from(rng.random()) << 32 | u64::from(rng.random());
     info!("seed {seed}");
@@ -133,6 +137,9 @@ async fn main(
         measure::Stats::new()
     };
 
+    let mut redraw = false;
+    #[cfg(feature = "measure")]
+    let mut touched = None;
     loop {
         let event = match app.next_deadline() {
             Some(deadline) => {
@@ -159,16 +166,20 @@ async fn main(
                 Effect::SaveSettings(_) => info!("settings are not kept yet"),
             }
         }
-        if output.redraw {
+        redraw |= output.redraw;
+        #[cfg(feature = "measure")]
+        if output.redraw && matches!(event.kind, wade_core::EventKind::Touch(_)) {
+            touched.get_or_insert(to_embassy(event.at));
+        }
+        // Handle every event already waiting before drawing, so a burst of
+        // touches costs one frame rather than queueing a frame each.
+        if redraw && EVENTS.is_empty() {
+            redraw = false;
             #[cfg(feature = "measure")]
             let started = embassy_time::Instant::now();
             display.show(&app.view()).await;
             #[cfg(feature = "measure")]
-            stats.frame(
-                started,
-                embassy_time::Instant::now(),
-                matches!(event.kind, wade_core::EventKind::Touch(_)).then(|| to_embassy(event.at)),
-            );
+            stats.frame(started, embassy_time::Instant::now(), touched.take());
         }
     }
 }
