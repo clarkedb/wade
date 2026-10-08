@@ -5,5 +5,6 @@
 
 #![no_std]
 
+pub mod ft6336;
 pub mod settings_store;
 pub mod xpt2046;
