@@ -32,6 +32,7 @@ embassy-futures  = "0.1.2"
 embassy-sync     = "0.8.0"
 embassy-embedded-hal = "0.6.0"
 embedded-hal-async = "1.0.0"
+esp-storage      = { version = "0.10.0", features = ["esp32s3", "embedded-storage"] }
 
 
 [features]
