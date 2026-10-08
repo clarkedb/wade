@@ -137,6 +137,9 @@ async fn main(spawner: Spawner) -> ! {
         measure::Stats::new()
     };
 
+    let mut redraw = false;
+    #[cfg(feature = "measure")]
+    let mut touched = None;
     loop {
         let event = match app.next_deadline() {
             Some(deadline) => {
@@ -163,16 +166,20 @@ async fn main(spawner: Spawner) -> ! {
                 Effect::SaveSettings(_) => info!("settings are not kept yet"),
             }
         }
-        if output.redraw {
+        redraw |= output.redraw;
+        #[cfg(feature = "measure")]
+        if output.redraw && matches!(event.kind, wade_core::EventKind::Touch(_)) {
+            touched.get_or_insert(to_embassy(event.at));
+        }
+        // Handle every event already waiting before drawing, so a burst of
+        // touches costs one frame rather than queueing a frame each.
+        if redraw && EVENTS.is_empty() {
+            redraw = false;
             #[cfg(feature = "measure")]
             let started = embassy_time::Instant::now();
             display.show(&app.view()).await;
             #[cfg(feature = "measure")]
-            stats.frame(
-                started,
-                embassy_time::Instant::now(),
-                matches!(event.kind, wade_core::EventKind::Touch(_)).then(|| to_embassy(event.at)),
-            );
+            stats.frame(started, embassy_time::Instant::now(), touched.take());
         }
     }
 }
