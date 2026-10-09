@@ -18,8 +18,8 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import AdmZip from "adm-zip";
 
-const SITE = dirname(fileURLToPath(import.meta.url));
-const ROOT = dirname(SITE);
+const WEBSITE = dirname(fileURLToPath(import.meta.url));
+const ROOT = dirname(WEBSITE);
 export const BOARDS = {
   cores3: { name: "M5Stack CoreS3 Lite", family: "ESP32-S3" },
   cyd: { name: "CYD ESP32-2432S028R", family: "ESP32" },
@@ -100,7 +100,7 @@ function renderDownloads(catalog) {
 
 export function build(packages, output) {
   mkdirSync(output, { recursive: true });
-  cpSync(join(SITE, "public"), output, { recursive: true });
+  cpSync(join(WEBSITE, "public"), output, { recursive: true });
   copyFileSync(
     join(ROOT, "wade-core/tests/snapshots/pupils_0_neutral.png"),
     join(output, "wade.png"),
@@ -230,7 +230,7 @@ if (
   const { values } = parseArgs({
     options: {
       packages: { type: "string" },
-      output: { type: "string", default: join(ROOT, "dist/site") },
+      output: { type: "string", default: join(ROOT, "dist/website") },
       download: { type: "boolean", default: false },
       repo: { type: "string", default: "clarkedb/wade" },
     },

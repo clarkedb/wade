@@ -20,7 +20,7 @@ const START_MS: u64 = 1_000;
 fn main() -> Result<(), Box<dyn Error>> {
     let directory = std::env::args_os()
         .nth(1)
-        .ok_or("usage: site-animation OUTPUT_DIRECTORY")?;
+        .ok_or("usage: website-animation OUTPUT_DIRECTORY")?;
     let directory = Path::new(&directory);
     fs::create_dir_all(directory)?;
     let mut harness = Harness::new(42);

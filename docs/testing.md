@@ -142,12 +142,12 @@ cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf 
 ! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src wade-firmware/src           # proves neither uses alloc
 ```
 
-For site changes:
+For website changes:
 
 ```sh
-npm ci --prefix site
-npm test --prefix site
-npm --prefix site run build
+npm ci --prefix website
+npm test --prefix website
+npm --prefix website run build
 ```
 
 The bare-metal build needs `rustup target add thumbv7em-none-eabihf` once. It proves `wade-core` and `wade-firmware` are `no_std` but not that they avoid `alloc`, because `alloc` exists on that target too; the `grep` covers that.
@@ -156,14 +156,14 @@ Firmware builds separately with the Espressif toolchain: `cd wade-cores3 && carg
 
 ### CI
 
-GitHub Actions checks Rust and firmware on pushes. Site CI runs on pull requests
-that change `site/` and matching pushes to `main`.
+GitHub Actions checks Rust and firmware on pushes. Website CI runs on pull requests
+that change `website/` and matching pushes to `main`.
 
 | Job | Runner | Steps |
 |---|---|---|
 | Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev libasound2-dev` (SDL2 and ALSA, which only `wade-desktop` needs), then the Rust checks above |
 | Firmware | `ubuntu-latest` | Install the Xtensa toolchain with the `esp-rs/xtensa-toolchain` action, at the version `espup` installs locally, then `cargo fmt --check`, `cargo clippy`, and `cargo build --release` in `wade-cores3` and `wade-cyd` |
-| Site | `ubuntu-latest` | Install Node.js 24, then `npm ci`, `npm test`, and `npm run build` |
+| Website | `ubuntu-latest` | Install Node.js 24, then `npm ci`, `npm test`, and `npm run build` |
 
 A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The bring-up firmware under `bringup/` is not built in CI.
 

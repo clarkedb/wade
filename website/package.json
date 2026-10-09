@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "preview": "sirv ../dist/site --host 127.0.0.1 --port 8000 --dev",
+    "preview": "sirv ../dist/website --host 127.0.0.1 --port 8000 --dev",
     "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {

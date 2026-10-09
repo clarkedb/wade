@@ -1,27 +1,27 @@
-name: Site CI
+name: Website CI
 
 on:
   push:
     branches: [main]
-    paths: ["site/**"]
+    paths: ["website/**"]
   pull_request:
-    paths: ["site/**"]
+    paths: ["website/**"]
 
 permissions:
   contents: read
 
 concurrency:
-  group: site-ci-${{ github.ref }}
+  group: website-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  site:
-    name: Site
+  website:
+    name: Website
     runs-on: ubuntu-latest
     timeout-minutes: 5
     defaults:
       run:
-        working-directory: site
+        working-directory: website
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: site/package-lock.json
+          cache-dependency-path: website/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Test

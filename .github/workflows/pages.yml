@@ -1,9 +1,9 @@
-name: Installer
+name: Website
 
 on:
   push:
     branches: [main]
-    paths: ["site/**", "wade-core/tests/snapshots/pupils_0_neutral.png", ".github/workflows/pages.yml"]
+    paths: ["website/**", "wade-core/tests/snapshots/pupils_0_neutral.png", ".github/workflows/pages.yml"]
   workflow_dispatch:
   workflow_call:
 
@@ -28,20 +28,20 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: site/package-lock.json
-      - name: Install site tools
-        run: npm ci --prefix site
+          cache-dependency-path: website/package-lock.json
+      - name: Install website tools
+        run: npm ci --prefix website
       - name: Check installer downloads
-        run: npm test --prefix site
+        run: npm test --prefix website
       - name: Build installer from published firmware
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          npm --prefix site run build -- --download --repo "$GH_REPO"
+          npm --prefix website run build -- --download --repo "$GH_REPO"
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: dist/site
+          path: dist/website
 
   deploy:
     needs: build

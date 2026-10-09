@@ -18,7 +18,7 @@ function workspace(t) {
   const directory = mkdtempSync(join(tmpdir(), "wade-installer-test-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const packages = join(directory, "packages"),
-    output = join(directory, "site");
+    output = join(directory, "website");
   mkdirSync(packages);
   return { packages, output };
 }
