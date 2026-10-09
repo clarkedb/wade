@@ -60,3 +60,11 @@ jobs:
           gh release upload "$RELEASE_TAG" ./*.zip SHA256SUMS --clobber
           gh release edit "$RELEASE_TAG" --draft=false
 
+  installer:
+    name: Update browser installer
+    needs: publish
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

@@ -131,7 +131,7 @@ Recordings of interesting sessions go in `wade-core/tests/recordings/` as `*.eve
 
 ## Checks
 
-Run before every commit, and in CI:
+Run these checks before committing Rust changes, and in CI:
 
 ```sh
 scripts/check-version.sh
@@ -142,18 +142,28 @@ cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf 
 ! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src wade-firmware/src           # proves neither uses alloc
 ```
 
+For website changes:
+
+```sh
+npm ci --prefix website
+npm test --prefix website
+npm --prefix website run build
+```
+
 The bare-metal build needs `rustup target add thumbv7em-none-eabihf` once. It proves `wade-core` and `wade-firmware` are `no_std` but not that they avoid `alloc`, because `alloc` exists on that target too; the `grep` covers that.
 
 Firmware builds separately with the Espressif toolchain: `cd wade-cores3 && cargo build --release`, and `wade-cyd` the same way.
 
 ### CI
 
-CI runs two jobs on GitHub Actions:
+GitHub Actions checks Rust and firmware on pushes. Website CI runs on pull requests
+that change `website/` and matching pushes to `main`.
 
 | Job | Runner | Steps |
 |---|---|---|
-| Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev libasound2-dev` (SDL2 and ALSA, which only `wade-desktop` needs), then every check above |
+| Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev libasound2-dev` (SDL2 and ALSA, which only `wade-desktop` needs), then the Rust checks above |
 | Firmware | `ubuntu-latest` | Install the Xtensa toolchain with the `esp-rs/xtensa-toolchain` action, at the version `espup` installs locally, then `cargo fmt --check`, `cargo clippy`, and `cargo build --release` in `wade-cores3` and `wade-cyd` |
+| Website | `ubuntu-latest` | Install Node.js 24, then `npm ci`, `npm test`, and `npm run build` |
 
 A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The bring-up firmware under `bringup/` is not built in CI.
 
@@ -162,10 +172,19 @@ Host release-tool tests cover version drift, missing locked packages, malformed
 flash configuration, moved settings partitions, and corrupt, truncated, or
 oversized images. They run with the workspace tests and need no hardware or
 espflash installation.
-The release workflow reuses these checks at the exact release tag, packages both
-firmware targets, and publishes the draft only after every check passes. About's
-navigation, timer interruptions, text snapshots, and banded drawing are tested
-on the host. Release hardware checks are in [releases.md](releases.md#process).
+Installer tests check that HTML download links match the catalog, versions sort
+numerically, and empty or rebuilt catalogs do not advertise unavailable releases.
+For website changes, also check keyboard navigation, accessible field names and
+descriptions, contrast, reduced motion and the animation control, 320 px reflow,
+200% text size, and downloads without JavaScript. Run an accessibility scanner
+on both the normal page and its loading/error states; automated checks do not
+replace testing with a screen reader or testing the USB flow on hardware.
+
+The release workflow reuses the Rust and firmware checks at the exact release
+tag, packages both firmware targets, and publishes the draft only after every
+check passes. About's navigation, timer interruptions, text snapshots, and banded
+drawing are tested on the host. Release hardware checks are in
+[releases.md](releases.md#process).
 
 ## Device testing
 
