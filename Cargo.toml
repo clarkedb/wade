@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["wade-core", "wade-desktop", "wade-firmware"]
+members = ["wade-core", "wade-desktop", "wade-firmware", "xtask"]
 # wade-cyd and wade-cores3 need the Xtensa toolchain; bringup/ is throwaway. See docs/architecture.md#crates.
 exclude = ["wade-cyd", "wade-cores3", "bringup"]
 

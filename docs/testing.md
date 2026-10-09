@@ -134,6 +134,7 @@ Recordings of interesting sessions go in `wade-core/tests/recordings/` as `*.eve
 Run before every commit, and in CI:
 
 ```sh
+scripts/check-version.sh
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
@@ -155,6 +156,10 @@ CI runs two jobs on GitHub Actions:
 | Firmware | `ubuntu-latest` | Install the Xtensa toolchain with the `esp-rs/xtensa-toolchain` action, at the version `espup` installs locally, then `cargo fmt --check`, `cargo clippy`, and `cargo build --release` in `wade-cores3` and `wade-cyd` |
 
 A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The bring-up firmware under `bringup/` is not built in CI.
+
+CI also checks that the product version agrees across manifests and lockfiles.
+Host version-tool tests reject version drift, missing locked packages, and
+invalid semantic versions. They need no hardware.
 
 ## Device testing
 

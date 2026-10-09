@@ -36,6 +36,9 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       # The checks from docs/testing.md#checks.
+      - name: Product version
+        run: scripts/check-version.sh
+
       - name: Format
         run: cargo fmt --all --check
 
