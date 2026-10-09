@@ -79,24 +79,74 @@ where
     icons::draw(Icon::Apps, layout::APPS, 1, colors, target)
 }
 
-/// The back button: a small, low-contrast chevron pointing left.
-pub fn back_button<D>(pressed: bool, target: &mut D) -> Result<(), D::Error>
+#[derive(Clone, Copy)]
+enum Direction {
+    Left,
+    Up,
+    Down,
+}
+
+/// A Settings page arrow, dimmed when its direction is unavailable.
+pub fn page_arrow<D>(
+    area: Rectangle,
+    up: bool,
+    enabled: bool,
+    pressed: bool,
+    target: &mut D,
+) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    let colors = nav_button(layout::BACK, pressed, palette::DIM, target)?;
+    chevron(
+        area,
+        if up { Direction::Up } else { Direction::Down },
+        if enabled { palette::EYE } else { palette::DIM },
+        enabled && pressed,
+        target,
+    )
+}
+
+fn chevron<D>(
+    area: Rectangle,
+    direction: Direction,
+    color: Rgb565,
+    pressed: bool,
+    target: &mut D,
+) -> Result<(), D::Error>
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    let colors = nav_button(area, pressed, color, target)?;
     // Each arm steps one pixel across per pixel down, a true 45°, so the
     // staircase is even at this size where a stroked line comes out ragged.
-    let tip = layout::BACK.top_left + Point::new(19, 22);
+    let tip = area.top_left
+        + match direction {
+            Direction::Left => Point::new(19, 22),
+            Direction::Up => Point::new(22, 19),
+            Direction::Down => Point::new(22, 26),
+        };
     let step = |dx: i32, dy: i32| {
         Rectangle::new(tip + Point::new(dx, dy), Size::new(3, 3))
             .into_styled(PrimitiveStyle::with_fill(colors.ink))
     };
     for k in 0..8 {
-        step(k, -k).draw(target)?;
-        step(k, k).draw(target)?;
+        let (first, second) = match direction {
+            Direction::Left => ((k, -k), (k, k)),
+            Direction::Up => ((-k, k), (k, k)),
+            Direction::Down => ((-k, -k), (k, -k)),
+        };
+        step(first.0, first.1).draw(target)?;
+        step(second.0, second.1).draw(target)?;
     }
     Ok(())
+}
+
+/// The back button: a small, low-contrast chevron pointing left.
+pub fn back_button<D>(pressed: bool, target: &mut D) -> Result<(), D::Error>
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    chevron(layout::BACK, Direction::Left, palette::DIM, pressed, target)
 }
 
 /// Draw a navigation button's pressed look, if pressed, and return the colors

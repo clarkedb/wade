@@ -1,4 +1,8 @@
+#[path = "../scripts/build-info.rs"]
+mod build_info;
+
 fn main() {
+    build_info::emit();
     linker_be_nice();
     check_xtensa_linker_available();
     // make sure linkall.x is the last linker script (otherwise might cause problems with flip-link)

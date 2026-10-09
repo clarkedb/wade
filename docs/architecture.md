@@ -39,6 +39,13 @@ Cargo requires packages under the repository root that are not workspace members
 Release tooling is a separate host-only workspace package. Shell entry points
 run its version checks and firmware packaging; it is never linked into a device.
 
+## Build identity
+
+Platforms supply immutable `BuildInfo` at startup, before delivering events.
+The core owns About's navigation and rendering, but performs no Git queries or
+build-time inspection. Identity is separate from saved settings and excluded
+from replay hashes, so recordings remain comparable across builds.
+
 ## Time
 
 ```rust

@@ -158,6 +158,9 @@ Rejected: requesting hidden transitions as deadlines, which wakes the device eve
 
 Reason: Wade speaks only through expression, gaze, and small actions, and the screens around him should too. Icons drawn from primitives need no font, read at a glance from across a desk, and need no translation.
 
+Exception: About displays version and build metadata as diagnostic text. Its
+controls remain icons, and Wade still communicates only through his behavior.
+
 Rejected: text labels and titles in the built-in mono font, which put a word on every button.
 
 ## D27. Brightness waits for the device

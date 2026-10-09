@@ -2,13 +2,14 @@
 
 use crate::character::{Expression, Wade};
 use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
+use crate::info::BuildInfo;
 use crate::input::TouchTracker;
 use crate::layout::{self, Target, Tile};
 use crate::rng::Rng;
 use crate::settings::{Brightness, Settings, SettingsButton};
 use crate::time::{Duration, Instant};
 use crate::timer::{Chime, Digits, TimerButton, TimerPhase, TimerState};
-use crate::view::{BuddyView, LauncherView, SettingsView, View};
+use crate::view::{AboutView, BuddyView, LauncherView, SettingsPage, SettingsView, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
@@ -63,12 +64,15 @@ pub enum Screen {
     Launcher,
     Timer,
     Settings,
+    About,
 }
 
 #[derive(Clone, Debug)]
 pub struct App {
     now: Instant,
     screen: Screen,
+    settings_page: SettingsPage,
+    info: BuildInfo,
     wade: Wade,
     timer: TimerState,
     /// Randomness for behavior, apart from Wade's motion (D21).
@@ -91,6 +95,8 @@ impl App {
         App {
             now,
             screen: Screen::Buddy,
+            settings_page: SettingsPage::Device,
+            info: BuildInfo::UNKNOWN,
             wade: Wade::new(now, seed),
             timer: TimerState::Ready {
                 set: settings.timer(),
@@ -102,6 +108,13 @@ impl App {
             saved: settings,
             save_at: None,
         }
+    }
+
+    /// Supply immutable identity before delivering any events.
+    #[must_use]
+    pub fn with_build_info(mut self, info: BuildInfo) -> Self {
+        self.info = info;
+        self
     }
 
     #[must_use = "the platform must carry out the effects and honor redraw"]
@@ -131,6 +144,7 @@ impl App {
     fn on_touch(&mut self, touch: Touch, out: &mut Output) {
         let pressed = self.pressed_button();
         let screen = self.screen;
+        let page = self.settings_page;
         let row = self.timer.row();
         let tap = if touch.phase == TouchPhase::Down && self.now < self.touch_guard_until {
             self.touch.cancel();
@@ -140,7 +154,8 @@ impl App {
                 Screen::Buddy => layout::hit_buddy(p),
                 Screen::Launcher => layout::hit_launcher(p),
                 Screen::Timer => layout::hit_timer(p, row),
-                Screen::Settings => layout::hit_settings(p),
+                Screen::Settings => layout::hit_settings(p, page),
+                Screen::About => layout::hit_about(p),
             })
         };
         out.redraw |= self.pressed_button() != pressed;
@@ -149,6 +164,12 @@ impl App {
             Some(Target::Apps) => self.switch_to(Screen::Launcher, out),
             Some(Target::Tile(Tile::Timer)) => self.switch_to(Screen::Timer, out),
             Some(Target::Tile(Tile::Settings)) => self.switch_to(Screen::Settings, out),
+            Some(Target::About) => self.switch_to(Screen::About, out),
+            Some(Target::SettingsPage(page)) => {
+                self.settings_page = page;
+                self.touch.cancel();
+                out.redraw = true;
+            }
             Some(Target::Back) => self.back(out),
             Some(Target::Timer(TimerButton::Dismiss)) => self.dismiss(out),
             Some(Target::Timer(button)) => {
@@ -176,6 +197,7 @@ impl App {
         match self.screen {
             Screen::Timer if self.timer.phase() == TimerPhase::Done => self.dismiss(out),
             Screen::Timer | Screen::Settings => self.switch_to(Screen::Launcher, out),
+            Screen::About => self.switch_to(Screen::Settings, out),
             Screen::Launcher | Screen::Buddy => self.switch_to(Screen::Buddy, out),
         }
     }
@@ -239,6 +261,9 @@ impl App {
         // Leaving the Settings screen saves at once.
         if self.screen == Screen::Settings && screen != Screen::Settings && self.save_at.is_some() {
             self.save(out);
+        }
+        if screen == Screen::Settings && self.screen != Screen::About {
+            self.settings_page = SettingsPage::Device;
         }
         self.screen = screen;
         self.touch.cancel();
@@ -405,7 +430,12 @@ impl App {
             }),
             Screen::Timer => View::Timer(self.timer.view(self.now, self.pressed_button())),
             Screen::Settings => View::Settings(SettingsView {
+                page: self.settings_page,
                 settings: self.settings,
+                pressed: self.pressed_button(),
+            }),
+            Screen::About => View::About(AboutView {
+                info: self.info,
                 pressed: self.pressed_button(),
             }),
         }
@@ -420,6 +450,12 @@ impl App {
     #[must_use]
     pub const fn screen(&self) -> Screen {
         self.screen
+    }
+
+    /// The selected Settings page, retained while About is open.
+    #[must_use]
+    pub const fn settings_page(&self) -> SettingsPage {
+        self.settings_page
     }
 
     #[must_use]
