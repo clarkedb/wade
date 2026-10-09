@@ -1,0 +1,8 @@
+[flash]
+size = "4MB"
+mode = "dio"
+frequency = "40MHz"
+
+[idf]
+partition_table = "partitions.csv"
+partition_table_offset = 32768

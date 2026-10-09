@@ -37,7 +37,7 @@ The workspace contains an allocation-free `no_std` core, a desktop simulator, an
 Cargo requires packages under the repository root that are not workspace members to be excluded explicitly. The workspace excludes the firmware crates and the bring-up firmware. Its `rust-version` is the oldest toolchain any crate builds with, so the firmware's Xtensa fork can build `wade-core`.
 
 Release tooling is a separate host-only workspace package. Shell entry points
-run its version checks; it is never linked into a device.
+run its version checks and firmware packaging; it is never linked into a device.
 
 ## Time
 

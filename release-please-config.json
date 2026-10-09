@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "initial-version": "0.1.0",
+      "include-component-in-tag": false,
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "draft": true,
+      "force-tag-creation": true,
+      "pull-request-header": "Release Wade with the version and changes below.",
+      "pull-request-footer": "",
+      "extra-files": [
+        { "type": "toml", "path": "Cargo.toml", "jsonpath": "$.workspace.package.version" },
+        { "type": "toml", "path": "wade-cyd/Cargo.toml", "jsonpath": "$.package.version" },
+        { "type": "toml", "path": "wade-cores3/Cargo.toml", "jsonpath": "$.package.version" },
+        { "type": "toml", "path": "Cargo.lock", "jsonpath": "$.package[?(@.name.value=='wade-core' || @.name.value=='wade-desktop' || @.name.value=='wade-firmware' || @.name.value=='wade-xtask')].version" },
+        { "type": "toml", "path": "wade-cyd/Cargo.lock", "jsonpath": "$.package[?(@.name.value=='wade-core' || @.name.value=='wade-firmware' || @.name.value=='wade-cyd')].version" },
+        { "type": "toml", "path": "wade-cores3/Cargo.lock", "jsonpath": "$.package[?(@.name.value=='wade-core' || @.name.value=='wade-firmware' || @.name.value=='wade-cores3')].version" }
+      ]
+    }
+  }
+}
