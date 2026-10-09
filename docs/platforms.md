@@ -2,6 +2,9 @@
 
 The desktop platform runs the loop in [architecture.md](architecture.md#core-api). The firmware uses the same core API: stamp events, handle effects, redraw when asked, and wake at `App::next_deadline`.
 
+Other hardware is welcome. See the [contribution guide](../CONTRIBUTING.md#new-hardware)
+for requirements and bringing a new device into the supported release targets.
+
 ## Desktop (`wade-desktop`)
 
 | Concern | Implementation |
