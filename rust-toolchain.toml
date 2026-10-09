@@ -1,4 +1,4 @@
-# Toolchain for the root workspace (wade-core, wade-desktop). wade-cores3 has its own.
+# Toolchain for the host workspace. Firmware crates use the Espressif toolchain.
 [toolchain]
 channel = "1.98.1"
 profile = "minimal"
