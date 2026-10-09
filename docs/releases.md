@@ -23,11 +23,12 @@ PR explicitly creates a tag and a **draft** release, so CI can check out the tag
 while the release is still a draft. A release is published only after the
 checks and firmware packaging for that exact tag succeed.
 
-The repository must allow GitHub Actions to create pull requests. The default
-`GITHUB_TOKEN` cannot trigger CI from the release PR's creation or updates; run
-the CI workflow manually on that branch before merging. The release workflow
-uses its own job outputs to start verification, rather than relying on a
-token-created tag to trigger a second workflow.
+The repository must allow GitHub Actions to create pull requests. Pushes made
+with `GITHUB_TOKEN` do not trigger CI, so the release workflow explicitly
+dispatches CI on the release PR's branch whenever Release Please creates or
+updates it. The proposal job uses `actions: write`; no extra token is needed.
+After merging, the release workflow starts verification from its own job
+outputs rather than relying on a token-created tag to trigger another workflow.
 
 To recover a failed release build, rerun its failed jobs. Do not move an existing
 tag or replace published binaries: make a new release instead.
