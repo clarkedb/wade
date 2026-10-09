@@ -22,6 +22,7 @@ Each screen fills the display. Wade appears only on the Buddy screen; app screen
 | Timer | M2 | Countdown timer |
 | Launcher | M5 | Grid of app tiles |
 | Settings | M5 | Device settings |
+| About | Releases | Read-only version, board, and build identity |
 | Weather | M7 | Current conditions |
 
 Navigation:
@@ -30,6 +31,7 @@ Navigation:
 Buddy ──(apps button)──► Launcher
 Launcher ──(tile)──► Timer or Settings
 Timer or Settings ──(back button)──► Launcher
+Settings ──(information button)──► About ──(back button)──► Settings
 Launcher ──(back button)──► Buddy
 Timer finishes, on any screen ──► Timer, showing Done
 Timer in Done ──(Dismiss or back button)──► Buddy, Wade Proud (or groggy, if the timer woke him)
@@ -49,7 +51,7 @@ A screen change cancels any tap in progress. If the core switches screens while 
 
 All geometry (element rectangles, Wade's hit area, button positions) is defined once in `wade_core::layout` and used by both drawing and hit-testing, so what you see is always what you can tap.
 
-The four 48×48 corners are reserved for navigation on every screen: back top-left, apps bottom-right, and the other two kept free of touch targets. Nothing else takes touches there, Wade included.
+The four 48×48 corners are reserved for navigation: back top-left and apps bottom-right on Buddy. The top-right title takes no touches. Nothing else takes touches in the corners, Wade included. Settings page arrows sit along the right edge, clear of the corners.
 
 ## Buddy screen
 
@@ -141,14 +143,21 @@ Each button is its icon alone, and the title is a stopwatch ([D26](decisions.md#
 ```text
 ┌──────────────────────────────────────────┐
 │ ‹                                   gear │  y 0–48: back button (48×48), title icon
-│            eyes        dots              │  y 24–112: toggles, 88×88
-│                                          │
-│            bell        sun               │  y 128–216: toggles, 88×88
+│            eyes        dots            ˄ │  y 24–112: toggles, 88×88
+│ ●                                        │  page dots on the left
+│ ○          bell        sun             ˅ │  y 128–216: toggles, 88×88
 │                                          │
 └──────────────────────────────────────────┘
 ```
 
-Four toggles in the Launcher's grid, clear of the corners: Wade's look on top, the chime and brightness below. Each shows its setting's current value, at twice the size of a button's icon. Every change applies at once, and is saved 2 s after the last one or on leaving the screen ([M5](roadmap.md#m5-settings)).
+The first page has four toggles in the Launcher's grid, clear of the corners: Wade's look on top, the chime and brightness below. Each shows its setting's current value, at twice the size of a button's icon. Every change applies at once, and is saved 2 s after the last one or on leaving the screen ([M5](roadmap.md#m5-settings)).
+
+Settings holds at most four buttons per page. Up/down chevrons on the right
+move to the previous or next page. Both remain visible; unavailable directions
+are dimmed and ignore taps. Two dots stacked vertically on the left mark the
+current page. Page changes cancel the active
+touch and keep any pending save deadline. Opening Settings starts on the first
+page.
 
 | Toggle | Shows | Effect |
 |---|---|---|
@@ -158,6 +167,20 @@ Four toggles in the Launcher's grid, clear of the corners: Wade's look on top, t
 | Brightness | A sun, its rays longer the brighter | Steps the backlight down through 100, 75, 50, and 25%, then back to 100%. Applies at once through `SetBrightness`; the desktop dims its window to match ([D32](decisions.md#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)). |
 
 The timer's duration is saved with the settings but has no control here: the timer remembers whatever −1m and +1m last set ([D28](decisions.md#d28-the-timer-remembers-its-duration)).
+
+The second page has an information tile in the first grid slot, outlined like
+the toggles and showing a circled i. It opens About. Leaving Settings for About
+saves any pending change, as any other departure does.
+
+## About
+
+About shows the Wade version, board, short commit identifier, and whether the
+build is a release, development build, or has local changes. Metadata is supplied
+by the platform at startup and is never saved as a user setting. Back returns to
+the information page in Settings. A running timer still interrupts About when it finishes.
+
+Diagnostic text is the only exception to the icon-based UI. It uses the built-in
+mono font; the information and back controls remain icons.
 
 ## Rendering
 
@@ -205,6 +228,7 @@ A desktop test draws every screen, and the final view of random sessions, throug
 |---|---|
 | Timer digits | Drawn from primitives in a rounded seven-segment style. Scales to any size with no font dependency. |
 | Titles, buttons | None: icons drawn from primitives, never words ([D26](decisions.md#d26-screens-show-icons-not-words)). |
+| About metadata | Built-in mono text for the version and build identity |
 
 ### Color
 

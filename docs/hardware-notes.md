@@ -144,6 +144,16 @@ AW9523B pins:
 
 Registers: `0x02`/`0x03` output, `0x04` = `0x18` and `0x05` = `0x0C` direction (1 is input), `0x11` = `0x10` port 0 push-pull, `0x12`/`0x13` = `0xFF` GPIO mode.
 
+### Firmware images
+
+The packaged installation image boots over native USB with DIO, 40 MHz, and
+16 MB flash. Its table reserves NVS at `0x9000` (24 KB), PHY data at `0xf000`,
+and the application at `0x10000` (the rest of the flash).
+
+An app-only update at `0x10000` boots the new build and reports its commit.
+Reading back the first 64 KB after reboot confirms the bootloader, partition
+table, saved settings, and PHY data remain byte-for-byte unchanged.
+
 ### Display
 
 ILI9342C over SPI2. Pins: SCLK 36, MOSI 37, DC 35, CS 3; reset through the AW9523B. MISO shares the DC pin, so the panel cannot be read.

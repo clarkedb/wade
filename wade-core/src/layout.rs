@@ -7,6 +7,7 @@ use embedded_graphics::{
 
 use crate::settings::SettingsButton;
 use crate::timer::{RowButton, TimerButton};
+use crate::view::SettingsPage;
 
 /// Logical screen size: 320×240, landscape, origin top-left.
 pub const SCREEN_SIZE: Size = Size::new(320, 240);
@@ -21,9 +22,15 @@ pub const WADE_FACE: Rectangle = Rectangle::new(Point::new(48, 36), Size::new(22
 pub const BACK: Rectangle = Rectangle::new(Point::new(0, 0), NAV_SIZE);
 /// The apps button, bottom-right on the Buddy screen.
 pub const APPS: Rectangle = Rectangle::new(Point::new(272, 192), NAV_SIZE);
+/// The previous Settings page button, pointing up on the right edge.
+pub const SETTINGS_PREVIOUS: Rectangle = Rectangle::new(Point::new(272, 48), NAV_SIZE);
+/// The next Settings page button, pointing down on the right edge.
+pub const SETTINGS_NEXT: Rectangle = Rectangle::new(Point::new(272, 144), NAV_SIZE);
+/// Page indicator dots, stacked vertically on the left edge.
+pub const SETTINGS_PAGE_DOTS: [Point; 2] = [Point::new(22, 112), Point::new(22, 124)];
 
 /// The four corners, reserved for navigation on every screen: back top-left,
-/// apps bottom-right (docs/ui.md#layout). Nothing else takes touches there.
+/// apps bottom-right on Buddy; the other corners take no touches (docs/ui.md#layout).
 pub const NAV_CORNERS: [Rectangle; 4] = [
     BACK,
     TITLE,
@@ -59,6 +66,9 @@ const TILE_SIZE: Size = Size::new(88, 88);
 /// left; Settings always takes the bottom right.
 pub const TILES: [(Tile, Rectangle); 2] = [(Tile::Timer, GRID[0]), (Tile::Settings, GRID[3])];
 
+/// The information button, the first tile on Settings' second page.
+pub const ABOUT: Rectangle = GRID[0];
+
 /// The Settings screen's toggles, in the Launcher's grid: Wade's look on top,
 /// the chime and brightness below.
 pub const SETTINGS_BUTTONS: [(SettingsButton, Rectangle); 4] = [
@@ -81,6 +91,8 @@ pub enum Target {
     Wade,
     Apps,
     Back,
+    About,
+    SettingsPage(SettingsPage),
     Tile(Tile),
     Timer(TimerButton),
     Settings(SettingsButton),
@@ -110,14 +122,33 @@ pub fn hit_launcher(point: Point) -> Option<Target> {
 
 /// The target under `point` on the Settings screen, if any.
 #[must_use]
-pub fn hit_settings(point: Point) -> Option<Target> {
+pub fn hit_settings(point: Point, page: SettingsPage) -> Option<Target> {
     if BACK.contains(point) {
         return Some(Target::Back);
     }
-    SETTINGS_BUTTONS
-        .iter()
-        .find(|(_, area)| area.contains(point))
-        .map(|&(button, _)| Target::Settings(button))
+    match page {
+        SettingsPage::Device => {
+            if SETTINGS_NEXT.contains(point) {
+                return Some(Target::SettingsPage(SettingsPage::Information));
+            }
+            SETTINGS_BUTTONS
+                .iter()
+                .find(|(_, area)| area.contains(point))
+                .map(|&(button, _)| Target::Settings(button))
+        }
+        SettingsPage::Information => {
+            if SETTINGS_PREVIOUS.contains(point) {
+                return Some(Target::SettingsPage(SettingsPage::Device));
+            }
+            ABOUT.contains(point).then_some(Target::About)
+        }
+    }
+}
+
+/// About has only a back button; its metadata takes no touches.
+#[must_use]
+pub fn hit_about(point: Point) -> Option<Target> {
+    BACK.contains(point).then_some(Target::Back)
 }
 
 /// The target under `point` on the Timer screen, whose row holds `row`, if
@@ -146,33 +177,90 @@ mod tests {
     use crate::time::Instant;
     use crate::timer::TimerState;
 
-    /// A hit area on a screen, with a target that uses it, and the
+    /// A hit area on a screen and page, with a target that uses it, and the
     /// navigation corner it owns, if any.
-    type HitArea = (Screen, Target, Rectangle, Option<Rectangle>);
+    type HitArea = ((Screen, SettingsPage), Target, Rectangle, Option<Rectangle>);
 
     /// Every hit area on every screen, taken from the layout's own tables so
     /// that a new one is checked too.
     fn hit_areas() -> Vec<HitArea> {
         let mut areas = vec![
-            (Screen::Buddy, Target::Wade, WADE_FACE, None),
-            (Screen::Buddy, Target::Apps, APPS, Some(APPS)),
+            (
+                (Screen::Buddy, SettingsPage::Device),
+                Target::Wade,
+                WADE_FACE,
+                None,
+            ),
+            (
+                (Screen::Buddy, SettingsPage::Device),
+                Target::Apps,
+                APPS,
+                Some(APPS),
+            ),
+            (
+                (Screen::Settings, SettingsPage::Information),
+                Target::About,
+                ABOUT,
+                None,
+            ),
+            (
+                (Screen::Settings, SettingsPage::Information),
+                Target::Back,
+                BACK,
+                Some(BACK),
+            ),
+            (
+                (Screen::Settings, SettingsPage::Information),
+                Target::SettingsPage(SettingsPage::Device),
+                SETTINGS_PREVIOUS,
+                None,
+            ),
+            (
+                (Screen::Settings, SettingsPage::Device),
+                Target::SettingsPage(SettingsPage::Information),
+                SETTINGS_NEXT,
+                None,
+            ),
         ];
-        for screen in [Screen::Launcher, Screen::Timer, Screen::Settings] {
-            areas.push((screen, Target::Back, BACK, Some(BACK)));
+        for screen in [
+            Screen::Launcher,
+            Screen::Timer,
+            Screen::Settings,
+            Screen::About,
+        ] {
+            areas.push((
+                (screen, SettingsPage::Device),
+                Target::Back,
+                BACK,
+                Some(BACK),
+            ));
         }
-        areas.extend(
-            TILES
-                .iter()
-                .map(|&(tile, area)| (Screen::Launcher, Target::Tile(tile), area, None)),
-        );
-        areas.extend(
-            SETTINGS_BUTTONS
-                .iter()
-                .map(|&(button, area)| (Screen::Settings, Target::Settings(button), area, None)),
-        );
+        areas.extend(TILES.iter().map(|&(tile, area)| {
+            (
+                (Screen::Launcher, SettingsPage::Device),
+                Target::Tile(tile),
+                area,
+                None,
+            )
+        }));
+        areas.extend(SETTINGS_BUTTONS.iter().map(|&(button, area)| {
+            (
+                (Screen::Settings, SettingsPage::Device),
+                Target::Settings(button),
+                area,
+                None,
+            )
+        }));
         let row = TimerState::new().row();
         areas.extend(TIMER_ROW.iter().zip(row).filter_map(|(&area, button)| {
-            button.map(|b| (Screen::Timer, Target::Timer(b.button), area, None))
+            button.map(|b| {
+                (
+                    (Screen::Timer, SettingsPage::Device),
+                    Target::Timer(b.button),
+                    area,
+                    None,
+                )
+            })
         }));
         areas
     }
@@ -187,9 +275,13 @@ mod tests {
     fn each_navigation_button_hits_only_on_its_screen() {
         assert_eq!(hit_buddy(APPS.center()), Some(Target::Apps));
         let timer = |p| hit_timer(p, TimerState::new().row());
-        for hit in [hit_launcher, hit_settings, timer] {
+        for hit in [hit_launcher, timer] {
             assert_eq!(hit(APPS.center()), None);
             assert_eq!(hit(BACK.center()), Some(Target::Back));
+        }
+        for page in [SettingsPage::Device, SettingsPage::Information] {
+            assert_eq!(hit_settings(BACK.center(), page), Some(Target::Back));
+            assert_eq!(hit_settings(APPS.center(), page), None);
         }
         assert_eq!(hit_buddy(BACK.center()), None);
     }

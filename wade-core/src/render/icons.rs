@@ -23,6 +23,7 @@ pub enum Icon {
     /// Four squares, the apps button's mark.
     Apps,
     Gear,
+    Info,
     /// A small pair of Wade's eyes, with pupils.
     Pupils,
     /// The same eyes, plain.
@@ -66,6 +67,13 @@ where
         colors,
     };
     match icon {
+        Icon::Info => {
+            Circle::new(pen.at(-14, -14), pen.len(28))
+                .into_styled(pen.stroke(2))
+                .draw(target)?;
+            pen.bar(-2, -3, 4, 12).draw(target)?;
+            pen.bar(-2, -9, 4, 4).draw(target)
+        }
         Icon::Minus => pen.bar(-12, -3, 24, 6).draw(target),
         Icon::Plus => {
             pen.bar(-12, -3, 24, 6).draw(target)?;

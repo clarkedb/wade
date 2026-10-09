@@ -1,6 +1,7 @@
 //! What is on screen, as plain data. The core produces it; `render::draw` turns it into pixels.
 
 use crate::character::{Expression, Pose};
+use crate::info::BuildInfo;
 use crate::layout::Target;
 use crate::settings::Settings;
 use crate::timer::{Digits, RowButton, TimerPhase};
@@ -11,6 +12,7 @@ pub enum View {
     Launcher(LauncherView),
     Timer(TimerView),
     Settings(SettingsView),
+    About(AboutView),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -48,9 +50,24 @@ pub struct TimerView {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SettingsView {
+    pub page: SettingsPage,
     /// The settings the toggles show.
     pub settings: Settings,
     /// The button under a touch in progress, drawn pressed.
+    pub pressed: Option<Target>,
+}
+
+/// Settings keep at most four buttons on each page.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum SettingsPage {
+    #[default]
+    Device,
+    Information,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AboutView {
+    pub info: BuildInfo,
     pub pressed: Option<Target>,
 }
 

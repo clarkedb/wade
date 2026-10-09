@@ -1,12 +1,17 @@
 //! The Settings screen (docs/ui.md#settings).
 
-use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
+use embedded_graphics::{
+    pixelcolor::Rgb565,
+    prelude::*,
+    primitives::{Circle, PrimitiveStyle},
+};
 
 use crate::layout::{self, Target};
 use crate::render::icons::Icon;
+use crate::render::palette;
 use crate::render::widgets;
 use crate::settings::{Settings, SettingsButton};
-use crate::view::{ColorMode, EyeStyle, SettingsView};
+use crate::view::{ColorMode, EyeStyle, SettingsPage, SettingsView};
 
 pub fn draw<D>(view: SettingsView, target: &mut D) -> Result<(), D::Error>
 where
@@ -14,10 +19,49 @@ where
 {
     widgets::back_button(view.pressed == Some(Target::Back), target)?;
     widgets::title(Icon::Gear, target)?;
-    for (button, area) in layout::SETTINGS_BUTTONS {
-        let pressed = view.pressed == Some(Target::Settings(button));
-        let icon = icon(button, view.settings, pressed);
-        widgets::button(area, icon, widgets::TILE_ICON_SCALE, true, pressed, target)?;
+    match view.page {
+        SettingsPage::Device => {
+            for (button, area) in layout::SETTINGS_BUTTONS {
+                let pressed = view.pressed == Some(Target::Settings(button));
+                let icon = icon(button, view.settings, pressed);
+                widgets::button(area, icon, widgets::TILE_ICON_SCALE, true, pressed, target)?;
+            }
+        }
+        SettingsPage::Information => {
+            widgets::button(
+                layout::ABOUT,
+                Icon::Info,
+                widgets::TILE_ICON_SCALE,
+                true,
+                view.pressed == Some(Target::About),
+                target,
+            )?;
+        }
+    }
+    for (area, up, destination) in [
+        (layout::SETTINGS_PREVIOUS, true, SettingsPage::Device),
+        (layout::SETTINGS_NEXT, false, SettingsPage::Information),
+    ] {
+        widgets::page_arrow(
+            area,
+            up,
+            view.page != destination,
+            view.pressed == Some(Target::SettingsPage(destination)),
+            target,
+        )?;
+    }
+    for (page, position) in [SettingsPage::Device, SettingsPage::Information]
+        .into_iter()
+        .zip(layout::SETTINGS_PAGE_DOTS)
+    {
+        let color = if view.page == page {
+            palette::EYE
+        } else {
+            palette::DIM
+        };
+        Circle::new(position, 4)
+            .into_styled(PrimitiveStyle::with_fill(color))
+            .draw(target)?;
     }
     Ok(())
 }

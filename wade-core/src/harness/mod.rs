@@ -15,7 +15,10 @@ use crate::event::{Event, Key, TouchPhase};
 use crate::settings::Settings;
 use crate::time::Instant;
 use crate::timer::TimerPhase;
-use crate::view::{BuddyView, ColorMode, EyeStyle, LauncherView, SettingsView, TimerView, View};
+use crate::view::{
+    AboutView, BuddyView, ColorMode, EyeStyle, LauncherView, SettingsPage, SettingsView, TimerView,
+    View,
+};
 
 #[derive(Debug)]
 pub struct Harness {
@@ -184,6 +187,7 @@ impl Harness {
             View::Launcher(launcher) => Discrete::Launcher(launcher),
             View::Timer(timer) => Discrete::Timer(timer),
             View::Settings(settings) => Discrete::Settings(settings),
+            View::About(about) => Discrete::About(about),
         }
     }
 }
@@ -203,11 +207,12 @@ enum Discrete {
     Launcher(LauncherView),
     Timer(TimerView),
     Settings(SettingsView),
+    About(AboutView),
 }
 
-/// A hash of discrete state only: the screen, Wade's expression and sleep
+/// A hash of discrete state only: the screen and Settings page, Wade's expression and sleep
 /// state (on every screen), the timer's state, duration, and digits, and every
-/// setting (later also the activity). Excludes `Pose` and pixels, so tuning
+/// setting (later also the activity). Excludes build identity, `Pose`, and pixels, so tuning
 /// animation does not invalidate recordings (D16, D24). FNV-1a is stable
 /// across platforms.
 #[must_use]
@@ -219,7 +224,11 @@ pub fn state_hash(app: &App) -> u32 {
         Screen::Buddy => 0u8,
         Screen::Timer => 1,
         Screen::Launcher => 2,
-        Screen::Settings => 3,
+        Screen::Settings => match app.settings_page() {
+            SettingsPage::Device => 3,
+            SettingsPage::Information => 5,
+        },
+        Screen::About => 4,
     };
     let expression = match wade.expression() {
         Expression::Neutral => 0u8,

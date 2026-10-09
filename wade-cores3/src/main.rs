@@ -41,12 +41,19 @@ use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use log::{info, warn};
 use static_cell::StaticCell;
-use wade_core::{App, Effect, Event, Instant, Settings};
+use wade_core::{App, BuildInfo, Effect, Event, Instant, Settings};
 
 use audio::{CHIME_BYTES, CHIME_CAPACITY, Chime};
 use display::{BAND_BYTES, COMMAND_BYTES, Display};
 
 esp_bootloader_esp_idf::esp_app_desc!();
+const BUILD_INFO: BuildInfo = BuildInfo {
+    version: env!("WADE_VERSION"),
+    board: "CoreS3 Lite",
+    revision: env!("WADE_REVISION"),
+    development: env!("WADE_DEVELOPMENT").as_bytes()[0] == b't',
+    dirty: env!("WADE_DIRTY").as_bytes()[0] == b't',
+};
 
 /// The panel is steady with DMA at 80 MHz (docs/hardware-notes.md#cores3-lite).
 const DISPLAY_CLOCK: Rate = Rate::from_mhz(80);
@@ -154,6 +161,12 @@ async fn main(spawner: Spawner) -> ! {
     let rng = Rng::new();
     let seed = u64::from(rng.random()) << 32 | u64::from(rng.random());
     info!("seed {seed}");
+    info!(
+        "Wade {} / {} / build {}",
+        env!("WADE_BUILD_VERSION"),
+        BUILD_INFO.board,
+        BUILD_INFO.revision
+    );
     let mut store = storage::open(peripherals.FLASH);
     let settings = match &mut store {
         Some(store) => store.load().await.unwrap_or_else(|e| {
@@ -162,7 +175,7 @@ async fn main(spawner: Spawner) -> ! {
         }),
         None => Settings::DEFAULT,
     };
-    let mut app = App::new(now(), seed, settings);
+    let mut app = App::new(now(), seed, settings).with_build_info(BUILD_INFO);
     display.show(&app.view()).await;
     // Turned on only once the first frame is up, so the panel's power-on noise never shows.
     if let Err(e) = power::set_brightness(&mut bus, settings.brightness()).await {

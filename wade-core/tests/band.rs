@@ -12,8 +12,8 @@ use wade_core::harness::Harness;
 use wade_core::layout::{SCREEN_SIZE, Tile};
 use wade_core::render::{self, Band, ROW_BYTES};
 use wade_core::timer::TimerState;
-use wade_core::view::{BuddyView, ColorMode, EyeStyle, SettingsView};
-use wade_core::{Instant, Key, Settings, View};
+use wade_core::view::{AboutView, BuddyView, ColorMode, EyeStyle, SettingsPage, SettingsView};
+use wade_core::{BuildInfo, Instant, Key, Settings, View};
 
 /// Draw `view` through strips of `rows` rows and check each against the full frame.
 fn assert_banded_matches(view: &View, rows: usize) {
@@ -55,6 +55,20 @@ fn assert_every_height(view: &View) {
     for rows in [1, 7, 40, 64, 300] {
         assert_banded_matches(view, rows);
     }
+}
+
+#[test]
+fn about_text_matches_through_every_band_height() {
+    assert_every_height(&View::About(AboutView {
+        info: BuildInfo {
+            version: "0.2.0",
+            board: "CoreS3 Lite",
+            revision: "a1b2c3d",
+            development: true,
+            dirty: true,
+        },
+        pressed: None,
+    }));
 }
 
 fn buddy(pose: Pose, eye_style: EyeStyle, color: ColorMode) -> View {
@@ -126,10 +140,13 @@ fn every_screen() {
         assert_every_height(&View::Timer(state.view(now, None)));
     }
 
-    assert_every_height(&View::Settings(SettingsView {
-        settings: Settings::DEFAULT,
-        pressed: None,
-    }));
+    for page in [SettingsPage::Device, SettingsPage::Information] {
+        assert_every_height(&View::Settings(SettingsView {
+            page,
+            settings: Settings::DEFAULT,
+            pressed: None,
+        }));
+    }
 }
 
 /// A tap somewhere, often on a touch target, or a key.
@@ -145,6 +162,9 @@ fn input() -> impl Strategy<Value = Input> {
         common::back(),
         common::tile(Tile::Timer),
         common::tile(Tile::Settings),
+        wade_core::layout::SETTINGS_NEXT.center(),
+        wade_core::layout::SETTINGS_PREVIOUS.center(),
+        wade_core::layout::ABOUT.center(),
         wade_core::layout::WADE_CENTER,
     ];
     prop_oneof![

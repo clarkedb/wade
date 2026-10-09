@@ -11,8 +11,8 @@ use wade_core::harness::Harness;
 use wade_core::layout::{self, Target, Tile};
 use wade_core::settings::{Brightness, SettingsButton};
 use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
-use wade_core::view::{ColorMode, EyeStyle, SettingsView, View};
-use wade_core::{App, Instant, Settings, TouchPhase, render};
+use wade_core::view::{AboutView, ColorMode, EyeStyle, SettingsPage, SettingsView, View};
+use wade_core::{App, BuildInfo, Instant, Settings, TouchPhase, render};
 
 /// The whole screen for `view`.
 fn snapshot(name: &str, view: &View) {
@@ -254,7 +254,66 @@ fn each_launcher_button_pressed() {
 
 /// The Settings screen for `settings`, with `pressed` held down.
 fn settings_screen(settings: Settings, pressed: Option<Target>) -> View {
-    View::Settings(SettingsView { settings, pressed })
+    View::Settings(SettingsView {
+        page: SettingsPage::Device,
+        settings,
+        pressed,
+    })
+}
+
+#[test]
+fn about_release_development_and_dirty() {
+    for (name, development, dirty, pressed) in [
+        ("about_release", false, false, None),
+        ("about_development", true, false, None),
+        ("about_dirty", true, true, None),
+        ("about_back_pressed", false, false, Some(Target::Back)),
+    ] {
+        snapshot(
+            name,
+            &View::About(AboutView {
+                info: BuildInfo {
+                    version: "0.2.0",
+                    board: "CoreS3 Lite",
+                    revision: "a1b2c3d",
+                    development,
+                    dirty,
+                },
+                pressed,
+            }),
+        );
+    }
+}
+
+#[test]
+fn settings_information_page_and_navigation() {
+    for (name, page, pressed) in [
+        (
+            "settings_next_pressed",
+            SettingsPage::Device,
+            Some(Target::SettingsPage(SettingsPage::Information)),
+        ),
+        ("settings_information", SettingsPage::Information, None),
+        (
+            "settings_about_pressed",
+            SettingsPage::Information,
+            Some(Target::About),
+        ),
+        (
+            "settings_previous_pressed",
+            SettingsPage::Information,
+            Some(Target::SettingsPage(SettingsPage::Device)),
+        ),
+    ] {
+        snapshot(
+            name,
+            &View::Settings(SettingsView {
+                page,
+                settings: Settings::DEFAULT,
+                pressed,
+            }),
+        );
+    }
 }
 
 #[test]

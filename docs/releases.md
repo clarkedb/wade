@@ -96,6 +96,10 @@ Packaging checks the generated flash headers and partition table against the
 board configuration. In `espflash.toml`, size and frequency values use units
 such as `16MB` and `40MHz`; invalid values can silently select espflash defaults.
 
+About, startup logs, and desktop `--version` identify the build. Only a clean
+checkout of the matching release tag is labeled a release; other builds include
+a commit identifier and development status, plus a marker for local changes.
+
 ## USB recovery
 
 The CYD uses a CH340 serial bridge; the tested macOS board needs no driver. If

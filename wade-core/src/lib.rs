@@ -15,6 +15,7 @@ extern crate std;
 pub mod app;
 pub mod character;
 pub mod event;
+pub mod info;
 pub mod input;
 pub mod layout;
 pub mod render;
@@ -30,6 +31,7 @@ pub mod harness;
 
 pub use app::{App, Effect, Output};
 pub use event::{Digit, Event, EventKind, Key, Touch, TouchPhase};
+pub use info::BuildInfo;
 pub use settings::Settings;
 pub use time::{Duration, Instant};
 pub use view::View;

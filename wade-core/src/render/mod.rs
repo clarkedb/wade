@@ -1,5 +1,6 @@
 //! Drawing. A pure function of a `View` (D9): every call draws a complete frame.
 
+mod about;
 mod band;
 mod digits;
 pub mod face;
@@ -34,5 +35,6 @@ where
         View::Launcher(launcher) => launcher::draw(*launcher, target),
         View::Timer(timer) => timer::draw(*timer, target),
         View::Settings(settings) => settings::draw(*settings, target),
+        View::About(about) => about::draw(*about, target),
     }
 }

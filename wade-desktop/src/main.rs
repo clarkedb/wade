@@ -22,7 +22,9 @@ use embedded_graphics_simulator::{
 use wade_core::harness::recording::{Entry, Input, Recording};
 use wade_core::harness::state_hash;
 use wade_core::timer::TimerPhase;
-use wade_core::{App, Digit, Effect, Event, EventKind, Instant, Key, Output, Settings, TouchPhase};
+use wade_core::{
+    App, BuildInfo, Digit, Effect, Event, EventKind, Instant, Key, Output, Settings, TouchPhase,
+};
 
 use audio::Audio;
 use clock::Clock;
@@ -32,9 +34,16 @@ use storage::{SettingsSaver, Storage};
 /// Longest the loop sleeps before polling window events again.
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 const MAX_REPLAY_BYTES: usize = 16 * 1024 * 1024;
+const BUILD_INFO: BuildInfo = BuildInfo {
+    version: env!("WADE_VERSION"),
+    board: "Desktop",
+    revision: env!("WADE_REVISION"),
+    development: env!("WADE_DEVELOPMENT").as_bytes()[0] == b't',
+    dirty: env!("WADE_DIRTY").as_bytes()[0] == b't',
+};
 
 #[derive(Parser, Debug)]
-#[command(version, about = "Wade desktop simulator")]
+#[command(version = env!("WADE_BUILD_VERSION"), about = "Wade desktop simulator")]
 struct Args {
     /// Fixed random seed. Defaults to OS entropy.
     #[arg(long, conflicts_with = "replay")]
@@ -75,6 +84,12 @@ fn main() {
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
+    eprintln!(
+        "Wade {} / {} / build {}",
+        env!("WADE_BUILD_VERSION"),
+        BUILD_INFO.board,
+        BUILD_INFO.revision
+    );
     let recording = if let Some(path) = &args.replay {
         let text = read_limited(File::open(path)?, MAX_REPLAY_BYTES)
             .map_err(|error| format!("{}: {error}", path.display()))?;
@@ -116,7 +131,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let audio = Audio::open();
     let clock = Clock::new(args.time_scale);
-    let mut app = App::new(Instant::from_millis(0), seed, settings);
+    let mut app = App::new(Instant::from_millis(0), seed, settings).with_build_info(BUILD_INFO);
 
     let mut screen = Screen::new(args.band_rows.map(usize::from), settings.brightness());
     let output_settings = OutputSettingsBuilder::new().scale(2).build();

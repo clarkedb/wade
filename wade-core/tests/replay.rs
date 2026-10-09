@@ -9,7 +9,7 @@ use wade_core::app::Screen;
 use wade_core::character::Expression;
 use wade_core::harness::recording::{FILE_SUFFIX, Input, Recording, Replay};
 use wade_core::timer::TimerState;
-use wade_core::view::{ColorMode, EyeStyle};
+use wade_core::view::{ColorMode, EyeStyle, SettingsPage};
 use wade_core::{Digit, Effect, Key, Settings, TouchPhase};
 
 fn recordings_dir() -> PathBuf {
@@ -144,4 +144,16 @@ fn the_settings_session_changes_every_setting_and_saves_twice() {
     );
     assert_eq!(h.app.screen(), Screen::Buddy);
     assert_eq!(h.buddy().color, ColorMode::Mono);
+}
+
+#[test]
+fn the_about_session_navigates_settings_pages_and_ends_on_about() {
+    let (_, replay) = replay("navigation-about");
+    assert_eq!(replay.harness.app.screen(), Screen::About);
+    assert_eq!(
+        replay.harness.app.settings_page(),
+        SettingsPage::Information
+    );
+    assert_eq!(replay.harness.app.settings(), Settings::DEFAULT);
+    assert!(replay.harness.effects.is_empty());
 }

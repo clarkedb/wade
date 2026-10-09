@@ -102,7 +102,7 @@ These are property tests: `proptest` generates random event sequences, from rand
 
 A snapshot test builds a `View`, draws it into an in-memory 320×240 test framebuffer, and compares the result with `wade-core/tests/snapshots/<name>.png`. On a mismatch, the test writes `<name>.actual.png` next to the golden image and fails. Running `UPDATE_SNAPSHOTS=1 cargo test` rewrites the golden images, and the diff is reviewed in version control.
 
-Snapshot cases include each expression at rest with its accent, and a glance, in both eye styles; each colored accent in mono; and Wade asleep and mid-blink. These draw his face alone. Whole-screen cases cover Buddy at startup, once awake, and with the apps button pressed; the Launcher with each button pressed; the Timer screen in each state with each button pressed; and the Settings screen at its defaults, with every setting changed, and with each button pressed. Golden images are generated on desktop.
+Snapshot cases include each expression at rest with its accent, and a glance, in both eye styles; each colored accent in mono; and Wade asleep and mid-blink. These draw his face alone. Whole-screen cases cover Buddy at startup, once awake, and with the apps button pressed; the Launcher with each button pressed; the Timer screen in each state with each button pressed; and both Settings pages, with every setting changed and each button pressed, including the page arrows and Info tile. Golden images are generated on desktop.
 
 ## Recording and replay
 
@@ -121,7 +121,7 @@ settings 0100000105
 
 The settings are their stored form in hex. Each line after them is a timestamp in milliseconds, then either a touch phase (`down`, `move`, or `up`) with x and y in display coordinates or `key` with the key (`0`–`9`, `z`, or `p`), then a state hash. The parser and writer live behind the `harness` feature.
 
-The state hash is taken after the event is handled. It covers the screen, Wade's expression and sleep state (on every screen), the timer's state, duration, and digits, and every setting; M4 adds the activity. Including the eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover selected rendered views. Replay checks discrete state after each recorded input and reports the first mismatch with its timestamp.
+The state hash is taken after the event is handled. It covers the screen and Settings page, Wade's expression and sleep state (on every screen), the timer's state, duration, and digits, and every setting; M4 adds the activity. Including the eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover selected rendered views. Replay checks discrete state after each recorded input and reports the first mismatch with its timestamp.
 
 Desktop replay rejects files over 16 MiB and checks the recording before opening the window. Core replay stops after 100,000 scheduled deadlines so a timestamp far in the future cannot keep it busy indefinitely.
 
@@ -163,7 +163,9 @@ flash configuration, moved settings partitions, and corrupt, truncated, or
 oversized images. They run with the workspace tests and need no hardware or
 espflash installation.
 The release workflow reuses these checks at the exact release tag, packages both
-firmware targets, and publishes the draft only after every check passes. Release hardware checks are in [releases.md](releases.md#process).
+firmware targets, and publishes the draft only after every check passes. About's
+navigation, timer interruptions, text snapshots, and banded drawing are tested
+on the host. Release hardware checks are in [releases.md](releases.md#process).
 
 ## Device testing
 
