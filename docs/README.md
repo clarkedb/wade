@@ -2,6 +2,9 @@
 
 Wade is an animated desk companion. He reacts to touch with facial expressions and small actions, and hosts a timer and settings. Weather is planned. The Rust core, desktop simulator, and CoreS3 Lite and CYD firmware are implemented.
 
+New hardware ports are welcome. The [contribution guide](../CONTRIBUTING.md#new-hardware)
+covers minimum hardware, feature coverage, and the checks for a supported device.
+
 | Target                               | Role                                                                                                                              |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | Desktop (current; macOS, Linux later) | Development, debugging, and automated tests. No hardware needed.                                                                  |

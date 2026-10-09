@@ -45,6 +45,9 @@ hardware is the M5Stack CoreS3 Lite (ESP32-S3, 16 MB flash) and the single-USB-C
 CYD ESP32-2432S028R (ESP32, 4 MB flash, resistive touch). Other CYD variants need
 their own tested firmware, even when they share an ESP32 chip.
 
+Device not listed? New ports are welcome; the [hardware contribution guide](../CONTRIBUTING.md#new-hardware)
+covers requirements and adding support.
+
 Each package includes a complete installation image, an app-only update image,
 bootloader and partition table, browser manifests, debug ELF, build metadata,
 checksums, and commands in its README. For command-line flashing, download the

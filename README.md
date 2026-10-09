@@ -4,7 +4,7 @@
 
 my desk buddy
 
-Wade is an animated desk companion for the M5Stack CoreS3 Lite and CYD (ESP32-2432S028R), developed on desktop first. Firmware for both is implemented. Design docs live in [docs/](docs/README.md); the plan is in [docs/roadmap.md](docs/roadmap.md).
+Wade is an animated desk companion, developed on desktop first. He currently runs on the M5Stack CoreS3 Lite and CYD (ESP32-2432S028R). New hardware ports are welcome; the [contribution guide](CONTRIBUTING.md#new-hardware) covers requirements and adding support. Design docs live in [docs/](docs/README.md); the plan is in [docs/roadmap.md](docs/roadmap.md).
 
 <p align="center">
   <img src="docs/assets/demo.gif" alt="Wade in the desktop simulator, moving through his expressions and falling asleep" width="400">
