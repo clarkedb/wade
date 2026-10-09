@@ -163,6 +163,30 @@ a {
   text-underline-offset: 3px;
   overflow-wrap: anywhere;
 }
+
+/* ESP Web Tools appends its dialog hosts to the document body. */
+ewt-install-dialog,
+ewt-no-port-picked-dialog {
+  --roboto-font: ui-sans-serif, system-ui, sans-serif;
+  --text-color: #b6c2c9;
+  --danger-color: #ff8a80;
+  --md-sys-color-primary: #e6b57b;
+  --md-sys-color-on-primary: #10171c;
+  --md-sys-color-secondary: #8dcbff;
+  --md-sys-color-on-secondary: #10171c;
+  --md-sys-color-surface: #182128;
+  --md-sys-color-surface-container: #182128;
+  --md-sys-color-surface-container-high: #182128;
+  --md-sys-color-surface-container-highest: #24313b;
+  --md-sys-color-on-surface: #edeee9;
+  --md-sys-color-on-surface-variant: #b6c2c9;
+  --md-sys-color-secondary-container: #31414b;
+  --md-sys-color-on-secondary-container: #edeee9;
+  --md-sys-color-outline: #84949e;
+  --md-sys-color-outline-variant: #31414b;
+  --md-sys-color-error: #ff8a80;
+}
+
 .package-links {
   display: flex;
   flex-wrap: wrap;
@@ -227,6 +251,26 @@ footer {
   }
 }
 @media (forced-colors: active) {
+  ewt-install-dialog,
+  ewt-no-port-picked-dialog {
+    --text-color: CanvasText;
+    --danger-color: CanvasText;
+    --md-sys-color-primary: LinkText;
+    --md-sys-color-on-primary: Canvas;
+    --md-sys-color-secondary: Highlight;
+    --md-sys-color-on-secondary: HighlightText;
+    --md-sys-color-surface: Canvas;
+    --md-sys-color-surface-container: Canvas;
+    --md-sys-color-surface-container-high: Canvas;
+    --md-sys-color-surface-container-highest: Canvas;
+    --md-sys-color-on-surface: CanvasText;
+    --md-sys-color-on-surface-variant: CanvasText;
+    --md-sys-color-secondary-container: Highlight;
+    --md-sys-color-on-secondary-container: HighlightText;
+    --md-sys-color-outline: CanvasText;
+    --md-sys-color-outline-variant: CanvasText;
+    --md-sys-color-error: CanvasText;
+  }
   :root {
     background: Canvas;
     color: CanvasText;
