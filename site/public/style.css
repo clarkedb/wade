@@ -59,13 +59,18 @@ legend {
   font-size: 0.95rem;
 }
 select {
+  appearance: none;
   width: 100%;
   min-height: 48px;
-  padding: 13px 14px;
+  padding: 13px 44px 13px 14px;
   margin: 9px 0 0;
   border: 1px solid #84949e;
   border-radius: 8px;
-  background: #111a20;
+  background-color: #111a20;
+  background-image: url("chevron-down.svg");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 20px;
   color: inherit;
   font: inherit;
 }
@@ -247,6 +252,8 @@ footer {
     border-color: CanvasText;
   }
   select {
+    appearance: auto;
+    padding-right: 14px;
     background: Canvas;
     color: CanvasText;
     border-color: CanvasText;
