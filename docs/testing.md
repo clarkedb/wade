@@ -131,7 +131,7 @@ Recordings of interesting sessions go in `wade-core/tests/recordings/` as `*.eve
 
 ## Checks
 
-Run before every commit, and in CI:
+Run these checks before committing Rust changes, and in CI:
 
 ```sh
 scripts/check-version.sh
@@ -140,6 +140,11 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf -- -D warnings   # proves both build without std
 ! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src wade-firmware/src           # proves neither uses alloc
+```
+
+For site changes:
+
+```sh
 npm ci --prefix site
 npm test --prefix site
 npm --prefix site run build
@@ -151,12 +156,14 @@ Firmware builds separately with the Espressif toolchain: `cd wade-cores3 && carg
 
 ### CI
 
-CI runs two jobs on GitHub Actions:
+GitHub Actions checks Rust and firmware on pushes. Site CI runs on pull requests
+that change `site/` and matching pushes to `main`.
 
 | Job | Runner | Steps |
 |---|---|---|
-| Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev libasound2-dev` (SDL2 and ALSA, which only `wade-desktop` needs), then every check above |
+| Workspace | `ubuntu-latest` | `sudo apt-get install -y libsdl2-dev libasound2-dev` (SDL2 and ALSA, which only `wade-desktop` needs), then the Rust checks above |
 | Firmware | `ubuntu-latest` | Install the Xtensa toolchain with the `esp-rs/xtensa-toolchain` action, at the version `espup` installs locally, then `cargo fmt --check`, `cargo clippy`, and `cargo build --release` in `wade-cores3` and `wade-cyd` |
+| Site | `ubuntu-latest` | Install Node.js 24, then `npm ci`, `npm test`, and `npm run build` |
 
 A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The bring-up firmware under `bringup/` is not built in CI.
 
@@ -173,10 +180,11 @@ descriptions, contrast, reduced motion and the animation control, 320 px reflow,
 on both the normal page and its loading/error states; automated checks do not
 replace testing with a screen reader or testing the USB flow on hardware.
 
-The release workflow reuses these checks at the exact release tag, packages both
-firmware targets, and publishes the draft only after every check passes. About's
-navigation, timer interruptions, text snapshots, and banded drawing are tested
-on the host. Release hardware checks are in [releases.md](releases.md#process).
+The release workflow reuses the Rust and firmware checks at the exact release
+tag, packages both firmware targets, and publishes the draft only after every
+check passes. About's navigation, timer interruptions, text snapshots, and banded
+drawing are tested on the host. Release hardware checks are in
+[releases.md](releases.md#process).
 
 ## Device testing
 
