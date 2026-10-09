@@ -1,8 +1,22 @@
 :root {
+  --color-background: #040d12;
+  --color-surface: #183d3d;
+  --color-border: #5c8374;
+  --color-accent: #93b1a6;
+  --color-text: #f2f0e9;
+
+  --color-link: var(--color-accent);
+  --color-focus: var(--color-accent);
+  --color-control-border: var(--color-accent);
+  --color-button-background: var(--color-accent);
+  --color-button-text: var(--color-background);
+  --color-selected-background: var(--color-accent);
+  --color-selected-text: var(--color-background);
+  --font-family: ui-sans-serif, system-ui, sans-serif;
   color-scheme: dark;
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  background: #10171c;
-  color: #edeee9;
+  font-family: var(--font-family);
+  background: var(--color-background);
+  color: var(--color-text);
 }
 * {
   box-sizing: border-box;
@@ -27,7 +41,7 @@ header {
   image-rendering: pixelated;
 }
 .eyebrow {
-  color: #e6b57b;
+  color: var(--color-accent);
   font-size: 0.8rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -40,14 +54,14 @@ h1 {
   margin: 0 0 20px;
 }
 .intro {
-  color: #b6c2c9;
+  color: var(--color-text);
   line-height: 1.6;
   max-width: 390px;
 }
 .panel {
-  background: #182128;
+  background: var(--color-surface);
   padding: 28px;
-  border: 1px solid #31414b;
+  border: 1px solid var(--color-border);
   border-radius: 20px;
 }
 h2 {
@@ -58,26 +72,38 @@ label,
 legend {
   font-size: 0.95rem;
 }
+.select-control {
+  position: relative;
+  margin: 9px 0 0;
+}
+.select-control::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  background: var(--color-accent);
+  mask: url("chevron-down.svg") center / contain no-repeat;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
 select {
   appearance: none;
   width: 100%;
   min-height: 48px;
   padding: 13px 44px 13px 14px;
-  margin: 9px 0 0;
-  border: 1px solid #84949e;
+  margin: 0;
+  border: 1px solid var(--color-control-border);
   border-radius: 8px;
-  background-color: #111a20;
-  background-image: url("chevron-down.svg");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  background-size: 20px;
+  background-color: var(--color-background);
   color: inherit;
   font: inherit;
 }
 .hint {
   font-size: 0.85rem;
   line-height: 1.5;
-  color: #b6c2c9;
+  color: var(--color-text);
   margin: 10px 0 22px;
 }
 fieldset {
@@ -98,7 +124,7 @@ legend {
 .choice input {
   flex-shrink: 0;
   margin: 4px 0 0;
-  accent-color: #e6b57b;
+  accent-color: var(--color-accent);
   width: 18px;
   height: 18px;
 }
@@ -106,15 +132,15 @@ legend {
   display: block;
   margin-top: 5px;
   line-height: 1.5;
-  color: #b6c2c9;
+  color: var(--color-text);
 }
 button {
   width: 100%;
   min-height: 48px;
   border: 0;
   border-radius: 9px;
-  background: #e6b57b;
-  color: #10171c;
+  background: var(--color-button-background);
+  color: var(--color-button-text);
   font: inherit;
   font-weight: 650;
   cursor: pointer;
@@ -124,7 +150,7 @@ button:disabled {
   cursor: default;
 }
 :focus-visible {
-  outline: 3px solid #8dcbff;
+  outline: 3px solid var(--color-focus);
   outline-offset: 4px;
 }
 .skip-link {
@@ -132,7 +158,7 @@ button:disabled {
   top: 8px;
   left: 8px;
   padding: 12px;
-  background: #182128;
+  background: var(--color-surface);
   transform: translateY(-200%);
   z-index: 1;
 }
@@ -153,13 +179,13 @@ button:disabled {
   opacity: 1;
 }
 #status {
-  color: #b6c2c9;
+  color: var(--color-text);
   font-size: 0.85rem;
   line-height: 1.5;
   margin-bottom: 0;
 }
 a {
-  color: #a5d1ee;
+  color: var(--color-link);
   text-underline-offset: 3px;
   overflow-wrap: anywhere;
 }
@@ -167,24 +193,24 @@ a {
 /* ESP Web Tools appends its dialog hosts to the document body. */
 ewt-install-dialog,
 ewt-no-port-picked-dialog {
-  --roboto-font: ui-sans-serif, system-ui, sans-serif;
-  --text-color: #b6c2c9;
-  --danger-color: #ff8a80;
-  --md-sys-color-primary: #e6b57b;
-  --md-sys-color-on-primary: #10171c;
-  --md-sys-color-secondary: #8dcbff;
-  --md-sys-color-on-secondary: #10171c;
-  --md-sys-color-surface: #182128;
-  --md-sys-color-surface-container: #182128;
-  --md-sys-color-surface-container-high: #182128;
-  --md-sys-color-surface-container-highest: #24313b;
-  --md-sys-color-on-surface: #edeee9;
-  --md-sys-color-on-surface-variant: #b6c2c9;
-  --md-sys-color-secondary-container: #31414b;
-  --md-sys-color-on-secondary-container: #edeee9;
-  --md-sys-color-outline: #84949e;
-  --md-sys-color-outline-variant: #31414b;
-  --md-sys-color-error: #ff8a80;
+  --roboto-font: var(--font-family);
+  --text-color: var(--color-text);
+  --danger-color: var(--color-text);
+  --md-sys-color-primary: var(--color-link);
+  --md-sys-color-on-primary: var(--color-background);
+  --md-sys-color-secondary: var(--color-focus);
+  --md-sys-color-on-secondary: var(--color-selected-text);
+  --md-sys-color-surface: var(--color-surface);
+  --md-sys-color-surface-container: var(--color-surface);
+  --md-sys-color-surface-container-high: var(--color-surface);
+  --md-sys-color-surface-container-highest: var(--color-background);
+  --md-sys-color-on-surface: var(--color-text);
+  --md-sys-color-on-surface-variant: var(--color-text);
+  --md-sys-color-secondary-container: var(--color-selected-background);
+  --md-sys-color-on-secondary-container: var(--color-selected-text);
+  --md-sys-color-outline: var(--color-control-border);
+  --md-sys-color-outline-variant: var(--color-border);
+  --md-sys-color-error: var(--color-text);
 }
 
 .package-links {
@@ -201,10 +227,10 @@ ewt-no-port-picked-dialog {
   margin: 32px 4px 24px;
   font-size: 0.9rem;
   line-height: 1.6;
-  color: #b6c2c9;
+  color: var(--color-text);
 }
 .downloads h2 {
-  color: #edeee9;
+  color: var(--color-text);
   margin-bottom: 16px;
 }
 .release-list {
@@ -225,10 +251,10 @@ details {
   margin: 24px 4px;
   font-size: 0.9rem;
   line-height: 1.6;
-  color: #b6c2c9;
+  color: var(--color-text);
 }
 summary {
-  color: #edeee9;
+  color: var(--color-text);
   cursor: pointer;
   padding: 8px 0;
 }
@@ -238,9 +264,9 @@ footer {
   gap: 16px;
   justify-content: space-between;
   font-size: 0.8rem;
-  color: #84949e;
+  color: var(--color-accent);
   padding-top: 24px;
-  border-top: 1px solid #31414b;
+  border-top: 1px solid var(--color-border);
 }
 @media (max-width: 420px) {
   main {
@@ -251,68 +277,33 @@ footer {
   }
 }
 @media (forced-colors: active) {
-  ewt-install-dialog,
-  ewt-no-port-picked-dialog {
-    --text-color: CanvasText;
-    --danger-color: CanvasText;
-    --md-sys-color-primary: LinkText;
-    --md-sys-color-on-primary: Canvas;
-    --md-sys-color-secondary: Highlight;
-    --md-sys-color-on-secondary: HighlightText;
-    --md-sys-color-surface: Canvas;
-    --md-sys-color-surface-container: Canvas;
-    --md-sys-color-surface-container-high: Canvas;
-    --md-sys-color-surface-container-highest: Canvas;
-    --md-sys-color-on-surface: CanvasText;
-    --md-sys-color-on-surface-variant: CanvasText;
-    --md-sys-color-secondary-container: Highlight;
-    --md-sys-color-on-secondary-container: HighlightText;
-    --md-sys-color-outline: CanvasText;
-    --md-sys-color-outline-variant: CanvasText;
-    --md-sys-color-error: CanvasText;
-  }
   :root {
-    background: Canvas;
-    color: CanvasText;
+    --color-background: Canvas;
+    --color-surface: Canvas;
+    --color-border: CanvasText;
+    --color-accent: CanvasText;
+    --color-text: CanvasText;
+    --color-link: LinkText;
+    --color-focus: Highlight;
+    --color-control-border: CanvasText;
+    --color-button-background: ButtonFace;
+    --color-button-text: ButtonText;
+    --color-selected-background: Highlight;
+    --color-selected-text: HighlightText;
   }
-  .eyebrow,
-  .intro,
-  .hint,
-  .choice small,
-  #status,
-  .downloads,
-  .downloads h2,
-  details,
-  summary,
-  footer {
-    color: CanvasText;
-  }
-  a {
-    color: LinkText;
-  }
-  .panel,
-  .skip-link {
-    background: Canvas;
-    border-color: CanvasText;
+  .select-control::after {
+    display: none;
   }
   select {
     appearance: auto;
     padding-right: 14px;
-    background: Canvas;
-    color: CanvasText;
-    border-color: CanvasText;
   }
   button {
-    background: ButtonFace;
-    color: ButtonText;
     border: 1px solid ButtonText;
   }
   button:disabled {
     opacity: 1;
     color: GrayText;
     border-color: GrayText;
-  }
-  :focus-visible {
-    outline-color: Highlight;
   }
 }

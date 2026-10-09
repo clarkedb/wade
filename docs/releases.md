@@ -124,6 +124,9 @@ are in the built HTML, so readers and crawlers do not need JavaScript. JavaScrip
 adds USB installation and loads ESP Web Tools after a board and installation
 mode are chosen.
 
+The page and installer dialogs share CSS color variables. The palette is defined
+once; high-contrast mode maps the same roles to system colors.
+
 The site build uses Node.js 22 or newer and npm. It validates firmware packages
 and generates the HTML downloads and JSON catalog; no frontend
 bundler or runtime server is needed. Build dependencies are a ZIP reader and a

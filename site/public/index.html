@@ -104,11 +104,13 @@
         >
         <div id="usb-controls" hidden>
           <label for="board">Your device</label>
-          <select id="board" aria-describedby="board-hint">
-            <option value="">Choose your board</option>
-            <option value="cores3">M5Stack CoreS3 Lite</option>
-            <option value="cyd">CYD · ESP32-2432S028R</option>
-          </select>
+          <div class="select-control">
+            <select id="board" aria-describedby="board-hint">
+              <option value="">Choose your board</option>
+              <option value="cores3">M5Stack CoreS3 Lite</option>
+              <option value="cyd">CYD · ESP32-2432S028R</option>
+            </select>
+          </div>
           <p class="hint" id="board-hint">
             Choose the exact board. Other CYD variants may have different
             screens or touch controllers.
@@ -119,14 +121,16 @@
             New hardware ports are welcome.
           </p>
           <label for="release">Version</label>
-          <select
-            id="release"
-            aria-describedby="release-hint"
-            aria-busy="true"
-            disabled
-          >
-            <option>Loading releases…</option>
-          </select>
+          <div class="select-control">
+            <select
+              id="release"
+              aria-describedby="release-hint"
+              aria-busy="true"
+              disabled
+            >
+              <option>Loading releases…</option>
+            </select>
+          </div>
           <p class="hint" id="release-hint">
             The latest stable release is selected by default.
           </p>
