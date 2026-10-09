@@ -5,7 +5,9 @@ let playing = !reducedMotion.matches;
 
 function render() {
   wade.src = playing ? 'wade.gif' : 'wade.png';
-  control.textContent = playing ? 'Pause animation' : 'Play animation';
+  const label = playing ? "Pause Wade's animation" : "Play Wade's animation";
+  control.setAttribute('aria-label', label);
+  control.title = label;
 }
 
 control.addEventListener('click', () => {
@@ -20,4 +22,4 @@ reducedMotion.addEventListener('change', () => {
 });
 
 render();
-control.hidden = false;
+control.disabled = false;

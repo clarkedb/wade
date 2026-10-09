@@ -131,10 +131,10 @@ local preview server. GitHub Actions downloads published packages through the
 GitHub CLI, then deploys the static output.
 
 The header shows a loop rendered through the core's normal event loop: idle
-blinks and glances, then a tap makes Wade Happy. The animation button stops or
-starts it; reduced motion and visits without JavaScript use the neutral-face
-snapshot. Native controls, keyboard focus, linked field descriptions, and live
-status messages support accessible installation.
+blinks and glances, then a tap makes Wade Happy. Click Wade, or focus him and press
+Space or Enter, to pause or resume. Reduced motion starts with the neutral-face
+snapshot; visits without JavaScript show it too. Native controls, keyboard focus,
+linked field descriptions, and live status messages support accessible installation.
 
 The page includes canonical and social metadata, source-code structured data,
 a sitemap, and a linked JSON release catalog. Keep these URLs current if hosting

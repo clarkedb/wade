@@ -22,7 +22,8 @@ button:disabled { opacity: .45; cursor: default; }
 :focus-visible { outline: 3px solid #8dcbff; outline-offset: 4px; }
 .skip-link { position: absolute; top: 8px; left: 8px; padding: 12px; background: #182128; transform: translateY(-200%); z-index: 1; }
 .skip-link:focus { transform: none; }
-.animation-control { width: auto; min-height: 44px; padding: 8px 14px; margin-top: 12px; border: 1px solid #84949e; background: #182128; color: #edeee9; font-size: .85rem; }
+.animation-control { display: block; width: 240px; max-width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 12px; background: transparent; }
+.animation-control:disabled { opacity: 1; }
 #status { color: #b6c2c9; font-size: .85rem; line-height: 1.5; margin-bottom: 0; }
 a { color: #a5d1ee; text-underline-offset: 3px; overflow-wrap: anywhere; }
 .package-links { display: flex; flex-wrap: wrap; gap: 16px; font-size: .9rem; margin-top: 18px; }
@@ -43,7 +44,7 @@ footer { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-betwe
   a { color: LinkText; }
   .panel, .skip-link { background: Canvas; border-color: CanvasText; }
   select { background: Canvas; color: CanvasText; border-color: CanvasText; }
-  button, .animation-control { background: ButtonFace; color: ButtonText; border: 1px solid ButtonText; }
+  button { background: ButtonFace; color: ButtonText; border: 1px solid ButtonText; }
   button:disabled { opacity: 1; color: GrayText; border-color: GrayText; }
   :focus-visible { outline-color: Highlight; }
 }
