@@ -3,6 +3,11 @@ name: CI
 on:
   push:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release-tag:
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -24,6 +29,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.release-tag || github.sha }}
 
       # wade-desktop's window needs SDL2 and its audio needs ALSA.
       - name: Install SDL2 and ALSA
@@ -77,6 +83,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.release-tag || github.sha }}
 
       # Espressif's Rust fork for Xtensa, the `esp` channel in each firmware crate's rust-toolchain.toml.
       # Pinned to the version espup installs locally; bump both together.
@@ -101,3 +108,25 @@ jobs:
       - name: Build
         run: cargo build --release --locked
 
+      - name: Install packaging tool
+        if: inputs.release-tag != ''
+        working-directory: .
+        run: |
+          rustup toolchain install
+          cargo install espflash --version 4.6.0 --locked
+
+      - name: Package firmware
+        if: inputs.release-tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.release-tag }}
+          BOARD: ${{ matrix.chip == 'esp32' && 'cyd' || 'cores3' }}
+        run: |
+          test "$RELEASE_TAG" = "v$(cat ../version.txt)"
+          ../scripts/package-firmware.sh "$BOARD"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.release-tag != ''
+        with:
+          name: firmware-${{ matrix.chip }}
+          path: dist/*.zip
+          if-no-files-found: error

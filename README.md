@@ -30,6 +30,10 @@ Click Wade to tap him, or use the bottom-right corner to open the Launcher, then
 
 ## Firmware
 
+Install a prebuilt package from [Releases](https://github.com/clarkedb/wade/releases).
+[Installation and updates](docs/releases.md#usb-installation) cover both boards,
+settings preservation, and USB recovery. Building from source is for development:
+
 `wade-cores3` runs on the CoreS3 Lite and `wade-cyd` on the CYD. Install Espressif's toolchain once, then flash over USB and watch the log:
 
 ```sh

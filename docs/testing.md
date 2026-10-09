@@ -158,8 +158,12 @@ CI runs two jobs on GitHub Actions:
 A macOS job (`brew install sdl2`) is added only if something platform-specific breaks. The bring-up firmware under `bringup/` is not built in CI.
 
 CI also checks that the product version agrees across manifests and lockfiles.
-Host version-tool tests reject version drift, missing locked packages, and
-invalid semantic versions. They need no hardware.
+Host release-tool tests cover version drift, missing locked packages, malformed
+flash configuration, moved settings partitions, and corrupt, truncated, or
+oversized images. They run with the workspace tests and need no hardware or
+espflash installation.
+The release workflow reuses these checks at the exact release tag, packages both
+firmware targets, and publishes the draft only after every check passes. Release hardware checks are in [releases.md](releases.md#process).
 
 ## Device testing
 
