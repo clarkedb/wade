@@ -140,6 +140,9 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo clippy -p wade-core -p wade-firmware --lib --target thumbv7em-none-eabihf -- -D warnings   # proves both build without std
 ! grep -rnE "extern[[:space:]]+crate[[:space:]]+alloc" wade-core/src wade-firmware/src           # proves neither uses alloc
+npm ci --prefix site
+npm test --prefix site
+npm --prefix site run build
 ```
 
 The bare-metal build needs `rustup target add thumbv7em-none-eabihf` once. It proves `wade-core` and `wade-firmware` are `no_std` but not that they avoid `alloc`, because `alloc` exists on that target too; the `grep` covers that.
@@ -162,6 +165,14 @@ Host release-tool tests cover version drift, missing locked packages, malformed
 flash configuration, moved settings partitions, and corrupt, truncated, or
 oversized images. They run with the workspace tests and need no hardware or
 espflash installation.
+Installer tests check that HTML download links match the catalog, versions sort
+numerically, and empty or rebuilt catalogs do not advertise unavailable releases.
+For website changes, also check keyboard navigation, accessible field names and
+descriptions, contrast, reduced motion and the animation control, 320 px reflow,
+200% text size, and downloads without JavaScript. Run an accessibility scanner
+on both the normal page and its loading/error states; automated checks do not
+replace testing with a screen reader or testing the USB flow on hardware.
+
 The release workflow reuses these checks at the exact release tag, packages both
 firmware targets, and publishes the draft only after every check passes. About's
 navigation, timer interruptions, text snapshots, and banded drawing are tested

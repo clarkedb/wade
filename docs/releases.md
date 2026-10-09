@@ -34,7 +34,8 @@ tag or replace published binaries: make a new release instead.
 
 Before merging a release PR, smoke-test the candidate on both boards: boot,
 touch, timer, chime, and brightness. Set non-default settings, update with the
-app-only image, then restart and confirm they survived. CI checks builds and package contents;
+app-only image, then restart and confirm they survived. Repeat an update through
+the browser installer when it changes. CI checks builds and package contents;
 it cannot prove USB flashing or hardware behavior.
 
 ## USB installation
@@ -98,6 +99,81 @@ choose a package destination instead of `dist`.
 Packaging checks the generated flash headers and partition table against the
 board configuration. In `espflash.toml`, size and frequency values use units
 such as `16MB` and `40MHz`; invalid values can silently select espflash defaults.
+
+## Browser installer
+
+The [installer](https://clarkedb.github.io/wade/) offers published stable releases,
+board selection, and separate first-install and update choices. Use a desktop
+browser with Web Serial: Chrome, Edge, or Firefox 151 or newer. On updates, leave **Erase
+device** unchecked. The installer cannot identify the exact board from its chip
+alone, so choose the supported board model yourself.
+
+Visitors need no Rust toolchain, Python, espflash, or installed app. The browser
+loads ESP Web Tools and writes the firmware over USB. First installation works
+without Wade already on the device; updates require a compatible Wade
+installation. Some systems need a USB serial driver; see [USB recovery](#usb-recovery).
+
+Firefox asks for permission through its Web Serial add-on gate before the port
+picker appears. Safari can browse releases and download packages, but lacks
+Web Serial for direct flashing. See [Mozilla's Web Serial announcement](https://hacks.mozilla.org/2026/05/web-serial-support-in-firefox/)
+and [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API#browser_compatibility).
+
+The site is static HTML, CSS, JavaScript, and firmware files hosted on GitHub
+Pages, with no jQuery or frontend framework. Content and firmware download links
+are in the built HTML, so readers and crawlers do not need JavaScript. JavaScript
+adds USB installation and loads ESP Web Tools after a board and installation
+mode are chosen.
+
+The site build uses Node.js 22 or newer and npm. It validates firmware packages
+and generates the HTML downloads and JSON catalog; no frontend
+bundler or runtime server is needed. Build dependencies are a ZIP reader and a
+local preview server. GitHub Actions downloads published packages through the
+GitHub CLI, then deploys the static output.
+
+The header shows a loop rendered through the core's normal event loop: idle
+blinks and glances, then a tap makes Wade Happy. The animation button stops or
+starts it; reduced motion and visits without JavaScript use the neutral-face
+snapshot. Native controls, keyboard focus, linked field descriptions, and live
+status messages support accessible installation.
+
+The page includes canonical and social metadata, source-code structured data,
+a sitemap, and a linked JSON release catalog. Keep these URLs current if hosting
+changes. Search and AI crawlers can read the same visible content and links as
+visitors. GitHub project Pages lives under `/wade/`; crawler rules belong at the
+host's `/robots.txt`, not `/wade/robots.txt`. The sitemap can be submitted to
+search engines after deployment. Metadata does not guarantee indexing.
+
+To regenerate the animation, use the pinned Rust toolchain and FFmpeg:
+
+```sh
+cargo run -p wade-core --example site-animation --features harness -- dist/site-animation
+ffmpeg -y -framerate 25 -i dist/site-animation/frame-%03d.png -filter_complex '[0:v]split[a][b];[a]palettegen=reserve_transparent=0[p];[b][p]paletteuse=dither=none' -loop 0 site/public/wade.gif
+```
+
+GitHub Pages must use GitHub Actions as its publishing source. The Installer
+workflow rebuilds the site after a release publishes or the page changes, and
+can be run manually. Firmware, manifests, and downloads share the site's origin.
+Before the first release, the page explains that no firmware is available yet.
+
+The workflow downloads board ZIPs from published stable GitHub releases,
+skipping drafts and prereleases. The site builder checks and extracts those
+packages, then generates `releases.json`, sorted newest first. The browser reads
+that catalog and selects the image for the chosen version, board, and install
+or update mode. Branch commits alone do not add releases to the list.
+
+For a local preview after packaging both boards:
+
+```sh
+npm ci --prefix site
+npm --prefix site run build
+npm --prefix site run preview
+```
+
+Local preview uses the ZIPs already in `dist/`; building the site does not compile
+firmware. Rebuild and repackage both boards when their source changes. The local
+version label comes from package metadata, so it can still say `0.1.0` while
+About identifies a development commit. Localhost is for development; visitors
+use the hosted HTTPS site.
 
 About, startup logs, and desktop `--version` identify the build. Only a clean
 checkout of the matching release tag is labeled a release; other builds include
