@@ -121,6 +121,7 @@ impl Storage {
 
 #[cfg(test)]
 mod tests {
+    use wade_core::settings::Volume;
     use wade_core::view::ColorMode;
 
     use super::*;
@@ -162,7 +163,9 @@ mod tests {
     fn a_corrupt_or_unreadable_file_gives_the_defaults() {
         let scratch = Scratch::new("corrupt");
         let storage = scratch.storage();
-        storage.save(Settings::DEFAULT.with_chime(false)).unwrap();
+        storage
+            .save(Settings::DEFAULT.with_volume(Volume::Off))
+            .unwrap();
         fs::write(&storage.path, b"not settings").unwrap();
         assert_eq!(storage.load(), Settings::DEFAULT);
         fs::remove_file(&storage.path).unwrap();
@@ -183,7 +186,7 @@ mod tests {
         assert_eq!(saver.pending, Some(mono));
         assert_eq!(storage.load(), Settings::DEFAULT);
 
-        let latest = mono.with_chime(false);
+        let latest = mono.with_volume(Volume::Off);
         saver.save(latest);
         fs::remove_file(blocked_dir).unwrap();
         saver.retry_at = Some(Instant::now());
@@ -201,7 +204,7 @@ mod tests {
         fs::write(&blocked_dir, b"blocking file").unwrap();
         let storage = scratch.storage();
         let mut saver = SettingsSaver::new(&storage);
-        let changed = Settings::DEFAULT.with_chime(false);
+        let changed = Settings::DEFAULT.with_volume(Volume::Soft);
         saver.save(changed);
         fs::remove_file(blocked_dir).unwrap();
         saver.flush(None);

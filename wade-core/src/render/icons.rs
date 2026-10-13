@@ -4,12 +4,12 @@ use embedded_graphics::{
     pixelcolor::Rgb565,
     prelude::*,
     primitives::{
-        Circle, Line, Polyline, PrimitiveStyle, Rectangle, RoundedRectangle, Styled, Triangle,
+        Arc, Circle, Line, Polyline, PrimitiveStyle, Rectangle, RoundedRectangle, Styled, Triangle,
     },
 };
 
 use crate::render::palette;
-use crate::settings::Brightness;
+use crate::settings::{Brightness, Volume};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Icon {
@@ -32,9 +32,8 @@ pub enum Icon {
     Dots,
     /// Three dots in the accents' colors.
     ColorDots,
-    Bell,
-    /// A bell struck through.
-    Muted,
+    /// A speaker sending out more waves the louder, or struck through when off.
+    Speaker(Volume),
     /// A sun whose rays lengthen with the level.
     Sun(Brightness),
 }
@@ -106,16 +105,7 @@ where
             [palette::BLUSH, palette::WATER, palette::SPARKLE],
             target,
         ),
-        Icon::Bell => bell(&pen, target),
-        Icon::Muted => {
-            bell(&pen, target)?;
-            // Edged in the paper color, so the slash stands clear of the bell.
-            let slash = Line::new(pen.at(-12, -12), pen.at(12, 12));
-            slash
-                .into_styled(PrimitiveStyle::with_stroke(pen.colors.paper, pen.len(7)))
-                .draw(target)?;
-            slash.into_styled(pen.stroke(3)).draw(target)
-        }
+        Icon::Speaker(volume) => speaker(&pen, volume, target),
         Icon::Sun(level) => sun(&pen, level, target),
     }
 }
@@ -243,17 +233,43 @@ where
     Ok(())
 }
 
-fn bell<T>(pen: &Pen, target: &mut T) -> Result<(), T::Error>
+fn speaker<T>(pen: &Pen, volume: Volume, target: &mut T) -> Result<(), T::Error>
 where
     T: DrawTarget<Color = Rgb565>,
 {
-    let ink = pen.colors.ink;
-    pen.disc(0, -4, 17, ink).draw(target)?;
-    Rectangle::new(pen.at(-8, -4), Size::new(pen.len(17), pen.len(9)))
-        .into_styled(pen.ink())
+    // The cone opens at x = -2, so the speaker sits left of the middle and its
+    // loudest waves balance it on the right.
+    pen.rounded(-13, -4, 6, 8, 1).draw(target)?;
+    for triangle in [
+        Triangle::new(pen.at(-8, -4), pen.at(-2, -10), pen.at(-2, 10)),
+        Triangle::new(pen.at(-8, -4), pen.at(-2, 10), pen.at(-8, 4)),
+    ] {
+        triangle.into_styled(pen.ink()).draw(target)?;
+    }
+    let waves = match volume {
+        Volume::Off => {
+            // Edged in the paper color, so the slash stands clear of the speaker.
+            let slash = Line::new(pen.at(-14, -12), pen.at(10, 12));
+            slash
+                .into_styled(PrimitiveStyle::with_stroke(pen.colors.paper, pen.len(5)))
+                .draw(target)?;
+            return slash.into_styled(pen.stroke(3)).draw(target);
+        }
+        Volume::Soft => 1,
+        Volume::Medium => 2,
+        Volume::Loud => 3,
+    };
+    for radius in [4, 8, 12].into_iter().take(waves) {
+        Arc::with_center(
+            pen.at(-2, 0),
+            pen.len(2 * radius),
+            Angle::from_degrees(-45.0),
+            Angle::from_degrees(90.0),
+        )
+        .into_styled(pen.stroke(2))
         .draw(target)?;
-    pen.rounded(-12, 4, 25, 4, 2).draw(target)?;
-    pen.disc(0, 11, 5, ink).draw(target)
+    }
+    Ok(())
 }
 
 fn sun<T>(pen: &Pen, level: Brightness, target: &mut T) -> Result<(), T::Error>

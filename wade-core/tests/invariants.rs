@@ -7,6 +7,7 @@ use embedded_graphics::primitives::Rectangle;
 use proptest::prelude::*;
 use wade_core::app::{SAVE_DELAY, STALL_LIMIT, Screen};
 use wade_core::layout;
+use wade_core::settings::Volume;
 use wade_core::timer::{CHIME_INTERVAL, CHIMES, MAX_SET, MIN_SET, STEP, TimerPhase, TimerState};
 use wade_core::{
     App, Digit, Effect, Event, EventKind, Instant, Key, Settings, Touch, TouchPhase, View,
@@ -185,7 +186,7 @@ fn handle_chimes(
 ) -> Result<(), TestCaseError> {
     let before = app.timer_state();
     // Chimes fall due before the event itself can change the setting.
-    let audible = usize::from(app.settings().chime());
+    let audible = usize::from(app.settings().volume() != Volume::Off);
     let out = app.handle(event);
     let rang = out.effects.iter().filter(|&&e| e == Effect::Chime).count();
     prop_assert!(rang <= 1, "{} chimes at {:?}", rang, event.at);
@@ -382,7 +383,7 @@ proptest! {
         let mut rung = None;
         let mut handle = |app: &mut App, event: Event| -> Result<(), TestCaseError> {
             let finishing = matches!(app.timer_state(), TimerState::Running { ends_at, .. } if ends_at <= event.at);
-            let audible = usize::from(app.settings().chime());
+            let audible = usize::from(app.settings().volume() != Volume::Off);
             let out = app.handle(event);
             let rang = out.effects.iter().filter(|&&e| e == Effect::Chime).count();
             if finishing {

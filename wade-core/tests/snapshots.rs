@@ -9,7 +9,7 @@ use std::time::Duration;
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
 use wade_core::layout::{self, SettingsTile, Target, Tile};
-use wade_core::settings::{Brightness, SettingsButton};
+use wade_core::settings::{Brightness, SettingsButton, Volume};
 use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
 use wade_core::view::{AboutView, ColorMode, EyeStyle, SettingsView, View};
 use wade_core::{App, BuildInfo, Instant, Settings, TouchPhase, render};
@@ -310,7 +310,7 @@ fn settings_screen_with_defaults_and_changed() {
     let changed = Settings::DEFAULT
         .with_eye_style(EyeStyle::Plain)
         .with_color(ColorMode::Mono)
-        .with_chime(false)
+        .with_volume(Volume::Off)
         .with_brightness(Brightness::Quarter);
     snapshot("settings_changed", &settings_screen(changed, None));
 }
@@ -327,6 +327,22 @@ fn each_brightness_level() {
 }
 
 #[test]
+fn each_volume_level() {
+    for level in Volume::ALL {
+        let name = match level {
+            Volume::Off => "off",
+            Volume::Soft => "soft",
+            Volume::Medium => "medium",
+            Volume::Loud => "loud",
+        };
+        snapshot(
+            &format!("settings_volume_{name}"),
+            &settings_screen(Settings::DEFAULT.with_volume(level), None),
+        );
+    }
+}
+
+#[test]
 fn each_settings_button_pressed() {
     let pressed = std::iter::once(("back".to_owned(), Target::Back)).chain(
         layout::SETTINGS_TILES.iter().filter_map(|&tile| {
@@ -336,7 +352,7 @@ fn each_settings_button_pressed() {
             let name = match button {
                 SettingsButton::EyeStyle => "eye_style",
                 SettingsButton::Color => "color",
-                SettingsButton::Chime => "chime",
+                SettingsButton::Volume => "volume",
                 SettingsButton::Brightness => "brightness",
             };
             Some((name.to_owned(), Target::Settings(button)))

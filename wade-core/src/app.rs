@@ -6,7 +6,7 @@ use crate::info::BuildInfo;
 use crate::input::TouchTracker;
 use crate::layout::{self, Target, Tile};
 use crate::rng::Rng;
-use crate::settings::{Brightness, Settings, SettingsButton};
+use crate::settings::{Brightness, Settings, SettingsButton, Volume};
 use crate::time::{Duration, Instant};
 use crate::timer::{Chime, Digits, TimerButton, TimerPhase, TimerState};
 use crate::view::{AboutView, BuddyView, LauncherView, SettingsView, View};
@@ -35,7 +35,7 @@ pub const TOUCH_GUARD: Duration = Duration::from_millis(500);
 pub enum Effect {
     /// Play the timer-finished chime, the tone sequence in
     /// [`crate::sound::CHIME`]. Emitted when the timer finishes and repeated
-    /// while it stays Done, unless the chime setting is off (docs/ui.md#rules).
+    /// while it stays Done, unless the volume is off (docs/ui.md#rules).
     Chime,
     /// Store these settings, for `App::new` at the next start. Emitted once
     /// they stop changing, or on leaving the Settings screen, and only when
@@ -44,6 +44,9 @@ pub enum Effect {
     /// Set the display's backlight. Emitted when the brightness setting
     /// changes; at startup the platform applies the loaded setting itself.
     SetBrightness(Brightness),
+    /// Set how loud the chime plays. Emitted when the volume setting changes;
+    /// at startup the platform applies the loaded setting itself.
+    SetVolume(Volume),
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -208,6 +211,9 @@ impl App {
                         .effects
                         .push(Effect::SetBrightness(settings.brightness()));
                 }
+                if settings.volume() != self.settings.volume() {
+                    let _ = out.effects.push(Effect::SetVolume(settings.volume()));
+                }
                 self.change_settings(settings);
                 out.redraw = true;
             }
@@ -282,7 +288,7 @@ impl App {
     }
 
     /// A chime fell due at `now`. The first brings up the Timer screen, from
-    /// any screen, and wakes Wade if he is asleep, even with the chime off.
+    /// any screen, and wakes Wade if he is asleep, even with the volume off.
     fn on_chime(&mut self, chime: Chime, out: &mut Output) {
         if chime == Chime::First {
             self.wade.timer_finished(self.now);
@@ -290,7 +296,7 @@ impl App {
             self.touch_guard_until = self.now + TOUCH_GUARD;
         }
         // Chimes that fall due in one event, after a late wake, ring once.
-        if self.settings.chime() && !out.effects.contains(&Effect::Chime) {
+        if self.settings.volume() != Volume::Off && !out.effects.contains(&Effect::Chime) {
             let _ = out.effects.push(Effect::Chime);
         }
     }

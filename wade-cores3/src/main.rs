@@ -183,6 +183,7 @@ async fn main(spawner: Spawner) -> ! {
     if let Err(e) = power::set_brightness(&mut bus, settings.brightness()).await {
         warn!("backlight not set: {e:?}");
     }
+    audio::set_volume(&mut bus, settings.volume()).await;
 
     #[cfg(feature = "measure")]
     let mut stats = {
@@ -220,6 +221,7 @@ async fn main(spawner: Spawner) -> ! {
                         warn!("backlight not set: {e:?}");
                     }
                 }
+                Effect::SetVolume(volume) => audio::set_volume(&mut bus, volume).await,
                 Effect::SaveSettings(settings) => {
                     if let Some(store) = &mut store
                         && let Err(e) = store.save(&settings).await

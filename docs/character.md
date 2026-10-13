@@ -156,7 +156,7 @@ Idle activities (M4):
 | Trigger | Result |
 |---|---|
 | Returning to the Buddy screen after dismissing a finished timer (with Dismiss or back) | Proud for 2 s, then Neutral |
-| The timer finishing while he is asleep | It wakes him, Sleepy, out of sight on the Timer screen, even with the chime off |
+| The timer finishing while he is asleep | It wakes him, Sleepy, out of sight on the Timer screen, even with the volume off |
 | Dismissing a finished timer that woke him | Sleepy for 3 s instead of Proud, then a coin flip: Neutral, or back to sleep |
 
 ### Power button

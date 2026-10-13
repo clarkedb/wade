@@ -12,7 +12,7 @@ use embedded_graphics::geometry::Point;
 use crate::app::{App, Effect, Output, Screen};
 use crate::character::Expression;
 use crate::event::{Event, Key, TouchPhase};
-use crate::settings::Settings;
+use crate::settings::{Settings, Volume};
 use crate::time::Instant;
 use crate::timer::TimerPhase;
 use crate::view::{
@@ -245,6 +245,13 @@ pub fn state_hash(app: &App) -> u32 {
         ColorMode::Color => 0,
         ColorMode::Mono => 1,
     };
+    // Off and loud keep the codes of the chime's old off and on.
+    let volume = match settings.volume() {
+        Volume::Off => 0,
+        Volume::Loud => 1,
+        Volume::Medium => 2,
+        Volume::Soft => 3,
+    };
     let timer = app.timer_state();
     let phase = match timer.phase() {
         TimerPhase::Ready => 0,
@@ -264,7 +271,7 @@ pub fn state_hash(app: &App) -> u32 {
         digits.minutes(),
         digits.seconds(),
         color,
-        u8::from(settings.chime()),
+        volume,
         minutes(settings.timer()),
         settings.brightness().percent(),
     ])

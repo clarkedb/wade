@@ -206,3 +206,9 @@ Rejected: deferring brightness to the CoreS3 implementation, whose backlight run
 Reason: both are useful hardware targets. The CoreS3 provides capacitive touch, a battery, and sensors; the CYD supports a lower-memory classic ESP32 with resistive touch. Their shared core and firmware structure keep both ports maintainable.
 
 Rejected: supporting only the CoreS3, which drops the classic ESP32 target; supporting only the CYD, which loses M6's sensors and capacitive touchscreen.
+
+## D34. Volume is a setting, folded into the chime toggle
+
+Reason: desks differ, and one loudness for the chime suits only some of them. The chime toggle becomes a volume that steps down through loud, medium, soft, and off, then back to loud, as brightness steps ([D32](#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)). Loud is the chime as it played before, so older settings and recordings decode on as loud and off as off. The core emits `SetVolume` when it changes; platforms apply the loaded level at startup. The desktop scales its samples, the CoreS3 sets its amplifier's volume register, and the CYD, with no speaker yet, logs it. The toggle shows a speaker with one to three waves, struck through when off.
+
+Rejected: a volume toggle beside on/off, which needs a fifth slot and a volume that means nothing while the chime is off; a bell with ringing arcs, which must shrink to fit three arcs in a tile; a level louder than before, since the amplifier's full volume is too loud for a desk.

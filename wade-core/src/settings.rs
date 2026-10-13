@@ -6,13 +6,15 @@ use crate::timer::{DEFAULT_SET, MAX_SET, MIN_SET};
 use crate::view::{ColorMode, EyeStyle};
 
 /// The length of an encoding: the version, then one byte each for the eye
-/// style, colors, chime, timer minutes, and brightness.
+/// style, colors, volume, timer minutes, and brightness.
 pub const ENCODED_LEN: usize = 6;
 
 /// The first byte of every encoding. A new layout gets a new version, and
 /// decoding keeps reading every older one, so stored settings and recordings
 /// survive the change.
-const VERSION: u8 = 2;
+const VERSION: u8 = 3;
+/// The layout before volume, whose chime was on or off.
+const VERSION_2: u8 = 2;
 /// The layout before brightness, which decodes at full brightness.
 const VERSION_1: u8 = 1;
 
@@ -23,8 +25,8 @@ pub enum SettingsButton {
     EyeStyle,
     /// Switch between color and mono.
     Color,
-    /// Turn the chime on or off.
-    Chime,
+    /// Step the chime's volume down a level, from off back to loud.
+    Volume,
     /// Step the backlight down a level, from the lowest back to full.
     Brightness,
 }
@@ -90,12 +92,68 @@ impl Brightness {
     }
 }
 
+/// How loud the timer's chime plays.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Volume {
+    /// Silent: the timer still finishes, but no chime sounds.
+    Off,
+    Soft,
+    Medium,
+    #[default]
+    Loud,
+}
+
+impl Volume {
+    /// Every level, quietest first.
+    pub const ALL: [Volume; 4] = [Volume::Off, Volume::Soft, Volume::Medium, Volume::Loud];
+
+    /// The next level down, or loud after off.
+    #[must_use]
+    pub const fn quieter(self) -> Volume {
+        match self {
+            Volume::Loud => Volume::Medium,
+            Volume::Medium => Volume::Soft,
+            Volume::Soft => Volume::Off,
+            Volume::Off => Volume::Loud,
+        }
+    }
+
+    const fn encode(self) -> u8 {
+        match self {
+            Volume::Off => 0,
+            Volume::Soft => 1,
+            Volume::Medium => 2,
+            Volume::Loud => 3,
+        }
+    }
+
+    const fn decode(byte: u8) -> Option<Volume> {
+        match byte {
+            0 => Some(Volume::Off),
+            1 => Some(Volume::Soft),
+            2 => Some(Volume::Medium),
+            3 => Some(Volume::Loud),
+            _ => None,
+        }
+    }
+
+    /// The volume for a chime byte from a layout before volume, whose chime,
+    /// when on, played at what is now loud.
+    const fn from_chime(byte: u8) -> Option<Volume> {
+        match byte {
+            0 => Some(Volume::Off),
+            1 => Some(Volume::Loud),
+            _ => None,
+        }
+    }
+}
+
 /// Every setting. Always valid: the timer is whole minutes from 1 to 99.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Settings {
     eye_style: EyeStyle,
     color: ColorMode,
-    chime: bool,
+    volume: Volume,
     timer_minutes: u8,
     brightness: Brightness,
 }
@@ -104,7 +162,7 @@ impl Settings {
     pub const DEFAULT: Settings = Settings {
         eye_style: EyeStyle::Pupils,
         color: ColorMode::Color,
-        chime: true,
+        volume: Volume::Loud,
         timer_minutes: whole_minutes(DEFAULT_SET).expect("the default timer is whole minutes"),
         brightness: Brightness::Full,
     };
@@ -119,10 +177,9 @@ impl Settings {
         self.color
     }
 
-    /// False silences the timer's chime.
     #[must_use]
-    pub const fn chime(&self) -> bool {
-        self.chime
+    pub const fn volume(&self) -> Volume {
+        self.volume
     }
 
     /// The timer's duration as last set, which it starts at.
@@ -147,8 +204,8 @@ impl Settings {
     }
 
     #[must_use]
-    pub const fn with_chime(self, chime: bool) -> Settings {
-        Settings { chime, ..self }
+    pub const fn with_volume(self, volume: Volume) -> Settings {
+        Settings { volume, ..self }
     }
 
     #[must_use]
@@ -175,7 +232,7 @@ impl Settings {
         match button {
             SettingsButton::EyeStyle => self.with_eye_style(self.eye_style.toggled()),
             SettingsButton::Color => self.with_color(self.color.toggled()),
-            SettingsButton::Chime => self.with_chime(!self.chime),
+            SettingsButton::Volume => self.with_volume(self.volume.quieter()),
             SettingsButton::Brightness => self.with_brightness(self.brightness.dimmer()),
         }
     }
@@ -195,7 +252,7 @@ impl Settings {
             VERSION,
             eye_style,
             color,
-            u8::from(self.chime),
+            self.volume.encode(),
             self.timer_minutes,
             self.brightness.encode(),
         ]
@@ -212,17 +269,28 @@ impl Settings {
     /// an encoding of some settings, in this layout or an older one.
     #[must_use]
     pub fn try_decode(bytes: &[u8]) -> Option<Settings> {
-        let (eye_style, color, chime, minutes, brightness) = match *bytes {
-            [VERSION, eye_style, color, chime, minutes, brightness] => (
+        let (eye_style, color, volume, minutes, brightness) = match *bytes {
+            [VERSION, eye_style, color, volume, minutes, brightness] => (
                 eye_style,
                 color,
-                chime,
+                Volume::decode(volume)?,
                 minutes,
                 Brightness::decode(brightness)?,
             ),
-            [VERSION_1, eye_style, color, chime, minutes] => {
-                (eye_style, color, chime, minutes, Brightness::Full)
-            }
+            [VERSION_2, eye_style, color, chime, minutes, brightness] => (
+                eye_style,
+                color,
+                Volume::from_chime(chime)?,
+                minutes,
+                Brightness::decode(brightness)?,
+            ),
+            [VERSION_1, eye_style, color, chime, minutes] => (
+                eye_style,
+                color,
+                Volume::from_chime(chime)?,
+                minutes,
+                Brightness::Full,
+            ),
             _ => return None,
         };
         let eye_style = match eye_style {
@@ -235,15 +303,10 @@ impl Settings {
             1 => ColorMode::Mono,
             _ => return None,
         };
-        let chime = match chime {
-            0 => false,
-            1 => true,
-            _ => return None,
-        };
         Settings {
             eye_style,
             color,
-            chime,
+            volume,
             brightness,
             ..Settings::DEFAULT
         }
@@ -278,7 +341,7 @@ mod tests {
 
     #[test]
     fn the_stored_form_of_the_defaults_never_changes() {
-        assert_eq!(Settings::default().encode(), [VERSION, 0, 0, 1, 5, 3]);
+        assert_eq!(Settings::default().encode(), [VERSION, 0, 0, 3, 5, 3]);
     }
 
     #[test]
@@ -287,10 +350,48 @@ mod tests {
         let expected = Settings::DEFAULT
             .with_eye_style(EyeStyle::Plain)
             .with_color(ColorMode::Mono)
-            .with_chime(false)
+            .with_volume(Volume::Off)
             .with_timer(Duration::from_mins(12))
             .unwrap();
         assert_eq!(Settings::try_decode(&v1), Some(expected));
+    }
+
+    #[test]
+    fn a_chime_from_before_volume_decodes_loud_or_off() {
+        let on = [VERSION_2, 0, 0, 1, 5, 1];
+        let half = Settings::DEFAULT.with_brightness(Brightness::Half);
+        assert_eq!(Settings::try_decode(&on), Some(half));
+        let off = [VERSION_2, 0, 0, 0, 5, 1];
+        assert_eq!(
+            Settings::try_decode(&off),
+            Some(half.with_volume(Volume::Off))
+        );
+        assert_eq!(
+            Settings::try_decode(&[VERSION_1, 0, 0, 1, 5]),
+            Some(Settings::DEFAULT)
+        );
+    }
+
+    #[test]
+    fn every_volume_round_trips() {
+        for v in Volume::ALL {
+            let s = Settings::DEFAULT.with_volume(v);
+            assert_eq!(Settings::try_decode(&s.encode()), Some(s));
+        }
+    }
+
+    #[test]
+    fn volume_steps_down_and_wraps_to_loud() {
+        let mut v = Volume::Loud;
+        let mut seen = [Volume::Loud; 4];
+        for slot in &mut seen {
+            v = v.quieter();
+            *slot = v;
+        }
+        assert_eq!(
+            seen,
+            [Volume::Medium, Volume::Soft, Volume::Off, Volume::Loud]
+        );
     }
 
     #[test]
@@ -335,32 +436,41 @@ mod tests {
                 SettingsButton::Color,
                 Settings::DEFAULT.with_color(ColorMode::Mono),
             ),
-            (SettingsButton::Chime, Settings::DEFAULT.with_chime(false)),
         ] {
             let s = Settings::DEFAULT.toggled(button);
             assert_eq!(s, changed);
             assert_eq!(s.toggled(button), Settings::DEFAULT);
         }
-        let s = Settings::DEFAULT.toggled(SettingsButton::Brightness);
-        assert_eq!(
-            s,
-            Settings::DEFAULT.with_brightness(Brightness::ThreeQuarters)
-        );
+        for (button, stepped) in [
+            (
+                SettingsButton::Volume,
+                Settings::DEFAULT.with_volume(Volume::Medium),
+            ),
+            (
+                SettingsButton::Brightness,
+                Settings::DEFAULT.with_brightness(Brightness::ThreeQuarters),
+            ),
+        ] {
+            assert_eq!(Settings::DEFAULT.toggled(button), stepped);
+        }
     }
 
     #[test]
     fn bad_data_decodes_to_the_defaults() {
-        let good = Settings::DEFAULT.with_chime(false).encode();
-        assert_eq!(Settings::decode(&good), Settings::DEFAULT.with_chime(false));
+        let soft = Settings::DEFAULT.with_volume(Volume::Soft);
+        let good = soft.encode();
+        assert_eq!(Settings::decode(&good), soft);
         for (bytes, why) in [
             (&[][..], "missing"),
             (&good[..5], "short"),
             (&[VERSION, 0, 0, 0, 5, 3, 0][..], "long"),
             (&[VERSION_1, 0, 0, 0, 5, 3][..], "first layout, too long"),
-            (&[3, 0, 0, 0, 5, 3][..], "unknown version"),
+            (&[4, 0, 0, 0, 5, 3][..], "unknown version"),
             (&[VERSION, 2, 0, 0, 5, 3][..], "bad eye style"),
             (&[VERSION, 0, 2, 0, 5, 3][..], "bad colors"),
-            (&[VERSION, 0, 0, 2, 5, 3][..], "bad chime"),
+            (&[VERSION, 0, 0, 4, 5, 3][..], "bad volume"),
+            (&[VERSION_2, 0, 0, 2, 5, 3][..], "bad chime"),
+            (&[VERSION_1, 0, 0, 2, 5][..], "bad first chime"),
             (&[VERSION, 0, 0, 0, 0, 3][..], "timer too short"),
             (&[VERSION, 0, 0, 0, 100, 3][..], "timer too long"),
             (&[VERSION, 0, 0, 0, 5, 4][..], "bad brightness"),
