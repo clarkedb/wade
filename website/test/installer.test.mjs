@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import AdmZip from "adm-zip";
-import { BOARDS, build, firmwareAssets } from "../build.mjs";
+import { BOARDS, FACES, build, firmwareAssets } from "../build.mjs";
 
 function workspace(t) {
   const directory = mkdtempSync(join(tmpdir(), "wade-installer-test-"));
@@ -112,6 +112,23 @@ test("HTML downloads match catalog and numeric version order without JavaScript"
       !existsSync(join(output, filename)),
       "Build tools must not be deployed",
     );
+});
+
+test("Wade's faces are published from the core's snapshots", (t) => {
+  const { packages, output } = workspace(t);
+  build(packages, output);
+  for (const face of Object.keys(FACES))
+    assert(existsSync(join(output, "faces", `${face}.png`)), face);
+  const page = readFileSync(join(output, "index.html"), "utf8");
+  const script = readFileSync(join(output, "installer.js"), "utf8");
+  const statusFaces = script.match(/const FACES = \{([^}]*)\}/)[1];
+  const named = [
+    ...[...page.matchAll(/faces\/([a-z]+)\.png/g)].map((match) => match[1]),
+    ...[...script.matchAll(/faces\/([a-z]+)\.png/g)].map((match) => match[1]),
+    ...[...statusFaces.matchAll(/: "([a-z]+)"/g)].map((match) => match[1]),
+  ];
+  assert(named.length > 0);
+  for (const name of named) assert(Object.hasOwn(FACES, name), name);
 });
 
 test("empty or missing packages explain availability without JavaScript", (t) => {

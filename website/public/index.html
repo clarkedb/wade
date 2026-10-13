@@ -8,6 +8,7 @@
       content="Meet Wade, an open-source animated desk companion for CoreS3 Lite and CYD. Install firmware over USB, download releases, or contribute a new hardware port."
     />
     <title>Wade — open-source desk companion &amp; firmware installer</title>
+    <meta name="color-scheme" content="dark light" />
     <link rel="canonical" href="https://clarkedb.github.io/wade/" />
     <link rel="icon" type="image/png" href="wade.png" />
     <link rel="sitemap" type="application/xml" href="sitemap.xml" />
@@ -39,6 +40,13 @@
       content="Wade's expressive eyes, drawn by his firmware"
     />
     <meta name="twitter:card" content="summary" />
+    <script src="theme.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,400;0,500;0,700;0,800;1,400&family=Silkscreen&display=swap"
+    />
     <link rel="stylesheet" href="style.css" />
     <script type="application/ld+json">
       {
@@ -60,34 +68,79 @@
   <body>
     <a class="skip-link" href="#install-heading">Skip to installation</a>
     <main>
-      <header>
-        <button
-          class="animation-control"
-          id="animation-control"
-          type="button"
-          aria-label="Play Wade's animation"
-          aria-controls="wade"
-          disabled
-        >
-          <img
-            class="wade"
-            id="wade"
-            src="wade.png"
-            width="320"
-            height="240"
-            alt="Wade's expressive eyes"
-          />
-        </button>
-        <p class="eyebrow">Your desk buddy</p>
-        <h1>Meet Wade.</h1>
-        <p class="intro">
-          Wade is an open-source animated desk companion. He reacts to touch,
-          keeps a timer, and brings a little company to your desk.
-        </p>
+      <div class="bar">
+        <a class="mark readout" href="./">
+          <img class="screen" src="wade.png" width="80" height="60" alt="" />
+          Wade
+        </a>
+        <div class="bar-actions">
+          <a
+            class="readout"
+            href="https://github.com/clarkedb/wade"
+            target="_blank"
+            rel="noopener"
+            >GitHub<span class="visually-hidden"> (opens in a new tab)</span></a
+          >
+          <button
+            class="theme-toggle readout"
+            id="theme-toggle"
+            type="button"
+            hidden
+          >
+            Light mode
+          </button>
+        </div>
+      </div>
+
+      <header class="hero">
+        <div>
+          <p class="eyebrow readout">Your desk buddy</p>
+          <h1>Meet<br />Wade<span class="period" aria-hidden="true"></span></h1>
+          <p class="intro">
+            Wade is an open-source animated desk companion. He reacts to touch,
+            keeps a timer, and brings a little company to your desk.
+            <em>He’s quite pleased about it.</em>
+          </p>
+          <div class="cta">
+            <a class="button" href="#install-heading">Install Wade</a>
+            <a
+              class="button button-ghost"
+              href="https://github.com/clarkedb/wade"
+              >View the source</a
+            >
+          </div>
+        </div>
+        <figure class="device">
+          <button
+            class="animation-control"
+            id="animation-control"
+            type="button"
+            aria-label="Play Wade's animation"
+            aria-controls="wade"
+            disabled
+          >
+            <img
+              class="wade"
+              id="wade"
+              src="wade.png"
+              width="320"
+              height="240"
+              alt="Wade's expressive eyes"
+            />
+          </button>
+          <figcaption class="chin readout">
+            <span>Sample from firmware</span>
+            <span class="led"
+              ><span class="when-playing">Playing</span
+              ><span class="when-paused">Paused</span></span
+            >
+          </figcaption>
+        </figure>
       </header>
+
       <section aria-labelledby="install-heading" class="panel">
         <h2 id="install-heading" tabindex="-1">Install Wade</h2>
-        <p class="hint">
+        <p class="lede">
           Install or update over USB with desktop Chrome, Edge, or Firefox 151
           or newer. No developer tools needed. Other browsers can
           <a href="#firmware-downloads">download firmware</a>.
@@ -103,94 +156,154 @@
           </p></noscript
         >
         <div id="usb-controls" hidden>
-          <label for="board">Your device</label>
-          <div class="select-control">
-            <select id="board" aria-describedby="board-hint">
-              <option value="">Choose your board</option>
-              <option value="cores3">M5Stack CoreS3 Lite</option>
-              <option value="cyd">CYD · ESP32-2432S028R</option>
-            </select>
+          <ol class="steps">
+            <li class="step" data-step="01">
+              <label class="step-title" for="board">Your device</label>
+              <div class="select-control">
+                <select id="board" aria-describedby="board-hint">
+                  <option value="">Choose your board</option>
+                  <option value="cores3">M5Stack CoreS3 Lite</option>
+                  <option value="cyd">CYD · ESP32-2432S028R</option>
+                </select>
+              </div>
+              <p class="hint" id="board-hint">
+                Choose the exact board. Other CYD variants may have different
+                screens or touch controllers.
+                <a
+                  href="https://github.com/clarkedb/wade/blob/main/CONTRIBUTING.md#new-hardware"
+                  >Device not listed?</a
+                >
+                New hardware ports are welcome.
+              </p>
+            </li>
+            <li class="step" data-step="02">
+              <label class="step-title" for="release">Version</label>
+              <div class="select-control">
+                <select
+                  id="release"
+                  aria-describedby="release-hint"
+                  aria-busy="true"
+                  disabled
+                >
+                  <option>Loading releases…</option>
+                </select>
+              </div>
+              <p class="hint" id="release-hint">
+                The latest stable release is selected by default.
+              </p>
+            </li>
+            <li class="step" data-step="03">
+              <fieldset>
+                <legend class="step-title">What would you like to do?</legend>
+                <div class="choices">
+                  <label class="choice"
+                    ><input
+                      type="radio"
+                      name="mode"
+                      value="install"
+                      aria-labelledby="install-label"
+                      aria-describedby="install-description"
+                    /><span
+                      ><span id="install-label">Install for the first time</span
+                      ><small id="install-description"
+                        >Replaces existing firmware and resets settings.</small
+                      ></span
+                    ></label
+                  >
+                  <label class="choice"
+                    ><input
+                      type="radio"
+                      name="mode"
+                      value="update"
+                      aria-labelledby="update-label"
+                      aria-describedby="update-description"
+                    /><span
+                      ><span id="update-label">Update Wade</span
+                      ><small id="update-description"
+                        >Keeps your settings on an existing Wade
+                        installation.</small
+                      ></span
+                    ></label
+                  >
+                </div>
+              </fieldset>
+            </li>
+            <li class="step step-connect" data-step="04">
+              <span class="step-title" aria-hidden="true">Connect</span>
+              <p id="mode-hint" class="hint">
+                Use a USB data cable and close any serial monitor.
+              </p>
+              <esp-web-install-button id="installer">
+                <button
+                  slot="activate"
+                  id="connect"
+                  type="button"
+                  aria-describedby="mode-hint status"
+                  disabled
+                >
+                  Connect your device
+                </button>
+              </esp-web-install-button>
+            </li>
+          </ol>
+          <div class="aside">
+            <div class="status-card" id="status-card">
+              <img
+                class="screen status-face"
+                id="face"
+                src="faces/thinking.png"
+                width="320"
+                height="240"
+                alt=""
+              />
+              <p class="status-label readout" aria-hidden="true">Status</p>
+              <p id="status" role="status" aria-atomic="true"></p>
+            </div>
+            <p id="browser-hint" class="hint" hidden></p>
+            <nav class="package-links" aria-label="Selected release">
+              <a id="download" hidden>Download firmware</a
+              ><a id="notes" hidden>Release notes</a>
+            </nav>
           </div>
-          <p class="hint" id="board-hint">
-            Choose the exact board. Other CYD variants may have different
-            screens or touch controllers.
-            <a
-              href="https://github.com/clarkedb/wade/blob/main/CONTRIBUTING.md#new-hardware"
-              >Device not listed?</a
-            >
-            New hardware ports are welcome.
-          </p>
-          <label for="release">Version</label>
-          <div class="select-control">
-            <select
-              id="release"
-              aria-describedby="release-hint"
-              aria-busy="true"
-              disabled
-            >
-              <option>Loading releases…</option>
-            </select>
-          </div>
-          <p class="hint" id="release-hint">
-            The latest stable release is selected by default.
-          </p>
-          <fieldset>
-            <legend>What would you like to do?</legend>
-            <label class="choice"
-              ><input
-                type="radio"
-                name="mode"
-                value="install"
-                aria-labelledby="install-label"
-                aria-describedby="install-description"
-              /><span
-                ><span id="install-label">Install for the first time</span
-                ><small id="install-description"
-                  >Replaces existing firmware and resets settings.</small
-                ></span
-              ></label
-            >
-            <label class="choice"
-              ><input
-                type="radio"
-                name="mode"
-                value="update"
-                aria-labelledby="update-label"
-                aria-describedby="update-description"
-              /><span
-                ><span id="update-label">Update Wade</span
-                ><small id="update-description"
-                  >Keeps your settings on an existing Wade installation.</small
-                ></span
-              ></label
-            >
-          </fieldset>
-          <p id="mode-hint" class="hint">
-            Use a USB data cable and close any serial monitor.
-          </p>
-          <esp-web-install-button id="installer">
-            <button
-              slot="activate"
-              id="connect"
-              type="button"
-              aria-describedby="mode-hint status"
-              disabled
-            >
-              Connect your device
-            </button>
-          </esp-web-install-button>
-          <p id="browser-hint" class="hint" hidden></p>
-          <p id="status" role="status" aria-atomic="true"></p>
-          <nav class="package-links" aria-label="Selected release">
-            <a id="download" hidden>Download firmware</a
-            ><a id="notes" hidden>Release notes</a>
-          </nav>
         </div>
       </section>
+
+      <details class="help help-connect">
+        <summary>Device not connecting?</summary>
+        <div class="help-body">
+          <div>
+            <p>
+              Check your cable, close other apps using the serial port, and try
+              download mode.
+            </p>
+            <p>
+              <strong>CoreS3 Lite:</strong> hold Reset until the green light
+              appears, then release. Choose the newly appearing USB port.
+            </p>
+            <p>
+              <strong>CYD:</strong> if automatic reset fails, hold BOOT, press
+              and release RESET, and release BOOT once the flasher connects. A
+              missing Windows port may need the CH340 driver.
+            </p>
+            <a
+              href="https://github.com/clarkedb/wade/blob/main/docs/releases.md#usb-recovery"
+              >USB recovery and driver instructions</a
+            >
+          </div>
+          <img
+            class="screen"
+            src="faces/flustered.png"
+            width="160"
+            height="120"
+            alt=""
+          />
+        </div>
+      </details>
+
       <section
         id="firmware-downloads"
         aria-labelledby="downloads-heading"
-        class="downloads"
+        class="panel downloads"
       >
         <h2 id="downloads-heading">Firmware downloads</h2>
         <p>
@@ -209,46 +322,53 @@
           </p>
           <!-- /release-downloads -->
         </div>
-        <p>
+        <p class="meta">
           <a
             href="https://github.com/clarkedb/wade/blob/main/docs/releases.md#usb-installation"
             >Command-line installation guide</a
           >
-          · <a href="releases.json">Release catalog (JSON)</a>
-        </p>
-        <p>
-          <a
-            href="https://github.com/clarkedb/wade/blob/main/CONTRIBUTING.md#new-hardware"
-            >Device not listed?</a
-          >
-          Help bring Wade to new hardware.
+          <a href="releases.json">Release catalog (JSON)</a>
         </p>
       </section>
-      <details>
-        <summary>Device not connecting?</summary>
-        <p>
-          Check your cable, close other apps using the serial port, and try
-          download mode.
-        </p>
-        <p>
-          <strong>CoreS3 Lite:</strong> hold Reset until the green light
-          appears, then release. Choose the newly appearing USB port.
-        </p>
-        <p>
-          <strong>CYD:</strong> if automatic reset fails, hold BOOT, press and
-          release RESET, and release BOOT once the flasher connects. A missing
-          Windows port may need the CH340 driver.
-        </p>
-        <a
-          href="https://github.com/clarkedb/wade/blob/main/docs/releases.md#usb-recovery"
-          >USB recovery and driver instructions</a
-        >
+
+      <details class="help help-ports">
+        <summary>Device not listed?</summary>
+        <div class="help-body">
+          <div>
+            <p>
+              Help bring Wade to new hardware. New ports are welcome: Wade needs
+              a 320×240 display, touch or another pointer input, and a chip with
+              a Rust toolchain.
+            </p>
+            <p class="help-links">
+              <a
+                href="https://github.com/clarkedb/wade/issues/new?template=new-hardware.md"
+                >Propose a device</a
+              >
+              <a
+                href="https://github.com/clarkedb/wade/blob/main/CONTRIBUTING.md#new-hardware"
+                >Hardware requirements</a
+              >
+            </p>
+          </div>
+          <img
+            class="screen"
+            src="faces/happy.png"
+            width="160"
+            height="120"
+            alt=""
+          />
+        </div>
       </details>
+
       <footer>
-        <a href="https://github.com/clarkedb/wade">Source &amp; documentation</a
-        ><a href="https://github.com/clarkedb/wade/blob/main/LICENSE"
+        <a href="https://github.com/clarkedb/wade"
+          >Source &amp; documentation</a
+        >
+        <a href="https://github.com/clarkedb/wade/blob/main/LICENSE"
           >MIT license</a
-        ><span>Built in Rust</span>
+        >
+        <span>Built in Rust</span>
       </footer>
     </main>
   </body>
