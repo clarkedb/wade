@@ -4,6 +4,30 @@
  * trouble and help, blush is happiness and welcome. Anything showing Wade is a
  * black panel, in light mode too.
  */
+
+/* Latin subsets of Rubik (variable weight) and Silkscreen, under the SIL Open
+   Font License; see fonts/. */
+@font-face {
+  font-family: "Rubik";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("fonts/rubik.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rubik";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/rubik-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Silkscreen";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/silkscreen.woff2") format("woff2");
+}
 :root {
   --black: #000000;
   --eye: #deebff;

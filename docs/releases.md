@@ -120,10 +120,11 @@ Web Serial for direct flashing. See [Mozilla's Web Serial announcement](https://
 and [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API#browser_compatibility).
 
 The website is static HTML, CSS, JavaScript, and firmware files hosted on GitHub
-Pages, with no jQuery or frontend framework. Content and firmware download links
-are in the built HTML, so readers and crawlers do not need JavaScript. JavaScript
-adds USB installation and loads ESP Web Tools after a board and installation
-mode are chosen.
+Pages, with no jQuery or frontend framework. Its fonts are self-hosted, so the
+page makes no third-party requests until ESP Web Tools loads. Content and
+firmware download links are in the built HTML, so readers and crawlers do not
+need JavaScript. JavaScript adds USB installation and loads ESP Web Tools after a
+board and installation mode are chosen.
 
 The page uses Wade's own palette, and his accents keep their meaning: sparkle
 yellow marks the primary path and success, water blue marks trouble and help,
