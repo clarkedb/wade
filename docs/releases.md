@@ -194,6 +194,7 @@ use the hosted HTTPS website.
 About, startup logs, and desktop `--version` identify the build. Only a clean
 checkout of the matching release tag is labeled a release; other builds include
 a commit identifier and development status, plus a marker for local changes.
+The release workflow fails if the firmware checkout isn't clean before building.
 
 ## USB recovery
 
