@@ -1673,7 +1673,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "wade-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "embedded-graphics",
  "heapless 0.9.3",
@@ -1685,7 +1685,7 @@ dependencies = [
 
 [[package]]
 name = "wade-desktop"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "dirs",
@@ -1698,7 +1698,7 @@ dependencies = [
 
 [[package]]
 name = "wade-firmware"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "embassy-futures",
  "embedded-graphics",
@@ -1710,7 +1710,7 @@ dependencies = [
 
 [[package]]
 name = "wade-xtask"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",

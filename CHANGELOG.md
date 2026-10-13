@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0](https://github.com/clarkedb/wade/compare/v0.1.0...v0.2.0) (2026-10-13)
+
+
+### Features
+
+* make the chime's volume a setting ([#111](https://github.com/clarkedb/wade/issues/111)) ([ef51319](https://github.com/clarkedb/wade/commit/ef5131963223a9e15eefc0d5df55d9c72145721a))
+* page the launcher like settings ([#110](https://github.com/clarkedb/wade/issues/110)) ([81236f2](https://github.com/clarkedb/wade/commit/81236f2019fdf5125ac8a492ae8a60defaf1a64f))
+* put wade to sleep with the cores3 power button ([#108](https://github.com/clarkedb/wade/issues/108)) ([e9860d4](https://github.com/clarkedb/wade/commit/e9860d4021258997d858f00190199a79b7e6619a))
+* redesign the website around wade's real face ([#102](https://github.com/clarkedb/wade/issues/102)) ([337e79d](https://github.com/clarkedb/wade/commit/337e79d0014d7fe6ebb162430de3363a77295cef))
+
 ## 0.1.0 (2026-10-09)
 
 
