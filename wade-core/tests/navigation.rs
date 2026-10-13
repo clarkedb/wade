@@ -73,8 +73,8 @@ fn the_power_button_returns_to_buddy_asleep_from_any_screen() {
     let about = [
         apps(),
         settings,
-        layout::SETTINGS_NEXT.center(),
-        layout::ABOUT.center(),
+        layout::NEXT_PAGE.center(),
+        common::about(),
     ];
     for (screen, from_buddy) in [
         (Screen::Launcher, &[apps()][..]),
