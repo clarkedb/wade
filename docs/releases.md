@@ -23,12 +23,13 @@ PR explicitly creates a tag and a **draft** release, so CI can check out the tag
 while the release is still a draft. A release is published only after the
 checks and firmware packaging for that exact tag succeed.
 
-The repository must allow GitHub Actions to create pull requests. Pushes made
-with `GITHUB_TOKEN` do not trigger CI, so the release workflow explicitly
-dispatches CI on the release PR's branch whenever Release Please creates or
-updates it. The proposal job uses `actions: write`; no extra token is needed.
-After merging, the release workflow starts verification from its own job
-outputs rather than relying on a token-created tag to trigger another workflow.
+Release Please runs as the `wade-release` GitHub App. Pushes made with
+`GITHUB_TOKEN` do not trigger CI, and CI dispatched by a workflow does not count
+toward a PR's required checks, so the app's token is what lets the release PR
+pass them. The app needs read and write access to contents and pull requests,
+must be installed on this repository, and supplies the `RELEASE_APP_ID` and
+`RELEASE_APP_PRIVATE_KEY` Actions secrets. After merging, the release workflow
+starts verification from its own job outputs; CI skips tag pushes.
 
 To recover a failed release build, rerun its failed jobs. Do not move an existing
 tag or replace published binaries: make a new release instead.

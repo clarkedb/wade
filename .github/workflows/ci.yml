@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    # The release workflow verifies tags itself before publishing.
+    branches: ["**"]
   workflow_dispatch:
   workflow_call:
     inputs:
