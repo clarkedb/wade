@@ -1,0 +1,20 @@
+# Wade
+
+> Wade is an open-source animated desk companion: a pair of expressive eyes on a small touchscreen. He reacts to touch and keeps a timer. The firmware is written in Rust and runs on the M5Stack CoreS3 Lite and the CYD (ESP32-2432S028R).
+
+This page installs Wade's firmware from the browser over USB, using Web Serial in desktop Chrome, Edge, or Firefox 151 or newer. Other browsers can download firmware packages and flash them from the command line. Each package contains the firmware, SHA-256 checksums, and USB installation instructions.
+
+## Install
+
+- [Browser installer](https://clarkedb.github.io/wade/#install-heading): choose the board, the version, and a first install (erases the device) or an update (keeps settings).
+- [Release catalog](https://clarkedb.github.io/wade/releases.json): JSON list of stable releases, newest first, with each board's firmware package and ESP Web Tools manifests.
+- [Command-line installation](https://github.com/clarkedb/wade/blob/main/docs/releases.md#usb-installation): flashing a downloaded package with espflash.
+- [USB recovery](https://github.com/clarkedb/wade/blob/main/docs/releases.md#usb-recovery): download mode, drivers, and devices that do not connect.
+
+## Project
+
+- [Source code](https://github.com/clarkedb/wade): MIT licensed.
+- [Design docs](https://github.com/clarkedb/wade/blob/main/docs/README.md): architecture, character, testing, and roadmap.
+- [Character](https://github.com/clarkedb/wade/blob/main/docs/character.md): Wade's persona, expressions, and drawing rules.
+- [New hardware](https://github.com/clarkedb/wade/blob/main/CONTRIBUTING.md#new-hardware): minimum requirements for a port and how to propose a device.
+- [Releases](https://github.com/clarkedb/wade/releases): release notes and firmware packages.

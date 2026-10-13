@@ -151,7 +151,8 @@ is a golden image from the core's [snapshot tests](testing.md#snapshots), copied
 in by the website build, so the page always shows Wade as his renderer draws him.
 
 The page includes canonical and social metadata, source-code structured data,
-a sitemap, and a linked JSON release catalog. Keep these URLs current if hosting
+a sitemap, an `llms.txt` summary for language models, a 1280×640 social
+image, and a linked JSON release catalog. Keep these URLs current if hosting
 changes. Search and AI crawlers can read the same visible content and links as
 visitors. GitHub project Pages lives under `/wade/`; crawler rules belong at the
 host's `/robots.txt`, not `/wade/robots.txt`. The sitemap can be submitted to
