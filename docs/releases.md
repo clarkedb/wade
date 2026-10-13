@@ -120,13 +120,18 @@ Web Serial for direct flashing. See [Mozilla's Web Serial announcement](https://
 and [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API#browser_compatibility).
 
 The website is static HTML, CSS, JavaScript, and firmware files hosted on GitHub
-Pages, with no jQuery or frontend framework. Content and firmware download links
-are in the built HTML, so readers and crawlers do not need JavaScript. JavaScript
-adds USB installation and loads ESP Web Tools after a board and installation
-mode are chosen.
+Pages, with no jQuery or frontend framework. Its fonts are self-hosted, so the
+page makes no third-party requests until ESP Web Tools loads. Content and
+firmware download links are in the built HTML, so readers and crawlers do not
+need JavaScript. JavaScript adds USB installation and loads ESP Web Tools after a
+board and installation mode are chosen.
 
-The page and installer dialogs share CSS color variables. The palette is defined
-once; high-contrast mode maps the same roles to system colors.
+The page uses Wade's own palette, and his accents keep their meaning: sparkle
+yellow marks the primary path and success, water blue marks trouble and help,
+and blush marks his happiness and the invitation to port him to new hardware. Anything showing Wade is a black panel.
+The page follows the system light or dark setting until the visitor picks one,
+which is remembered. The page and installer dialogs share CSS color variables;
+high-contrast mode maps the same roles to system colors.
 
 The website build uses Node.js 22 or newer and npm. It validates firmware packages
 and generates the HTML downloads and JSON catalog; no frontend
@@ -140,8 +145,15 @@ Space or Enter, to pause or resume. Reduced motion starts with the neutral-face
 snapshot; visits without JavaScript show it too. Native controls, keyboard focus,
 linked field descriptions, and live status messages support accessible installation.
 
+Beside the installer, Wade's face reacts to each status: thinking while
+releases load, proud when ready to install, happy when ready to update, and
+flustered when something fails. The page's accent follows his face. Every face
+is a golden image from the core's [snapshot tests](testing.md#snapshots), copied
+in by the website build, so the page always shows Wade as his renderer draws him.
+
 The page includes canonical and social metadata, source-code structured data,
-a sitemap, and a linked JSON release catalog. Keep these URLs current if hosting
+a sitemap, an `llms.txt` summary for language models, a 1280×640 social
+image, and a linked JSON release catalog. Keep these URLs current if hosting
 changes. Search and AI crawlers can read the same visible content and links as
 visitors. GitHub project Pages lives under `/wade/`; crawler rules belong at the
 host's `/robots.txt`, not `/wade/robots.txt`. The sitemap can be submitted to

@@ -157,7 +157,7 @@ Firmware builds separately with the Espressif toolchain: `cd wade-cores3 && carg
 ### CI
 
 GitHub Actions checks Rust and firmware on pushes. Website CI runs on pull requests
-that change `website/` and matching pushes to `main`.
+that change `website/` or the core's snapshots, and matching pushes to `main`.
 
 | Job | Runner | Steps |
 |---|---|---|
@@ -174,6 +174,8 @@ oversized images. They run with the workspace tests and need no hardware or
 espflash installation.
 Installer tests check that HTML download links match the catalog, versions sort
 numerically, and empty or rebuilt catalogs do not advertise unavailable releases.
+They also check that every face the page shows is a published core snapshot, so
+renaming a snapshot fails the website tests.
 For website changes, also check keyboard navigation, accessible field names and
 descriptions, contrast, reduced motion and the animation control, 320 px reflow,
 200% text size, and downloads without JavaScript. Run an accessibility scanner

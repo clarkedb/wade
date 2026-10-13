@@ -6,11 +6,65 @@ const status = document.querySelector("#status");
 const download = document.querySelector("#download");
 const notes = document.querySelector("#notes");
 const hint = document.querySelector("#mode-hint");
+const face = document.querySelector("#face");
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let releases = [];
 let toolsState = "idle";
+let faceTimer;
+
+// Wade's face for each status. The page's accent follows it through
+// <html data-face>: proud is sparkle, happy is blush, sad and flustered are water.
+const FACES = {
+  loading: "thinking",
+  "choose-board": "glancing",
+  "no-build": "sad",
+  "choose-mode": "glancing",
+  unsupported: "flustered",
+  "no-https": "flustered",
+  "tools-loading": "focused",
+  "tools-failed": "flustered",
+  ready: "proud",
+  "ready-update": "happy",
+  "no-releases": "sleepy",
+  "catalog-failed": "flustered",
+};
+const BLINK_MS = 120;
+const SURPRISE_MS = 1000;
+
+for (const name of new Set([...Object.values(FACES), "blink", "surprised"]))
+  new Image().src = `faces/${name}.png`;
+
+// He blinks between faces, as he does on the device.
+function showFace(name) {
+  clearTimeout(faceTimer);
+  if (reducedMotion.matches) {
+    face.src = `faces/${name}.png`;
+    return;
+  }
+  face.src = "faces/blink.png";
+  faceTimer = setTimeout(() => (face.src = `faces/${name}.png`), BLINK_MS);
+}
+
+function setStatus(state, text) {
+  status.textContent = text;
+  if (document.documentElement.dataset.face === FACES[state]) return;
+  document.documentElement.dataset.face = FACES[state];
+  showFace(FACES[state]);
+}
+
+// Choosing a first install, which erases the device, startles him briefly.
+function startle() {
+  if (reducedMotion.matches) return;
+  clearTimeout(faceTimer);
+  face.src = "faces/surprised.png";
+  faceTimer = setTimeout(
+    () => showFace(document.documentElement.dataset.face),
+    SURPRISE_MS,
+  );
+}
 
 document.querySelector("#usb-controls").hidden = false;
-status.textContent = "Loading available firmware…";
+setStatus("loading", "Loading available firmware…");
 
 async function loadTools() {
   toolsState = "loading";
@@ -50,34 +104,43 @@ function update() {
         : "Use a USB data cable and close any serial monitor.";
   if (!releases.length) return;
   if (!board.value) {
-    status.textContent = "Choose your device to continue.";
+    setStatus("choose-board", "Choose your device to continue.");
     return;
   }
   if (!build) {
-    status.textContent =
-      "This version has no firmware for your board. Choose another version.";
+    setStatus(
+      "no-build",
+      "This version has no firmware for your board. Choose another version.",
+    );
     return;
   }
   if (!mode) {
-    status.textContent = "Choose first installation or an update.";
+    setStatus("choose-mode", "Choose first installation or an update.");
     return;
   }
   if (!("serial" in navigator)) {
-    status.textContent =
-      "Download the package, or use a desktop browser with Web Serial.";
+    setStatus(
+      "unsupported",
+      "Download the package, or use a desktop browser with Web Serial.",
+    );
     return;
   }
   if (!window.isSecureContext) {
-    status.textContent =
-      "USB installation requires HTTPS. Firmware downloads are still available.";
+    setStatus(
+      "no-https",
+      "USB installation requires HTTPS. Firmware downloads are still available.",
+    );
     return;
   }
   if (toolsState === "idle") loadTools();
   if (toolsState !== "ready") {
-    status.textContent =
-      toolsState === "loading"
-        ? "Loading the USB installer…"
-        : "USB installer unavailable. Download the firmware package instead.";
+    if (toolsState === "loading")
+      setStatus("tools-loading", "Loading the USB installer…");
+    else
+      setStatus(
+        "tools-failed",
+        "USB installer unavailable. Download the firmware package instead.",
+      );
     return;
   }
   installer.setAttribute(
@@ -87,14 +150,20 @@ function update() {
   connect.textContent =
     mode === "update" ? "Connect and update" : "Connect and install";
   connect.disabled = false;
-  status.textContent = `Wade ${selected.version} is ready. Connect your board over USB.`;
+  setStatus(
+    mode === "update" ? "ready-update" : "ready",
+    `Wade ${selected.version} is ready. Connect your board over USB.`,
+  );
 }
 
 board.addEventListener("change", update);
 release.addEventListener("change", update);
-document
-  .querySelectorAll('input[name="mode"]')
-  .forEach((input) => input.addEventListener("change", update));
+document.querySelectorAll('input[name="mode"]').forEach((input) =>
+  input.addEventListener("change", () => {
+    update();
+    if (input.value === "install") startle();
+  }),
+);
 
 async function load() {
   const browserHint = document.querySelector("#browser-hint");
@@ -112,8 +181,10 @@ async function load() {
     release.replaceChildren();
     if (!releases.length) {
       release.add(new Option("No releases yet", ""));
-      status.textContent =
-        "No public firmware releases yet. Check GitHub for project updates.";
+      setStatus(
+        "no-releases",
+        "No public firmware releases yet. Check GitHub for project updates.",
+      );
       return;
     }
     releases.forEach((item, index) =>
@@ -128,8 +199,10 @@ async function load() {
     update();
   } catch (error) {
     release.replaceChildren(new Option("Releases unavailable", ""));
-    status.textContent =
-      "Firmware releases could not be loaded. Download a package from GitHub Releases.";
+    setStatus(
+      "catalog-failed",
+      "Firmware releases could not be loaded. Download a package from GitHub Releases.",
+    );
     download.href = "https://github.com/clarkedb/wade/releases";
     download.hidden = false;
     console.error(error);
