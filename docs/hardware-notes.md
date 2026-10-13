@@ -130,6 +130,8 @@ AXP2101 writes at boot:
 
 Battery: register `0x00` bit 3 is battery present and bit 5 is VBUS good. Register `0xA4` is the charge in percent.
 
+Power key: wired only to the AXP2101, whose IRQ line is shared with the RTC's and does not reach the ESP32. Register `0x49` bit 3 latches a short press, released within the 1 s long-press time; writing the bit back clears it. M5Unified polls it the same way, leaving the IRQ enables at their defaults.
+
 AW9523B pins:
 
 | Pin | Use | Direction |
