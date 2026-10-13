@@ -443,7 +443,14 @@ mod tests {
         };
         let at = Instant::from_millis(1_000);
         tap(&mut app, at, layout::APPS.center());
-        tap(&mut app, at, layout::TILES[0].1.center());
+        tap(
+            &mut app,
+            at,
+            layout::find_tile(&layout::LAUNCHER_TILES, &layout::Tile::Timer)
+                .unwrap()
+                .1
+                .center(),
+        );
         tap(
             &mut app,
             Instant::from_millis(2_000),

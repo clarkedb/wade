@@ -12,7 +12,7 @@ use wade_core::harness::Harness;
 use wade_core::layout::{SCREEN_SIZE, Tile};
 use wade_core::render::{self, Band, ROW_BYTES};
 use wade_core::timer::TimerState;
-use wade_core::view::{AboutView, BuddyView, ColorMode, EyeStyle, SettingsPage, SettingsView};
+use wade_core::view::{AboutView, BuddyView, ColorMode, EyeStyle, SettingsView};
 use wade_core::{BuildInfo, Instant, Key, Settings, View};
 
 /// Draw `view` through strips of `rows` rows and check each against the full frame.
@@ -140,7 +140,7 @@ fn every_screen() {
         assert_every_height(&View::Timer(state.view(now, None)));
     }
 
-    for page in [SettingsPage::Device, SettingsPage::Information] {
+    for page in 0..2 {
         assert_every_height(&View::Settings(SettingsView {
             page,
             settings: Settings::DEFAULT,
@@ -162,9 +162,9 @@ fn input() -> impl Strategy<Value = Input> {
         common::back(),
         common::tile(Tile::Timer),
         common::tile(Tile::Settings),
-        wade_core::layout::SETTINGS_NEXT.center(),
-        wade_core::layout::SETTINGS_PREVIOUS.center(),
-        wade_core::layout::ABOUT.center(),
+        wade_core::layout::NEXT_PAGE.center(),
+        wade_core::layout::PREVIOUS_PAGE.center(),
+        common::about(),
         wade_core::layout::WADE_CENTER,
     ];
     prop_oneof![

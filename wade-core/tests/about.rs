@@ -6,7 +6,6 @@ use wade_core::harness::{Harness, state_hash};
 use wade_core::layout::{self, Tile};
 use wade_core::settings::SettingsButton;
 use wade_core::timer::{MIN_SET, TimerButton};
-use wade_core::view::SettingsPage;
 use wade_core::{BuildInfo, Effect, Settings, TouchPhase, View};
 
 const INFO: BuildInfo = BuildInfo {
@@ -24,8 +23,8 @@ fn about_returns_to_settings_and_saves_pending_changes_once() {
     open(&mut h, ms(1_000), Tile::Settings);
     h.tap(ms(1_010), setting(SettingsButton::Chime));
     h.effects.clear();
-    h.tap(ms(1_020), layout::SETTINGS_NEXT.center());
-    h.tap(ms(1_021), layout::ABOUT.center());
+    h.tap(ms(1_020), layout::NEXT_PAGE.center());
+    h.tap(ms(1_021), common::about());
     let View::About(view) = h.app.view() else {
         panic!("About is shown")
     };
@@ -36,11 +35,11 @@ fn about_returns_to_settings_and_saves_pending_changes_once() {
     );
     h.effects.clear();
     assert_eq!(h.app.next_deadline(), None);
-    h.tap(ms(1_030), layout::ABOUT.center());
+    h.tap(ms(1_030), common::about());
     assert_eq!(h.app.screen(), Screen::About, "metadata has no controls");
     h.tap(ms(1_040), back());
     assert_eq!(h.app.screen(), Screen::Settings);
-    assert_eq!(h.settings().page, SettingsPage::Information);
+    assert_eq!(h.settings().page, 1);
     assert!(!h.app.settings().chime());
     assert!(h.effects.is_empty());
 }
@@ -51,8 +50,8 @@ fn build_identity_never_changes_recording_hashes() {
     for point in [
         layout::APPS.center(),
         common::tile(Tile::Settings),
-        layout::SETTINGS_NEXT.center(),
-        layout::ABOUT.center(),
+        layout::NEXT_PAGE.center(),
+        common::about(),
     ] {
         h.tap(ms(1_000), point);
         assert_eq!(
@@ -69,8 +68,8 @@ fn a_timer_finishing_on_about_cancels_the_back_press() {
     h.tap(ms(1_010), button(TimerButton::Start));
     h.tap(ms(1_020), back());
     h.tap(ms(1_030), common::tile(Tile::Settings));
-    h.tap(ms(1_040), layout::SETTINGS_NEXT.center());
-    h.tap(ms(1_050), layout::ABOUT.center());
+    h.tap(ms(1_040), layout::NEXT_PAGE.center());
+    h.tap(ms(1_050), common::about());
     h.touch(ms(61_000), TouchPhase::Down, back());
     h.run_until(ms(61_010));
     assert_eq!(h.app.screen(), Screen::Timer);

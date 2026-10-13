@@ -8,7 +8,7 @@ use embedded_graphics::{
     },
 };
 
-use crate::layout;
+use crate::layout::{self, Target};
 use crate::render::icons::{self, Colors, Icon};
 use crate::render::palette;
 
@@ -86,24 +86,54 @@ enum Direction {
     Down,
 }
 
-/// A Settings page arrow, dimmed when its direction is unavailable.
-pub fn page_arrow<D>(
-    area: Rectangle,
-    up: bool,
-    enabled: bool,
-    pressed: bool,
+/// A screen of paged `tiles` showing `page`: each tile on the page, styled
+/// as a button with the icon `icon` gives it, then the page arrows and dots.
+pub fn paged_tiles<T, D>(
+    tiles: &[T],
+    page: u8,
+    pressed: Option<Target>,
+    icon: impl Fn(T, bool) -> Icon,
     target: &mut D,
 ) -> Result<(), D::Error>
 where
+    T: Copy + Into<Target>,
     D: DrawTarget<Color = Rgb565>,
 {
-    chevron(
-        area,
-        if up { Direction::Up } else { Direction::Down },
-        if enabled { palette::EYE } else { palette::DIM },
-        enabled && pressed,
-        target,
-    )
+    for (tile, area) in layout::page_tiles(tiles, page) {
+        let pressed = pressed == Some(tile.into());
+        button(
+            area,
+            icon(tile, pressed),
+            TILE_ICON_SCALE,
+            true,
+            pressed,
+            target,
+        )?;
+    }
+    let count = layout::page_count(tiles);
+    if count > 1 {
+        for (arrow, area, enabled) in layout::page_arrows(page, count) {
+            let direction = if arrow == Target::PreviousPage {
+                Direction::Up
+            } else {
+                Direction::Down
+            };
+            let color = if enabled { palette::EYE } else { palette::DIM };
+            let pressed = enabled && pressed == Some(arrow);
+            chevron(area, direction, color, pressed, target)?;
+        }
+    }
+    for (i, position) in (0..count).zip(layout::page_dots(count)) {
+        let color = if i == page {
+            palette::EYE
+        } else {
+            palette::DIM
+        };
+        Circle::new(position, 4)
+            .into_styled(PrimitiveStyle::with_fill(color))
+            .draw(target)?;
+    }
+    Ok(())
 }
 
 fn chevron<D>(
