@@ -131,6 +131,8 @@ async fn main(spawner: Spawner) -> ! {
         touch::run(Bus::new(i2c), interrupt, EVENTS.sender())
             .expect("the touch task is spawned once"),
     );
+    spawner
+        .spawn(power::run(Bus::new(i2c), EVENTS.sender()).expect("the power task is spawned once"));
 
     let i2s = I2s::new(
         peripherals.I2S1,

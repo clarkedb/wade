@@ -103,6 +103,12 @@ impl Harness {
         self.handle(Event::key(t, key));
     }
 
+    /// Run until `t`, then deliver a power button press.
+    pub fn power_button(&mut self, t: Instant) {
+        self.run_until(t);
+        self.handle(Event::power_button(t));
+    }
+
     /// Run until `t`, then deliver one raw touch sample.
     pub fn touch(&mut self, t: Instant, phase: TouchPhase, point: Point) {
         self.run_until(t);

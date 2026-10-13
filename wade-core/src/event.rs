@@ -17,6 +17,8 @@ pub enum EventKind {
     /// A key press from the desktop keyboard, for trying out Wade's looks.
     /// The device has no keys.
     Key(Key),
+    /// A short press of the device's power button.
+    PowerButton,
     /// A deadline requested through `App::next_deadline` has been reached.
     /// Carries no other meaning. May arrive late, or more often than requested.
     Deadline,
@@ -77,6 +79,14 @@ impl Event {
         Event {
             at,
             kind: EventKind::Key(key),
+        }
+    }
+
+    #[must_use]
+    pub const fn power_button(at: Instant) -> Self {
+        Event {
+            at,
+            kind: EventKind::PowerButton,
         }
     }
 

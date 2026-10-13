@@ -154,3 +154,27 @@ fn the_about_session_navigates_settings_pages_and_ends_on_about() {
     assert_eq!(replay.harness.app.settings(), Settings::DEFAULT);
     assert!(replay.harness.effects.is_empty());
 }
+
+#[test]
+fn the_power_button_session_dismisses_the_timer_that_woke_wade() {
+    // The button puts Wade to sleep from Buddy and the Launcher, and wakes
+    // him. Asleep with a 1:00 timer running, the chime wakes him; a press
+    // just after it is ignored, and the next dismisses it.
+    let (recording, replay) = replay("power-button-session");
+    let presses = recording
+        .entries
+        .iter()
+        .filter(|entry| entry.input == Input::PowerButton)
+        .count();
+    assert_eq!(presses, 6);
+    let h = &replay.harness;
+    assert_eq!(
+        h.app.timer_state(),
+        TimerState::Ready {
+            set: Duration::from_mins(1)
+        }
+    );
+    assert_eq!(h.app.screen(), Screen::Buddy);
+    assert_eq!(h.buddy().expression, Expression::Sleepy);
+    assert!(!h.buddy().asleep);
+}

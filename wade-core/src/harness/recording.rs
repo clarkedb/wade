@@ -2,12 +2,13 @@
 //! event with the state hash after it (docs/testing.md#recording-and-replay).
 //!
 //! ```text
-//! wade-events 2
+//! wade-events 3
 //! seed 8127364512
 //! settings 020000010503
 //! 1000 down 160 110 #3f9a1c02
 //! 1080 up 160 110 #b7e0442d
 //! 2400 key 3 #5d21a7c4
+//! 3100 power-button #9c04e1b7
 //! ```
 //!
 //! `Deadline` events are not recorded; replay regenerates them from `next_deadline`.
@@ -29,10 +30,13 @@ use crate::time::Instant;
 use super::Harness;
 
 /// The newest header version this code writes. The parser accepts every older one.
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 
 /// The first version whose recordings carry the settings they started with.
 const SETTINGS_SINCE: u32 = 2;
+
+/// The first version whose recordings can press the power button.
+const POWER_BUTTON_SINCE: u32 = 3;
 
 /// Filename suffix for recordings in `wade-core/tests/recordings/`.
 pub const FILE_SUFFIX: &str = ".events.wade";
@@ -61,6 +65,7 @@ pub struct Entry {
 pub enum Input {
     Touch(Touch),
     Key(Key),
+    PowerButton,
 }
 
 impl From<Input> for EventKind {
@@ -68,6 +73,7 @@ impl From<Input> for EventKind {
         match input {
             Input::Touch(touch) => EventKind::Touch(touch),
             Input::Key(key) => EventKind::Key(key),
+            Input::PowerButton => EventKind::PowerButton,
         }
     }
 }
@@ -167,6 +173,7 @@ impl fmt::Display for Entry {
                 Key::Z => f.write_str("key z")?,
                 Key::P => f.write_str("key p")?,
             },
+            Input::PowerButton => f.write_str("power-button")?,
         }
         write!(f, " #{:08x}", self.hash)
     }
@@ -335,6 +342,7 @@ impl FromStr for Recording {
                     };
                     Input::Key(key)
                 }
+                "power-button" if version >= POWER_BUTTON_SINCE => Input::PowerButton,
                 _ => return Err(error(line_number, "invalid input kind")),
             };
             let hash_text = fields
@@ -417,7 +425,7 @@ mod tests {
 
     #[test]
     fn parses_and_writes_each_input_kind() {
-        let source = "wade-events 2\nseed 42\nsettings 020101006301\n0 down -1 240 #0123abcd\n0 move 2 3 #89abcdef\n10 up 2 3 #ffffffff\n10 key 9 #00000000\n20 key z #00000001\n30 key p #00000002\n";
+        let source = "wade-events 3\nseed 42\nsettings 020101006301\n0 down -1 240 #0123abcd\n0 move 2 3 #89abcdef\n10 up 2 3 #ffffffff\n10 key 9 #00000000\n20 key z #00000001\n30 key p #00000002\n40 power-button #00000003\n";
         let recording: Recording = source.parse().unwrap();
         assert_eq!(recording.seed, 42);
         assert_eq!(recording.settings.eye_style(), crate::view::EyeStyle::Plain);
@@ -427,7 +435,7 @@ mod tests {
             recording.settings.brightness(),
             crate::settings::Brightness::Half
         );
-        assert_eq!(recording.entries.len(), 6);
+        assert_eq!(recording.entries.len(), 7);
         assert_eq!(recording.to_string(), source);
     }
 
@@ -456,7 +464,7 @@ mod tests {
     fn reports_the_bad_line() {
         for (source, line) in [
             ("", 1),
-            ("wade-events 3\nseed 1\n", 1),
+            ("wade-events 4\nseed 1\n", 1),
             ("wade-events 1\nseed nope\n", 2),
             ("wade-events 2\nseed 1\n", 3),
             ("wade-events 2\nseed 1\nsettings 01000001\n", 3),
@@ -467,6 +475,10 @@ mod tests {
             ("wade-events 1\nseed 1\n0 key p #0123ABCD\n", 3),
             ("wade-events 1\nseed 1\n0 deadline #00000000\n", 3),
             ("wade-events 1\nseed 1\n0 key 10 #00000000\n", 3),
+            (
+                "wade-events 2\nseed 1\nsettings 0100000105\n0 power-button #00000000\n",
+                4,
+            ),
             (
                 "wade-events 1\nseed 1\n10 key p #00000000\n9 key z #00000000\n",
                 4,

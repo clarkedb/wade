@@ -31,6 +31,9 @@ use clock::Clock;
 use screen::Screen;
 use storage::{SettingsSaver, Storage};
 
+/// The keyboard key that stands in for the device's power button.
+const POWER_BUTTON: Keycode = Keycode::SPACE;
+
 /// Longest the loop sleeps before polling window events again.
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 const MAX_REPLAY_BYTES: usize = 16 * 1024 * 1024;
@@ -114,7 +117,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     eprintln!("seed {seed}");
     if recording.is_none() {
         eprintln!(
-            "keys: 0–9 show an expression, z sleeps, p toggles pupils; click Wade to tap him or the bottom-right corner to open the Launcher"
+            "keys: 0–9 show an expression, z sleeps, p toggles pupils, space presses the power button; click Wade to tap him or the bottom-right corner to open the Launcher"
         );
     }
 
@@ -198,7 +201,7 @@ fn live_loop(
     let mut mouse_down = false;
     loop {
         let mut redraw = false;
-        let mut skip_queued_touch = false;
+        let mut skip_queued_input = false;
         let events: Vec<_> = window.events().collect();
         for sim_event in events {
             let now = clock.now();
@@ -207,7 +210,7 @@ fn live_loop(
                 if became_done {
                     screen.show(&app.view(), window);
                     redraw = false;
-                    skip_queued_touch = true;
+                    skip_queued_input = true;
                 }
             }
             if sim_event == SimulatorEvent::Quit {
@@ -219,7 +222,7 @@ fn live_loop(
                 }
                 return Ok(());
             }
-            let event = queued_input_event(sim_event, now, &mut mouse_down, skip_queued_touch);
+            let event = queued_input_event(sim_event, now, &mut mouse_down, skip_queued_input);
             if let Some(event) = event {
                 redraw |= carry_out(&app.handle(event), audio, saver.as_mut(), screen);
                 if let Some(writer) = writer.as_mut() {
@@ -261,18 +264,24 @@ fn due_deadline(app: &mut App, now: Instant) -> Option<(Output, bool)> {
     Some((output, became_done))
 }
 
+/// The input event for `sim_event`, unless `skip` discards it: touches and
+/// power button presses queued before a late timer completion was shown.
 fn queued_input_event(
     sim_event: SimulatorEvent,
     now: Instant,
     mouse_down: &mut bool,
-    skip_touch: bool,
+    skip: bool,
 ) -> Option<Event> {
-    if skip_touch
+    if skip
         && matches!(
             sim_event,
             SimulatorEvent::MouseButtonDown { .. }
                 | SimulatorEvent::MouseMove { .. }
                 | SimulatorEvent::MouseButtonUp { .. }
+                | SimulatorEvent::KeyDown {
+                    keycode: POWER_BUTTON,
+                    ..
+                }
         )
     {
         *mouse_down = false;
@@ -312,6 +321,11 @@ fn input_event(sim_event: SimulatorEvent, now: Instant, mouse_down: &mut bool) -
     // The simulator reports points in display coordinates (it undoes the scale).
     match sim_event {
         SimulatorEvent::KeyDown {
+            keycode: POWER_BUTTON,
+            repeat: false,
+            ..
+        } => Some(Event::power_button(now)),
+        SimulatorEvent::KeyDown {
             keycode,
             repeat: false,
             ..
@@ -341,6 +355,7 @@ fn record_event(writer: &mut impl Write, event: Event, app: &App) -> io::Result<
     let input = match event.kind {
         EventKind::Touch(touch) => Input::Touch(touch),
         EventKind::Key(key) => Input::Key(key),
+        EventKind::PowerButton => Input::PowerButton,
         EventKind::Deadline => return Ok(()),
     };
     writeln!(
@@ -475,6 +490,11 @@ mod tests {
                 mouse_btn: MouseButton::Left,
                 point,
             },
+            SimulatorEvent::KeyDown {
+                keycode: POWER_BUTTON,
+                keymod: Mod::NOMOD,
+                repeat: false,
+            },
         ] {
             assert_eq!(
                 queued_input_event(sim_event, late, &mut mouse_down, became_done),
@@ -511,6 +531,14 @@ mod tests {
             );
             assert_eq!(input_event(press(keycode, true), at, &mut mouse_down), None);
         }
+        assert_eq!(
+            input_event(press(POWER_BUTTON, false), at, &mut mouse_down),
+            Some(Event::power_button(at))
+        );
+        assert_eq!(
+            input_event(press(POWER_BUTTON, true), at, &mut mouse_down),
+            None
+        );
         assert_eq!(
             input_event(press(Keycode::A, false), at, &mut mouse_down),
             None
@@ -603,6 +631,8 @@ mod tests {
             (2_000, press(Keycode::NUM_3)),
             (2_500, press(Keycode::P)),
             (3_000, press(Keycode::Z)),
+            (3_500, press(POWER_BUTTON)),
+            (3_600, press(POWER_BUTTON)),
             (4_000, down(Point::new(160, 110))),
             (4_050, up(Point::new(160, 110))),
         ];

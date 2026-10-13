@@ -25,9 +25,9 @@ pub const MAX_EFFECTS: usize = 4;
 /// stepping through several values writes storage once.
 pub const SAVE_DELAY: Duration = Duration::from_secs(2);
 
-/// For this long after the timer finishes, new touches are ignored: they were
-/// aimed at what the screen showed before, and could otherwise dismiss a timer
-/// its user never saw finish.
+/// For this long after the timer finishes, new touches and power button
+/// presses are ignored: they were aimed at what the screen showed before, and
+/// could otherwise dismiss a timer its user never saw finish.
 pub const TOUCH_GUARD: Duration = Duration::from_millis(500);
 
 /// Side effects for the platform to carry out.
@@ -80,7 +80,8 @@ pub struct App {
     /// Randomness for behavior, apart from Wade's motion (D21).
     rng: Rng,
     touch: TouchTracker,
-    /// Touches that start before this are ignored (see `TOUCH_GUARD`).
+    /// Touches that start before this, and power button presses, are
+    /// ignored (see `TOUCH_GUARD`).
     touch_guard_until: Instant,
     settings: Settings,
     /// The settings as last loaded or saved.
@@ -139,9 +140,30 @@ impl App {
                     out.redraw |= self.on_key(key);
                 }
             }
+            // Like a new touch, a press just after the timer finishes was
+            // meant for what the screen showed before.
+            EventKind::PowerButton => {
+                if self.now >= self.touch_guard_until {
+                    self.on_power_button(&mut out);
+                }
+            }
             EventKind::Deadline => {}
         }
         out
+    }
+
+    /// The power button dismisses a finished timer, like Dismiss. Otherwise
+    /// it wakes Wade if he is asleep on the Buddy screen, or returns to Buddy
+    /// and puts him to sleep (docs/character.md#power-button).
+    fn on_power_button(&mut self, out: &mut Output) {
+        if self.timer.phase() == TimerPhase::Done {
+            self.dismiss(out);
+        } else if self.screen == Screen::Buddy && self.wade.asleep() {
+            out.redraw |= self.wade.wake(self.now);
+        } else {
+            out.redraw |= self.wade.sleep(self.now);
+            self.switch_to(Screen::Buddy, out);
+        }
     }
 
     fn on_touch(&mut self, touch: Touch, out: &mut Output) {

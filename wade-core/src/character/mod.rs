@@ -462,16 +462,26 @@ impl Wade {
     /// Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]
     pub fn on_tap(&mut self, now: Instant) -> bool {
-        self.now = now;
-        if self.asleep {
-            self.change(now, Expression::Surprised);
-            self.expires_at = Some(now + WAKE_DURATION);
-        } else {
-            if self.expression != Expression::Happy {
-                self.change(now, Expression::Happy);
-            }
-            self.expires_at = Some(now + HAPPY_DURATION);
+        if self.wake(now) {
+            return true;
         }
+        if self.expression != Expression::Happy {
+            self.change(now, Expression::Happy);
+        }
+        self.expires_at = Some(now + HAPPY_DURATION);
+        true
+    }
+
+    /// If he is asleep, wake him: Surprised for `WAKE_DURATION`.
+    /// Returns true if the view may have changed.
+    #[must_use = "a true result means the view must be redrawn"]
+    pub fn wake(&mut self, now: Instant) -> bool {
+        self.now = now;
+        if !self.asleep {
+            return false;
+        }
+        self.change(now, Expression::Surprised);
+        self.expires_at = Some(now + WAKE_DURATION);
         true
     }
 
@@ -523,7 +533,7 @@ impl Wade {
         true
     }
 
-    /// Fall asleep until a tap or [`Wade::show`] wakes him.
+    /// Fall asleep until a tap, [`Wade::wake`], or [`Wade::show`] wakes him.
     /// Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]
     pub fn sleep(&mut self, now: Instant) -> bool {

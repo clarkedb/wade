@@ -92,6 +92,8 @@ pub enum EventKind {
     Touch(Touch),
     /// A key press from the desktop keyboard, for trying out Wade's looks.
     Key(Key),
+    /// A short press of the device's power button.
+    PowerButton,
     /// A deadline requested through `App::next_deadline` has been reached.
     /// Carries no other meaning. May arrive late, or more often than requested.
     Deadline,
@@ -115,7 +117,7 @@ pub enum Key {
 }
 ```
 
-Events report raw facts, never interpretations. A platform never sends "open the timer" or "go back"; it sends touch samples, and the core decides what they mean because the core owns the layout. The platform tracks one touch point and ignores additional fingers. Key events are raw too: the platform reports which key, and the core decides what it does. Only the desktop has keys, and they act only on the Buddy screen ([D22](decisions.md#d22-desktop-keys-are-core-events)).
+Events report raw facts, never interpretations. A platform never sends "open the timer" or "go back"; it sends touch samples, and the core decides what they mean because the core owns the layout. The platform tracks one touch point and ignores additional fingers. Key events are raw too: the platform reports which key, and the core decides what it does. Only the desktop has keys, and they act only on the Buddy screen ([D22](decisions.md#d22-desktop-keys-are-core-events)). A power button press is raw in the same way: the platform reports the press, and the core decides it means sleep or wake.
 
 `App::handle` processes an event in two steps. First it advances `now` to the event's timestamp, applying every timed transition that became due along the way (an expression expiring, a timer finishing) in chronological order across all features. Then it applies the event itself. For a `Deadline` event, the first step is the whole job.
 

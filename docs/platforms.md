@@ -11,7 +11,7 @@ for requirements and bringing a new device into the supported release targets.
 |---|---|
 | Window | `embedded-graphics-simulator`: a 320×240 Rgb565 display shown at 2× scale. Requires SDL2. |
 | Clock | `std::time::Instant` captured at startup; `Instant::from_millis(elapsed_ms)`. |
-| Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. The simulator reports display coordinates after undoing the window scale. Number keys 0–9, Z, and P → `Key` events, which show an expression, put Wade to sleep, or switch his eye style (see [character.md](character.md#m1)). |
+| Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. The simulator reports display coordinates after undoing the window scale. Number keys 0–9, Z, and P → `Key` events, which show an expression, put Wade to sleep, or switch his eye style (see [character.md](character.md#m1)). Space → `PowerButton`, standing in for the CoreS3's power button. |
 | Loop | The simulator offers only non-blocking event polling. The loop polls window events, then sleeps until the next deadline or for 10 ms, whichever is sooner. This polling stays inside the desktop crate. |
 | Audio | `rodio`, synthesizing `wade_core::sound::CHIME` as bell-like notes on its own thread, so the loop never waits. No audio files; without an output device, Wade runs silent. |
 | Settings | A `settings` file under `wade/` in the user's config directory (`~/Library/Application Support` on macOS), replaced atomically on each `SaveSettings`. Failed writes retain the latest value and retry every two seconds, including on quit. A pending core change is also saved on quit. A missing, unreadable, or corrupt file starts Wade with the defaults. A replay starts with the settings it recorded and saves nothing. |
@@ -73,7 +73,7 @@ M5Stack's C++ library M5Unified is the reference for the board's initialization 
 | App | Owns `App`. Waits for an event or the next deadline, handles it, and draws the view to the display in bands. Sets brightness and saves settings itself. | (it is the app task) |
 | Touch | Reads the touch controller and sends `Touch` events | Event channel |
 | Audio | Receives chime requests and plays the chime over I²S, synthesized once at startup with `wade_firmware::bell`. Powers the amplifier only while it plays. | Audio channel |
-| Power (M6) | Reads the PMIC and proximity sensor | Event channel |
+| Power | Polls the PMIC for power button presses; M6 adds battery status and the proximity sensor | Event channel |
 | Network (M7) | Wi-Fi connection and weather requests | Network channel, event channel |
 
 Channels are fixed-capacity `embassy-sync` channels. Each producing task stamps its events with the current time when it creates them.
@@ -104,6 +104,8 @@ loop {
 ```
 
 Touch input: the touch task waits for the AW9523B's interrupt, which follows the touch controller's, then reads the controller about 100 times a second until the touch ends. It sleeps before each read, so a line stuck low cannot starve the app task. `wade_firmware::ft6336` turns reports into `Touch` events; the controller reports screen coordinates, so there is no calibration. Polling stays inside the platform and the core sees only events.
+
+Power button: the key reaches only the AXP2101, whose interrupt does not reach the ESP32, so the power task reads the PMIC's short-press flag every 50 ms and sends a `PowerButton` event for each press ([hardware-notes.md](hardware-notes.md#power)). It clears the flag a second after startup, so the press that turned the device on is not delivered. Holding the key for 4 s still turns the device off.
 
 Memory: frames are drawn in bands in internal SRAM ([ui.md](ui.md#banded-rendering)), not into a full 150 KB framebuffer. Bands flush as fast, because drawing overlaps the bus, and leave internal RAM for M7's Wi-Fi stack, heap, and TLS. Drawing into PSRAM is six times slower. The measurements are in [hardware-notes.md](hardware-notes.md#cores3-lite).
 
@@ -143,7 +145,7 @@ A supported classic-ESP32 target with a 2.8" 320×240 resistive touchscreen ([D3
 | Audio | Amp on a GPIO; the chime as PWM tones with a hardware fade. Needs a speaker plugged into the board. |
 | Settings | Stored in the pinned partition table's NVS data partition (24 KB) through `wade-firmware`'s settings store, which uses `sequential-storage` to spread writes across the partition. A missing or unusable partition is logged and Wade starts with the defaults. |
 | Brightness | PWM on the backlight pin |
-| Power | No PMIC or IO expander to configure; no battery, proximity sensor, or RTC, so M6 does not apply |
+| Power | No PMIC or IO expander to configure; no power button, battery, proximity sensor, or RTC, so M6 does not apply |
 
 Build with `--features measure` to log frame times, touch latency, and uptime ([hardware-notes.md](hardware-notes.md#measurements)).
 

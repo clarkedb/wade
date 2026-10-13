@@ -8,7 +8,7 @@
 | Color format | Rgb565 |
 | Physical size | 2.0" diagonal, about 200 pixels per inch |
 | Minimum touch target | 48×48 px (about 6 mm) |
-| Input | Touch only. The device has no user buttons besides power and reset. |
+| Input | Touch, and on the CoreS3 the power button, which puts Wade to sleep and wakes him ([character.md](character.md#power-button)). There are no other user buttons besides reset. |
 
 Desktop renders the same 320×240 image scaled 2× in a window. Mouse input maps to touch.
 
@@ -34,10 +34,11 @@ Timer or Settings ──(back button)──► Launcher
 Settings ──(information button)──► About ──(back button)──► Settings
 Launcher ──(back button)──► Buddy
 Timer finishes, on any screen ──► Timer, showing Done
-Timer in Done ──(Dismiss or back button)──► Buddy, Wade Proud (or groggy, if the timer woke him)
+Timer in Done ──(Dismiss, back, or power button)──► Buddy, Wade Proud (or groggy, if the timer woke him)
+Any other screen ──(power button)──► Buddy, Wade asleep
 ```
 
-The one exception to back returning to the Launcher is a finished timer: dismissing it, with Dismiss or with back, always returns to Buddy so Wade can react.
+The one exception to back returning to the Launcher is a finished timer: dismissing it, with Dismiss, back, or the power button, always returns to Buddy so Wade can react.
 
 ## Touch handling
 
@@ -45,7 +46,7 @@ The platform sends raw `Down`, `Move`, and `Up` samples. The core's `TouchTracke
 
 A tap targets the element under the `Down` point. A button shows a pressed style, its colors inverted, while the touch stays inside it. The tap fires on `Up` if the `Up` point is still inside the same element; moving outside cancels it. There is no time limit, so no deadline is involved.
 
-A screen change cancels any tap in progress. If the core switches screens while a finger is down (the timer finishing, for example), the rest of that touch is ignored until the next `Down`. Otherwise the `Up` would land on an element of the new screen that the user never pressed. The timer finishing cancels a touch even when the Timer screen is already shown, since its buttons change, and for half a second afterwards new touches are ignored too: they were aimed at what the screen showed before. The desktop presents Done and discards touches already queued when it processes a late completion. Either way, a timer is never dismissed by a user who has not seen it finish. Long-press and swipe gestures are not used until a feature needs them.
+A screen change cancels any tap in progress. If the core switches screens while a finger is down (the timer finishing, for example), the rest of that touch is ignored until the next `Down`. Otherwise the `Up` would land on an element of the new screen that the user never pressed. The timer finishing cancels a touch even when the Timer screen is already shown, since its buttons change, and for half a second afterwards new touches and power button presses are ignored too: they were aimed at what the screen showed before. The desktop presents Done and discards touches and power button presses already queued when it processes a late completion. Either way, a timer is never dismissed by a user who has not seen it finish. Long-press and swipe gestures are not used until a feature needs them.
 
 ## Layout
 

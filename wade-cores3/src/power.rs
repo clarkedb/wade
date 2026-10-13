@@ -1,9 +1,16 @@
-//! The AXP2101 power rails and the AW9523B's reset, enable, and interrupt lines
-//! (docs/hardware-notes.md#cores3-lite). Initialization follows M5Unified.
+//! The AXP2101 power rails and power key, and the AW9523B's reset, enable,
+//! and interrupt lines (docs/hardware-notes.md#cores3-lite). Initialization
+//! follows M5Unified.
 
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::channel::Sender;
 use embassy_time::{Duration, Timer};
 use embedded_hal_async::i2c::I2c;
+use log::warn;
+use wade_core::Event;
 use wade_core::settings::Brightness;
+
+use crate::{Bus, now};
 
 const AXP2101: u8 = 0x34;
 const AW9523B: u8 = 0x58;
@@ -16,6 +23,19 @@ const DLDO1_ON: u8 = 1 << 7;
 const DLDO1_VOLTAGE: u8 = 0x99;
 
 const WRITE_ATTEMPTS: u32 = 3;
+
+/// IRQ status 1. Bit 3 latches a short press of the power key, under the
+/// 1 s long-press time; writing the bit back clears it.
+const IRQ_STATUS_1: u8 = 0x49;
+const POWER_KEY_SHORT: u8 = 1 << 3;
+
+/// The power key reaches only the AXP2101, whose interrupt line does not reach
+/// the ESP32, so its press flag is polled this often.
+const KEY_POLL: Duration = Duration::from_millis(50);
+/// A short press that turns the device on ends within a second of power-on.
+/// The flag is cleared once that has passed, so the press cannot put Wade to
+/// sleep as he starts.
+const POWER_ON_PRESS: Duration = Duration::from_secs(1);
 
 const AW_INPUT_P0: u8 = 0x00;
 const AW_INPUT_P1: u8 = 0x01;
@@ -113,4 +133,44 @@ pub async fn set_brightness<B: I2c>(bus: &mut B, brightness: Brightness) -> Resu
 pub async fn touch_held<B: I2c>(bus: &mut B) -> Result<bool, B::Error> {
     read(bus, AW9523B, AW_INPUT_P0).await?;
     Ok(read(bus, AW9523B, AW_INPUT_P1).await? & TOUCH_INT == 0)
+}
+
+/// Whether the power key had a short press since the last call. Clears the flag.
+async fn take_short_press<B: I2c>(bus: &mut B) -> Result<bool, B::Error> {
+    if read(bus, AXP2101, IRQ_STATUS_1).await? & POWER_KEY_SHORT == 0 {
+        return Ok(false);
+    }
+    write(bus, AXP2101, IRQ_STATUS_1, POWER_KEY_SHORT).await?;
+    Ok(true)
+}
+
+/// Sends a `PowerButton` event for each short press of the power key.
+#[embassy_executor::task]
+pub async fn run(
+    mut bus: Bus,
+    events: Sender<'static, CriticalSectionRawMutex, Event, { crate::EVENT_CAPACITY }>,
+) {
+    Timer::at(embassy_time::Instant::MIN + POWER_ON_PRESS).await;
+    // The first read only clears the flag (see `POWER_ON_PRESS`).
+    let mut first = true;
+    let mut failing = false;
+    loop {
+        match take_short_press(&mut bus).await {
+            Ok(pressed) => {
+                if pressed && !first && events.try_send(Event::power_button(now())).is_err() {
+                    warn!("event queue full; dropped a power button press");
+                }
+                first = false;
+                failing = false;
+            }
+            // Logged once, not on every poll, while the bus keeps failing.
+            Err(e) => {
+                if !failing {
+                    warn!("power key unreadable: {e:?}");
+                }
+                failing = true;
+            }
+        }
+        Timer::after(KEY_POLL).await;
+    }
 }

@@ -60,6 +60,7 @@ fn kind() -> impl Strategy<Value = EventKind> {
         1 => Just(EventKind::Deadline),
         3 => (phase(), point()).prop_map(|(phase, point)| touch(phase, point)),
         1 => key().prop_map(EventKind::Key),
+        1 => Just(EventKind::PowerButton),
     ]
 }
 
