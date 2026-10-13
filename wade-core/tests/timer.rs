@@ -364,6 +364,25 @@ fn back_while_done_dismisses() {
     dismissing_makes_wade(&mut h, back(), Expression::Proud);
 }
 
+#[test]
+fn the_power_button_dismisses_a_finished_timer() {
+    let mut h = one_minute_timer_from_buddy();
+    h.power_button(after(ENDS_AT, 5_000));
+    assert_eq!(h.app.timer_state(), TimerState::Ready { set: MIN_SET });
+    assert_eq!(h.app.screen(), Screen::Buddy);
+    assert_eq!(h.buddy().expression, Expression::Proud);
+    assert!(!h.buddy().asleep);
+}
+
+#[test]
+fn the_power_button_just_after_the_timer_finishes_is_ignored() {
+    let mut h = one_minute_timer_from_buddy();
+    h.power_button(after(ENDS_AT, 200));
+    assert_eq!(h.timer().phase, TimerPhase::Done);
+    h.power_button(ENDS_AT + TOUCH_GUARD);
+    assert_eq!(h.app.screen(), Screen::Buddy);
+}
+
 /// Put Wade to sleep, then run a 1:00 timer from Buddy that wakes him at
 /// `ENDS_AT`, and dismiss it 5 s later. Returns when it was dismissed.
 fn dismiss_a_timer_that_woke_him(h: &mut Harness) -> Instant {

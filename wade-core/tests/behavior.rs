@@ -149,6 +149,31 @@ fn z_puts_him_to_sleep_and_a_tap_wakes_him_surprised() {
 }
 
 #[test]
+fn the_power_button_puts_him_to_sleep_and_wakes_him_surprised() {
+    let mut h = Harness::new(SEED);
+    h.power_button(ms(1_000));
+    assert!(h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Sleepy);
+
+    h.power_button(ms(5_000));
+    assert!(!h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+    h.run_until(ms(5_999));
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+    h.run_until(ms(6_000));
+    assert_eq!(h.buddy().expression, Expression::Neutral);
+}
+
+#[test]
+fn a_tap_wakes_him_after_the_power_button() {
+    let mut h = Harness::new(SEED);
+    h.power_button(ms(1_000));
+    h.tap(ms(5_000), WADE_CENTER);
+    assert!(!h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+}
+
+#[test]
 fn a_number_key_wakes_him_into_that_expression() {
     let mut h = Harness::new(SEED);
     h.key(ms(1_000), Key::Z);

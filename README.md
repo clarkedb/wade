@@ -26,7 +26,7 @@ export LIBRARY_PATH="${LIBRARY_PATH:+$LIBRARY_PATH:}$(brew --prefix)/lib"
 cargo run -p wade-desktop -- --seed 42
 ```
 
-Click Wade to tap him, or use the bottom-right corner to open the Launcher, then choose Timer. Number keys 0–9 show each expression, Z puts him to sleep, and P switches between pupils and plain eyes. Flags: `--seed <n>`, `--time-scale <x>` (`10` finishes a 5:00 timer in 30 s), `--record <file>`, and `--replay <file>`.
+Click Wade to tap him, or use the bottom-right corner to open the Launcher, then choose Timer. Number keys 0–9 show each expression, Z puts him to sleep, P switches between pupils and plain eyes, and Space presses the CoreS3's power button, which puts him to sleep or wakes him. Flags: `--seed <n>`, `--time-scale <x>` (`10` finishes a 5:00 timer in 30 s), `--record <file>`, and `--replay <file>`.
 
 ## Firmware
 

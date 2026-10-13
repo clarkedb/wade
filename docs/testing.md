@@ -109,7 +109,7 @@ Snapshot cases include each expression at rest with its accent, and a glance, in
 `wade-desktop --record <file>` writes the seed, the settings the session started with, and every input event. `Deadline` events are not recorded; replay regenerates them from `next_deadline`, so recordings stay valid when animation timing changes.
 
 ```text
-wade-events 2
+wade-events 3
 seed 8127364512
 settings 0100000105
 1000 down 160 110 #3f9a1c02
@@ -117,15 +117,16 @@ settings 0100000105
 2400 key 3 #5d21a7c4
 5400 down 290 210 #5d21a7c4
 5460 up 290 210 #51c8d9e0
+7000 power-button #c3a1772e
 ```
 
-The settings are their stored form in hex. Each line after them is a timestamp in milliseconds, then either a touch phase (`down`, `move`, or `up`) with x and y in display coordinates or `key` with the key (`0`–`9`, `z`, or `p`), then a state hash. The parser and writer live behind the `harness` feature.
+The settings are their stored form in hex. Each line after them is a timestamp in milliseconds, then a touch phase (`down`, `move`, or `up`) with x and y in display coordinates, `key` with the key (`0`–`9`, `z`, or `p`), or `power-button`, then a state hash. The parser and writer live behind the `harness` feature.
 
 The state hash is taken after the event is handled. It covers the screen and Settings page, Wade's expression and sleep state (on every screen), the timer's state, duration, and digits, and every setting; M4 adds the activity. Including the eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover selected rendered views. Replay checks discrete state after each recorded input and reports the first mismatch with its timestamp.
 
 Desktop replay rejects files over 16 MiB and checks the recording before opening the window. Core replay stops after 100,000 scheduled deadlines so a timestamp far in the future cannot keep it busy indefinitely.
 
-Version 2 added starting settings. Future milestones add power and proximity inputs (M6) and weather updates (M7). Each addition bumps the header version. The parser accepts every older version, so existing recordings keep parsing; a version 1 recording starts with the default settings. When the state hash covers more, their hashes are rewritten.
+Version 2 added starting settings, and version 3 the power button. Future milestones add power and proximity inputs (M6) and weather updates (M7). Each addition bumps the header version. The parser accepts every older version, so existing recordings keep parsing; a version 1 recording starts with the default settings. When the state hash covers more, their hashes are rewritten.
 
 Recordings of interesting sessions go in `wade-core/tests/recordings/` as `*.events.wade` files. The suffix identifies Wade's custom event format; desktop captures use a `desktop-` prefix. The core replay tests own the fixtures. One runs every recording through the harness and checks that it completes without panicking and that every state hash matches. A recording with more to check, such as the final screen or a snapshot of the final frame, gets its own test that loads it by name, so renaming the file fails that test instead of silently skipping its checks. A behavior change that alters a hash on purpose is accepted by re-recording, or by rewriting the hashes with `UPDATE_RECORDINGS=1 cargo test` and reviewing the diff.
 

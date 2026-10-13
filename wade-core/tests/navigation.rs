@@ -7,7 +7,7 @@ use embedded_graphics::geometry::Point;
 use wade_core::app::{FRAME, STALL_LIMIT, Screen};
 use wade_core::character::{Expression, TIMER_REACTION};
 use wade_core::harness::Harness;
-use wade_core::layout::{Target, Tile, WADE_CENTER};
+use wade_core::layout::{self, Target, Tile, WADE_CENTER};
 use wade_core::timer::{MIN_SET, TimerButton, TimerPhase};
 use wade_core::{Event, Key, TouchPhase};
 
@@ -63,6 +63,38 @@ fn a_timer_finishing_elsewhere_is_dismissed_to_buddy() {
             assert_eq!(h.buddy().expression, Expression::Proud);
             h.run_until(ms(65_000) + TIMER_REACTION);
             assert_eq!(h.buddy().expression, Expression::Neutral);
+        }
+    }
+}
+
+#[test]
+fn the_power_button_returns_to_buddy_asleep_from_any_screen() {
+    let settings = tile(Tile::Settings);
+    let about = [
+        apps(),
+        settings,
+        layout::SETTINGS_NEXT.center(),
+        layout::ABOUT.center(),
+    ];
+    for (screen, from_buddy) in [
+        (Screen::Launcher, &[apps()][..]),
+        (Screen::Timer, &[apps(), tile(Tile::Timer)][..]),
+        (Screen::Settings, &[apps(), settings][..]),
+        (Screen::About, &about[..]),
+    ] {
+        // Already asleep, he stays asleep rather than waking.
+        for asleep in [false, true] {
+            let mut h = Harness::new(SEED);
+            if asleep {
+                h.power_button(ms(500));
+            }
+            for &point in from_buddy {
+                h.tap(ms(1_000), point);
+            }
+            assert_eq!(h.app.screen(), screen);
+            h.power_button(ms(2_000));
+            assert_eq!(h.app.screen(), Screen::Buddy, "from {screen:?}");
+            assert!(h.buddy().asleep, "from {screen:?}");
         }
     }
 }
