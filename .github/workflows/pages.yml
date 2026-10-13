@@ -3,7 +3,7 @@ name: Website
 on:
   push:
     branches: [main]
-    paths: ["website/**", "wade-core/tests/snapshots/pupils_0_neutral.png", ".github/workflows/pages.yml"]
+    paths: ["website/**", "wade-core/tests/snapshots/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
   workflow_call:
 

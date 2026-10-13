@@ -157,7 +157,7 @@ Firmware builds separately with the Espressif toolchain: `cd wade-cores3 && carg
 ### CI
 
 GitHub Actions checks Rust and firmware on pushes. Website CI runs on pull requests
-that change `website/` and matching pushes to `main`.
+that change `website/` or the core's snapshots, and matching pushes to `main`.
 
 | Job | Runner | Steps |
 |---|---|---|

@@ -3,9 +3,9 @@ name: Website CI
 on:
   push:
     branches: [main]
-    paths: ["website/**"]
+    paths: ["website/**", "wade-core/tests/snapshots/**"]
   pull_request:
-    paths: ["website/**"]
+    paths: ["website/**", "wade-core/tests/snapshots/**"]
 
 permissions:
   contents: read

@@ -24,6 +24,22 @@ export const BOARDS = {
   cores3: { name: "M5Stack CoreS3 Lite", family: "ESP32-S3" },
   cyd: { name: "CYD ESP32-2432S028R", family: "ESP32" },
 };
+const SNAPSHOTS = join(ROOT, "wade-core/tests/snapshots");
+// The page shows Wade only as the core renders him: these snapshot tests'
+// golden images, published as faces/<name>.png.
+export const FACES = {
+  neutral: "pupils_0_neutral",
+  happy: "pupils_1_happy",
+  sad: "pupils_2_sad",
+  surprised: "pupils_4_surprised",
+  sleepy: "pupils_5_sleepy",
+  thinking: "pupils_6_thinking",
+  proud: "pupils_7_proud",
+  focused: "pupils_8_focused",
+  flustered: "pupils_9_flustered",
+  glancing: "pupils_glancing",
+  blink: "mid_blink",
+};
 const FILES = [
   "build.json",
   "install.bin",
@@ -102,9 +118,15 @@ export function build(packages, output) {
   mkdirSync(output, { recursive: true });
   cpSync(join(WEBSITE, "public"), output, { recursive: true });
   copyFileSync(
-    join(ROOT, "wade-core/tests/snapshots/pupils_0_neutral.png"),
+    join(SNAPSHOTS, `${FACES.neutral}.png`),
     join(output, "wade.png"),
   );
+  mkdirSync(join(output, "faces"), { recursive: true });
+  for (const [face, snapshot] of Object.entries(FACES))
+    copyFileSync(
+      join(SNAPSHOTS, `${snapshot}.png`),
+      join(output, "faces", `${face}.png`),
+    );
   const releases = new Map();
   const filenames = existsSync(packages) ? readdirSync(packages) : [];
   for (const filename of filenames
