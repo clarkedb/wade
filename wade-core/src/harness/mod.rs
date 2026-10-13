@@ -16,8 +16,7 @@ use crate::settings::Settings;
 use crate::time::Instant;
 use crate::timer::TimerPhase;
 use crate::view::{
-    AboutView, BuddyView, ColorMode, EyeStyle, LauncherView, SettingsPage, SettingsView, TimerView,
-    View,
+    AboutView, BuddyView, ColorMode, EyeStyle, LauncherView, SettingsView, TimerView, View,
 };
 
 #[derive(Debug)]
@@ -223,10 +222,14 @@ pub fn state_hash(app: &App) -> u32 {
     let screen = match app.screen() {
         Screen::Buddy => 0u8,
         Screen::Timer => 1,
-        Screen::Launcher => 2,
+        Screen::Launcher => match app.launcher_page() {
+            0 => 2,
+            page => 0x10 | page.min(0x0f),
+        },
         Screen::Settings => match app.settings_page() {
-            SettingsPage::Device => 3,
-            SettingsPage::Information => 5,
+            0 => 3,
+            1 => 5,
+            page => 0x20 | page.min(0x0f),
         },
         Screen::About => 4,
     };

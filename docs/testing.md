@@ -121,7 +121,7 @@ settings 0100000105
 
 The settings are their stored form in hex. Each line after them is a timestamp in milliseconds, then either a touch phase (`down`, `move`, or `up`) with x and y in display coordinates or `key` with the key (`0`–`9`, `z`, or `p`), then a state hash. The parser and writer live behind the `harness` feature.
 
-The state hash is taken after the event is handled. It covers the screen and Settings page, Wade's expression and sleep state (on every screen), the timer's state, duration, and digits, and every setting; M4 adds the activity. Including the eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover selected rendered views. Replay checks discrete state after each recorded input and reports the first mismatch with its timestamp.
+The state hash is taken after the event is handled. It covers the screen and its page, Wade's expression and sleep state (on every screen), the timer's state, duration, and digits, and every setting; M4 adds the activity. Including the eye style catches a broken P key ([D24](decisions.md#d24-eye-style-belongs-in-the-recording-hash)). It excludes `Pose` and pixels, so tuning animation curves or redrawing Wade does not invalidate recordings; snapshots cover selected rendered views. Replay checks discrete state after each recorded input and reports the first mismatch with its timestamp.
 
 Desktop replay rejects files over 16 MiB and checks the recording before opening the window. Core replay stops after 100,000 scheduled deadlines so a timestamp far in the future cannot keep it busy indefinitely.
 

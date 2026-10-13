@@ -33,6 +33,8 @@ pub struct BuddyView {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LauncherView {
+    /// The page of tiles shown, from 0.
+    pub page: u8,
     /// The tile or button under a touch in progress, drawn pressed.
     pub pressed: Option<Target>,
 }
@@ -50,19 +52,12 @@ pub struct TimerView {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SettingsView {
-    pub page: SettingsPage,
+    /// The page of tiles shown, from 0.
+    pub page: u8,
     /// The settings the toggles show.
     pub settings: Settings,
     /// The button under a touch in progress, drawn pressed.
     pub pressed: Option<Target>,
-}
-
-/// Settings keep at most four buttons on each page.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum SettingsPage {
-    #[default]
-    Device,
-    Information,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

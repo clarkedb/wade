@@ -11,7 +11,7 @@ use wade_core::harness::Harness;
 use wade_core::layout::{self, Target, Tile};
 use wade_core::settings::{Brightness, SettingsButton};
 use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
-use wade_core::view::{AboutView, ColorMode, EyeStyle, SettingsPage, SettingsView, View};
+use wade_core::view::{AboutView, ColorMode, EyeStyle, SettingsView, View};
 use wade_core::{App, BuildInfo, Instant, Settings, TouchPhase, render};
 
 /// The whole screen for `view`.
@@ -255,7 +255,7 @@ fn each_launcher_button_pressed() {
 /// The Settings screen for `settings`, with `pressed` held down.
 fn settings_screen(settings: Settings, pressed: Option<Target>) -> View {
     View::Settings(SettingsView {
-        page: SettingsPage::Device,
+        page: 0,
         settings,
         pressed,
     })
@@ -288,22 +288,10 @@ fn about_release_development_and_dirty() {
 #[test]
 fn settings_information_page_and_navigation() {
     for (name, page, pressed) in [
-        (
-            "settings_next_pressed",
-            SettingsPage::Device,
-            Some(Target::SettingsPage(SettingsPage::Information)),
-        ),
-        ("settings_information", SettingsPage::Information, None),
-        (
-            "settings_about_pressed",
-            SettingsPage::Information,
-            Some(Target::About),
-        ),
-        (
-            "settings_previous_pressed",
-            SettingsPage::Information,
-            Some(Target::SettingsPage(SettingsPage::Device)),
-        ),
+        ("settings_next_pressed", 0, Some(Target::NextPage)),
+        ("settings_information", 1, None),
+        ("settings_about_pressed", 1, Some(Target::About)),
+        ("settings_previous_pressed", 1, Some(Target::PreviousPage)),
     ] {
         snapshot(
             name,
@@ -341,14 +329,17 @@ fn each_brightness_level() {
 #[test]
 fn each_settings_button_pressed() {
     let pressed = std::iter::once(("back".to_owned(), Target::Back)).chain(
-        layout::SETTINGS_BUTTONS.iter().map(|&(button, _)| {
+        layout::SETTINGS_TILES.iter().filter_map(|&tile| {
+            let Target::Settings(button) = tile else {
+                return None;
+            };
             let name = match button {
                 SettingsButton::EyeStyle => "eye_style",
                 SettingsButton::Color => "color",
                 SettingsButton::Chime => "chime",
                 SettingsButton::Brightness => "brightness",
             };
-            (name.to_owned(), Target::Settings(button))
+            Some((name.to_owned(), tile))
         }),
     );
     for (name, target) in pressed {

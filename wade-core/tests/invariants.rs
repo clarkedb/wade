@@ -29,12 +29,15 @@ fn point() -> impl Strategy<Value = Point> {
         layout::BACK.center(),
     ];
     targets.extend(layout::TIMER_ROW.iter().map(Rectangle::center));
-    targets.extend(layout::TILES.iter().map(|(_, area)| area.center()));
-    targets.extend(
-        layout::SETTINGS_BUTTONS
-            .iter()
-            .map(|(_, area)| area.center()),
-    );
+    for tiles in [&layout::LAUNCHER_TILES[..], &layout::SETTINGS_TILES[..]] {
+        targets.extend(
+            tiles
+                .iter()
+                .filter_map(|&tile| layout::find_tile(tiles, tile))
+                .map(|(_, area)| area.center()),
+        );
+    }
+    targets.extend([layout::PREVIOUS_PAGE.center(), layout::NEXT_PAGE.center()]);
     prop_oneof![
         1 => (-20i32..340, -20i32..260).prop_map(|(x, y)| Point::new(x, y)),
         2 => prop::sample::select(targets),

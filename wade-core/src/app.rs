@@ -9,7 +9,7 @@ use crate::rng::Rng;
 use crate::settings::{Brightness, Settings, SettingsButton};
 use crate::time::{Duration, Instant};
 use crate::timer::{Chime, Digits, TimerButton, TimerPhase, TimerState};
-use crate::view::{AboutView, BuddyView, LauncherView, SettingsPage, SettingsView, View};
+use crate::view::{AboutView, BuddyView, LauncherView, SettingsView, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
@@ -71,7 +71,9 @@ pub enum Screen {
 pub struct App {
     now: Instant,
     screen: Screen,
-    settings_page: SettingsPage,
+    /// The page shown on each paged screen, kept while one of its tiles is open.
+    launcher_page: u8,
+    settings_page: u8,
     info: BuildInfo,
     wade: Wade,
     timer: TimerState,
@@ -95,7 +97,8 @@ impl App {
         App {
             now,
             screen: Screen::Buddy,
-            settings_page: SettingsPage::Device,
+            launcher_page: 0,
+            settings_page: 0,
             info: BuildInfo::UNKNOWN,
             wade: Wade::new(now, seed),
             timer: TimerState::Ready {
@@ -144,7 +147,8 @@ impl App {
     fn on_touch(&mut self, touch: Touch, out: &mut Output) {
         let pressed = self.pressed_button();
         let screen = self.screen;
-        let page = self.settings_page;
+        let launcher_page = self.launcher_page;
+        let settings_page = self.settings_page;
         let row = self.timer.row();
         let tap = if touch.phase == TouchPhase::Down && self.now < self.touch_guard_until {
             self.touch.cancel();
@@ -152,9 +156,9 @@ impl App {
         } else {
             self.touch.handle(touch, |p| match screen {
                 Screen::Buddy => layout::hit_buddy(p),
-                Screen::Launcher => layout::hit_launcher(p),
+                Screen::Launcher => layout::hit_launcher(p, launcher_page),
                 Screen::Timer => layout::hit_timer(p, row),
-                Screen::Settings => layout::hit_settings(p, page),
+                Screen::Settings => layout::hit_settings(p, settings_page),
                 Screen::About => layout::hit_about(p),
             })
         };
@@ -165,11 +169,8 @@ impl App {
             Some(Target::Tile(Tile::Timer)) => self.switch_to(Screen::Timer, out),
             Some(Target::Tile(Tile::Settings)) => self.switch_to(Screen::Settings, out),
             Some(Target::About) => self.switch_to(Screen::About, out),
-            Some(Target::SettingsPage(page)) => {
-                self.settings_page = page;
-                self.touch.cancel();
-                out.redraw = true;
-            }
+            Some(Target::PreviousPage) => self.turn_page(|page| page.saturating_sub(1), out),
+            Some(Target::NextPage) => self.turn_page(|page| page.saturating_add(1), out),
             Some(Target::Back) => self.back(out),
             Some(Target::Timer(TimerButton::Dismiss)) => self.dismiss(out),
             Some(Target::Timer(button)) => {
@@ -190,6 +191,19 @@ impl App {
             }
             None => {}
         }
+    }
+
+    /// Move the current screen to another page. The hit test offers only
+    /// pages that exist.
+    fn turn_page(&mut self, turn: impl FnOnce(u8) -> u8, out: &mut Output) {
+        let page = match self.screen {
+            Screen::Launcher => &mut self.launcher_page,
+            Screen::Settings => &mut self.settings_page,
+            Screen::Buddy | Screen::Timer | Screen::About => return,
+        };
+        *page = turn(*page);
+        self.touch.cancel();
+        out.redraw = true;
     }
 
     /// Back from a finished timer dismisses it, like Dismiss.
@@ -262,8 +276,12 @@ impl App {
         if self.screen == Screen::Settings && screen != Screen::Settings && self.save_at.is_some() {
             self.save(out);
         }
-        if screen == Screen::Settings && self.screen != Screen::About {
-            self.settings_page = SettingsPage::Device;
+        // A paged screen opens on its first page, except when returning from
+        // one of its own tiles.
+        match (self.screen, screen) {
+            (Screen::Buddy, Screen::Launcher) => self.launcher_page = 0,
+            (from, Screen::Settings) if from != Screen::About => self.settings_page = 0,
+            _ => {}
         }
         self.screen = screen;
         self.touch.cancel();
@@ -426,6 +444,7 @@ impl App {
                 apps_pressed: self.touch.pressed() == Some(Target::Apps),
             }),
             Screen::Launcher => View::Launcher(LauncherView {
+                page: self.launcher_page,
                 pressed: self.pressed_button(),
             }),
             Screen::Timer => View::Timer(self.timer.view(self.now, self.pressed_button())),
@@ -452,9 +471,15 @@ impl App {
         self.screen
     }
 
+    /// The selected Launcher page, retained while an app is open.
+    #[must_use]
+    pub const fn launcher_page(&self) -> u8 {
+        self.launcher_page
+    }
+
     /// The selected Settings page, retained while About is open.
     #[must_use]
-    pub const fn settings_page(&self) -> SettingsPage {
+    pub const fn settings_page(&self) -> u8 {
         self.settings_page
     }
 

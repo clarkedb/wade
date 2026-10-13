@@ -13,18 +13,20 @@ where
 {
     widgets::back_button(view.pressed == Some(Target::Back), target)?;
     widgets::title(Icon::Apps, target)?;
-    for (tile, area) in layout::TILES {
-        let pressed = view.pressed == Some(Target::Tile(tile));
-        let scale = widgets::TILE_ICON_SCALE;
-        widgets::button(area, icon(tile), scale, true, pressed, target)?;
-    }
-    Ok(())
+    widgets::paged_tiles(
+        &layout::LAUNCHER_TILES,
+        view.page,
+        view.pressed,
+        |tile, _| icon(tile),
+        target,
+    )
 }
 
 /// Each tile shows its app's title icon.
-const fn icon(tile: Tile) -> Icon {
+const fn icon(tile: Target) -> Icon {
     match tile {
-        Tile::Timer => Icon::Stopwatch,
-        Tile::Settings => Icon::Gear,
+        Target::Tile(Tile::Timer) => Icon::Stopwatch,
+        // Settings, the only other tile.
+        _ => Icon::Gear,
     }
 }

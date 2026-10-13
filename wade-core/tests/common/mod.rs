@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use embedded_graphics::geometry::Point;
 use wade_core::harness::Harness;
-use wade_core::layout::{self, Tile};
+use wade_core::layout::{self, Target, Tile};
 use wade_core::settings::{Brightness, SettingsButton};
 use wade_core::timer::TimerButton;
 use wade_core::view::{ColorMode, EyeStyle};
@@ -39,21 +39,25 @@ pub fn back() -> Point {
     layout::BACK.center()
 }
 
-/// The middle of `tile` on the Launcher.
+/// The middle of `tile` on the Launcher, which must show its page.
 pub fn tile(tile: Tile) -> Point {
-    let (_, area) = layout::TILES
-        .into_iter()
-        .find(|&(t, _)| t == tile)
+    let (_, area) = layout::find_tile(&layout::LAUNCHER_TILES, Target::Tile(tile))
         .expect("every app has a tile");
     area.center()
 }
 
-/// The middle of `button` on the Settings screen.
+/// The middle of `button` on the Settings screen, which must show its page.
 pub fn setting(button: SettingsButton) -> Point {
-    let (_, area) = layout::SETTINGS_BUTTONS
-        .into_iter()
-        .find(|&(b, _)| b == button)
-        .expect("every settings button has an area");
+    let (_, area) = layout::find_tile(&layout::SETTINGS_TILES, Target::Settings(button))
+        .expect("every setting has a tile");
+    area.center()
+}
+
+/// The middle of the information button on the Settings screen, which must
+/// show its page.
+pub fn about() -> Point {
+    let (_, area) = layout::find_tile(&layout::SETTINGS_TILES, Target::About)
+        .expect("Settings has an information tile");
     area.center()
 }
 

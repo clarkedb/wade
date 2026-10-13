@@ -13,7 +13,7 @@ use wade_core::harness::{Harness, state_hash};
 use wade_core::layout::{self, Target, Tile};
 use wade_core::settings::{Brightness, ENCODED_LEN, SettingsButton};
 use wade_core::timer::{MIN_SET, TimerButton, TimerPhase, TimerState};
-use wade_core::view::{ColorMode, EyeStyle, SettingsPage};
+use wade_core::view::{ColorMode, EyeStyle};
 use wade_core::{Effect, Key, Settings, TouchPhase};
 
 #[test]
@@ -343,18 +343,18 @@ fn settings_pages_keep_changes_and_the_pending_save_deadline() {
     let hash = state_hash(&h.app);
     let deadline = h.app.next_deadline();
 
-    h.tap(ms(1_020), layout::SETTINGS_NEXT.center());
-    assert_eq!(h.settings().page, SettingsPage::Information);
+    h.tap(ms(1_020), layout::NEXT_PAGE.center());
+    assert_eq!(h.settings().page, 1);
     assert_ne!(state_hash(&h.app), hash, "the page is discrete state");
     assert_eq!(h.app.next_deadline(), deadline);
     assert!(h.effects.is_empty());
     h.tap(ms(1_030), setting(SettingsButton::Brightness));
-    h.tap(ms(1_040), layout::SETTINGS_NEXT.center());
-    assert_eq!(h.settings().page, SettingsPage::Information);
+    h.tap(ms(1_040), layout::NEXT_PAGE.center());
+    assert_eq!(h.settings().page, 1);
     assert_eq!(h.app.settings(), Settings::DEFAULT.with_chime(false));
 
-    h.tap(ms(1_050), layout::SETTINGS_PREVIOUS.center());
-    assert_eq!(h.settings().page, SettingsPage::Device);
+    h.tap(ms(1_050), layout::PREVIOUS_PAGE.center());
+    assert_eq!(h.settings().page, 0);
     assert_eq!(state_hash(&h.app), hash);
     h.run_until(ms(1_010) + SAVE_DELAY);
     assert_eq!(saves(&h), [Settings::DEFAULT.with_chime(false)]);
@@ -364,39 +364,28 @@ fn settings_pages_keep_changes_and_the_pending_save_deadline() {
 fn settings_page_arrows_cancel_dragged_taps_and_reopening_starts_on_device() {
     let mut h = Harness::new(SEED);
     open(&mut h, ms(1_000), Tile::Settings);
-    h.touch(
-        ms(1_005),
-        TouchPhase::Down,
-        layout::SETTINGS_PREVIOUS.center(),
-    );
+    h.touch(ms(1_005), TouchPhase::Down, layout::PREVIOUS_PAGE.center());
     assert_eq!(
         h.settings().pressed,
         None,
         "the unavailable up arrow takes no touches"
     );
-    h.touch(
-        ms(1_006),
-        TouchPhase::Up,
-        layout::SETTINGS_PREVIOUS.center(),
-    );
-    assert_eq!(h.settings().page, SettingsPage::Device);
-    let next = layout::SETTINGS_NEXT.center();
+    h.touch(ms(1_006), TouchPhase::Up, layout::PREVIOUS_PAGE.center());
+    assert_eq!(h.settings().page, 0);
+    let next = layout::NEXT_PAGE.center();
     h.touch(ms(1_010), TouchPhase::Down, next);
-    assert_eq!(
-        h.settings().pressed,
-        Some(Target::SettingsPage(SettingsPage::Information))
-    );
+    assert_eq!(h.settings().pressed, Some(Target::NextPage));
     h.touch(ms(1_020), TouchPhase::Move, layout::WADE_CENTER);
     h.touch(ms(1_030), TouchPhase::Up, next);
-    assert_eq!(h.settings().page, SettingsPage::Device);
+    assert_eq!(h.settings().page, 0);
 
     h.tap(ms(1_040), next);
     assert_eq!(h.settings().pressed, None);
-    h.touch(ms(1_050), TouchPhase::Up, layout::ABOUT.center());
+    h.touch(ms(1_050), TouchPhase::Up, common::about());
     assert_eq!(h.app.screen(), Screen::Settings);
     h.tap(ms(1_060), back());
     h.tap(ms(1_070), common::tile(Tile::Settings));
-    assert_eq!(h.settings().page, SettingsPage::Device);
+    assert_eq!(h.settings().page, 0);
 }
 
 #[test]
@@ -406,10 +395,10 @@ fn a_timer_finishing_cancels_a_settings_page_press() {
     h.tap(ms(1_010), button(TimerButton::Start));
     h.tap(ms(1_020), back());
     h.tap(ms(1_030), common::tile(Tile::Settings));
-    h.touch(ms(61_000), TouchPhase::Down, layout::SETTINGS_NEXT.center());
+    h.touch(ms(61_000), TouchPhase::Down, layout::NEXT_PAGE.center());
     h.run_until(ms(61_010));
-    h.touch(ms(61_520), TouchPhase::Up, layout::SETTINGS_NEXT.center());
+    h.touch(ms(61_520), TouchPhase::Up, layout::NEXT_PAGE.center());
     assert_eq!(h.app.screen(), Screen::Timer);
-    assert_eq!(h.app.settings_page(), SettingsPage::Device);
+    assert_eq!(h.app.settings_page(), 0);
     assert_eq!(h.timer().phase, TimerPhase::Done);
 }

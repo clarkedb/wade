@@ -51,7 +51,7 @@ A screen change cancels any tap in progress. If the core switches screens while 
 
 All geometry (element rectangles, Wade's hit area, button positions) is defined once in `wade_core::layout` and used by both drawing and hit-testing, so what you see is always what you can tap.
 
-The four 48×48 corners are reserved for navigation: back top-left and apps bottom-right on Buddy. The top-right title takes no touches. Nothing else takes touches in the corners, Wade included. Settings page arrows sit along the right edge, clear of the corners.
+The four 48×48 corners are reserved for navigation: back top-left and apps bottom-right on Buddy. The top-right title takes no touches. Nothing else takes touches in the corners, Wade included. Page arrows sit along the right edge, clear of the corners.
 
 ## Buddy screen
 
@@ -63,15 +63,17 @@ Wade fills the screen. The apps button is a 48×48 hit area in the bottom-right 
 ┌──────────────────────────────────────────┐
 │ ‹                                   apps │
 │       ┌───────────┐  ┌───────────┐       │  y 24–112: top row of tiles
-│       │ stopwatch │  │           │       │
+│       │ stopwatch │  │    gear   │       │
 │       └───────────┘  └───────────┘       │
 │       ┌───────────┐  ┌───────────┐       │  y 128–216: bottom row
-│       │           │  │    gear   │       │
+│       │           │  │           │       │
 │       └───────────┘  └───────────┘       │
 └──────────────────────────────────────────┘
 ```
 
-A two-by-two grid of 88×88 tiles, 16 px apart, centered and clear of the corners. Each tile shows its app's title icon at twice the size and is styled like a button: outlined, filled while pressed. Apps fill the grid from the top left, and Settings always takes the bottom right, so it stays put as apps are added. The title is the apps button's four squares.
+A two-by-two grid of 88×88 tiles, 16 px apart, centered and clear of the corners. Each tile shows its app's title icon at twice the size and is styled like a button: outlined, filled while pressed. Apps fill the grid from the top left, and Settings is always the last tile. The title is the apps button's four squares.
+
+More than four tiles spill onto further pages, which work as in [Settings](#paging). Opening the Launcher from Buddy starts on the first page; returning from an app keeps the page it was opened from.
 
 ## Timer
 
@@ -152,13 +154,6 @@ Each button is its icon alone, and the title is a stopwatch ([D26](decisions.md#
 
 The first page has four toggles in the Launcher's grid, clear of the corners: Wade's look on top, the chime and brightness below. Each shows its setting's current value, at twice the size of a button's icon. Every change applies at once, and is saved 2 s after the last one or on leaving the screen ([M5](roadmap.md#m5-settings)).
 
-Settings holds at most four buttons per page. Up/down chevrons on the right
-move to the previous or next page. Both remain visible; unavailable directions
-are dimmed and ignore taps. Two dots stacked vertically on the left mark the
-current page. Page changes cancel the active
-touch and keep any pending save deadline. Opening Settings starts on the first
-page.
-
 | Toggle | Shows | Effect |
 |---|---|---|
 | Eye style | A small pair of eyes, with pupils or plain | Switches Wade's eyes. The desktop P key does the same. |
@@ -171,6 +166,16 @@ The timer's duration is saved with the settings but has no control here: the tim
 The second page has an information tile in the first grid slot, outlined like
 the toggles and showing a circled i. It opens About. Leaving Settings for About
 saves any pending change, as any other departure does.
+
+### Paging
+
+The Launcher and Settings share one paging scheme. Each page holds up to four
+tiles in the grid, filled in order. With more than one page, up/down chevrons on
+the right move to the previous or next page. Both remain visible; unavailable
+directions are dimmed and ignore taps. Dots stacked vertically on the left, one
+per page, mark the current page. A screen with one page shows neither. Page
+changes cancel the active touch and keep any pending save deadline. Opening
+Settings starts on the first page.
 
 ## About
 
