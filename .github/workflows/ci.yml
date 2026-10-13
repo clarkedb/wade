@@ -92,6 +92,11 @@ jobs:
           buildtargets: ${{ matrix.chip }}
           version: 1.97.0.0
 
+      # The action downloads espup into the checkout; a leftover file marks the build dirty.
+      - name: Remove espup download
+        working-directory: .
+        run: rm -f espup-*.zip
+
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: ${{ matrix.crate }}
@@ -104,6 +109,13 @@ jobs:
 
       - name: Clippy with measurements
         run: cargo clippy --release --locked --features measure -- -D warnings
+
+      # Only a clean checkout of the tag is labeled a release build.
+      - name: Check release checkout is clean
+        if: inputs.release-tag != ''
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain)"
 
       - name: Build
         run: cargo build --release --locked

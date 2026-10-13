@@ -23,3 +23,6 @@ target
 
 # Superset per-user overrides
 .superset/config.local.json
+
+# Downloaded archives, such as the espup installer in CI
+*.zip
