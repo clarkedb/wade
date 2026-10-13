@@ -60,28 +60,39 @@ const GRID: [Rectangle; 4] = [
 ];
 const TILE_SIZE: Size = Size::new(88, 88);
 
+/// The most pages a screen may have: their dots fit the left edge, and each
+/// has its own recording hash code.
+pub const MAX_PAGES: u8 = 12;
+
 /// The Launcher's tiles, in order: apps first, Settings last.
-pub const LAUNCHER_TILES: [Target; 2] = [Target::Tile(Tile::Timer), Target::Tile(Tile::Settings)];
+pub const LAUNCHER_TILES: [Tile; 2] = [Tile::Timer, Tile::Settings];
 
 /// The Settings screen's tiles, in order: Wade's look, the chime and
 /// brightness, then the information button.
-pub const SETTINGS_TILES: [Target; 5] = [
-    Target::Settings(SettingsButton::EyeStyle),
-    Target::Settings(SettingsButton::Color),
-    Target::Settings(SettingsButton::Chime),
-    Target::Settings(SettingsButton::Brightness),
-    Target::About,
+pub const SETTINGS_TILES: [SettingsTile; 5] = [
+    SettingsTile::Toggle(SettingsButton::EyeStyle),
+    SettingsTile::Toggle(SettingsButton::Color),
+    SettingsTile::Toggle(SettingsButton::Chime),
+    SettingsTile::Toggle(SettingsButton::Brightness),
+    SettingsTile::About,
 ];
 
-/// How many pages `tiles` fill; at least one.
+const _: () = assert!(LAUNCHER_TILES.len() <= MAX_PAGES as usize * GRID.len());
+const _: () = assert!(SETTINGS_TILES.len() <= MAX_PAGES as usize * GRID.len());
+
+/// How many pages `tiles` fill: at least one, at most `MAX_PAGES`.
 #[must_use]
-pub fn page_count(tiles: &[Target]) -> u8 {
-    let pages = tiles.len().div_ceil(GRID.len()).max(1);
-    u8::try_from(pages).unwrap_or(u8::MAX)
+pub const fn page_count<T>(tiles: &[T]) -> u8 {
+    let mut count = 1;
+    while count < MAX_PAGES && count as usize * GRID.len() < tiles.len() {
+        count += 1;
+    }
+    count
 }
 
-/// The tiles on `page`, each with its slot in the grid.
-pub fn page_tiles(tiles: &[Target], page: u8) -> impl Iterator<Item = (Target, Rectangle)> + '_ {
+/// The tiles on `page`, each with its slot in the grid. A page past the
+/// last has none.
+pub fn page_tiles<T: Copy>(tiles: &[T], page: u8) -> impl Iterator<Item = (T, Rectangle)> {
     tiles
         .chunks(GRID.len())
         .nth(usize::from(page))
@@ -93,10 +104,21 @@ pub fn page_tiles(tiles: &[Target], page: u8) -> impl Iterator<Item = (Target, R
 
 /// The page that shows `tile` and its slot there, if `tiles` holds it.
 #[must_use]
-pub fn find_tile(tiles: &[Target], tile: Target) -> Option<(u8, Rectangle)> {
-    let index = tiles.iter().position(|&t| t == tile)?;
+pub fn find_tile<T: PartialEq>(tiles: &[T], tile: &T) -> Option<(u8, Rectangle)> {
+    let index = tiles.iter().position(|t| t == tile)?;
     let page = u8::try_from(index / GRID.len()).ok()?;
     Some((page, GRID[index % GRID.len()]))
+}
+
+/// The page arrows of a screen showing `page` of `count`: each one's target,
+/// area, and whether another page lies that way. Drawing and hit-testing
+/// both read this, so an arrow takes taps exactly when it is drawn enabled.
+#[must_use]
+pub const fn page_arrows(page: u8, count: u8) -> [(Target, Rectangle, bool); 2] {
+    [
+        (Target::PreviousPage, PREVIOUS_PAGE, page > 0),
+        (Target::NextPage, NEXT_PAGE, page < count.saturating_sub(1)),
+    ]
 }
 
 /// Where the page indicator's dots go for `count` pages: stacked
@@ -105,6 +127,29 @@ pub fn page_dots(count: u8) -> impl Iterator<Item = Point> {
     let shown = if count > 1 { count } else { 0 };
     let top = 118 - 6 * (i32::from(shown) - 1);
     (0..i32::from(shown)).map(move |i| Point::new(22, top + 12 * i))
+}
+
+/// A tile on the Settings screen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SettingsTile {
+    Toggle(SettingsButton),
+    /// The information button, which opens About.
+    About,
+}
+
+impl From<SettingsTile> for Target {
+    fn from(tile: SettingsTile) -> Target {
+        match tile {
+            SettingsTile::Toggle(button) => Target::Settings(button),
+            SettingsTile::About => Target::About,
+        }
+    }
+}
+
+impl From<Tile> for Target {
+    fn from(tile: Tile) -> Target {
+        Target::Tile(tile)
+    }
 }
 
 /// An app the Launcher opens.
@@ -152,19 +197,19 @@ pub fn hit_settings(point: Point, page: u8) -> Option<Target> {
 
 /// The target under `point` on a screen of paged `tiles` showing `page`:
 /// back, an available page arrow, or a tile.
-fn hit_paged(point: Point, tiles: &[Target], page: u8) -> Option<Target> {
+fn hit_paged<T: Copy + Into<Target>>(point: Point, tiles: &[T], page: u8) -> Option<Target> {
     if BACK.contains(point) {
         return Some(Target::Back);
     }
-    if page > 0 && PREVIOUS_PAGE.contains(point) {
-        return Some(Target::PreviousPage);
-    }
-    if page + 1 < page_count(tiles) && NEXT_PAGE.contains(point) {
-        return Some(Target::NextPage);
+    let arrow = page_arrows(page, page_count(tiles))
+        .into_iter()
+        .find(|&(_, area, enabled)| enabled && area.contains(point));
+    if let Some((arrow, _, _)) = arrow {
+        return Some(arrow);
     }
     page_tiles(tiles, page)
         .find(|(_, area)| area.contains(point))
-        .map(|(tile, _)| tile)
+        .map(|(tile, _)| tile.into())
 }
 
 /// About has only a back button; its metadata takes no touches.
@@ -212,28 +257,29 @@ mod tests {
             ((Screen::Timer, 0), Target::Back, BACK, Some(BACK)),
             ((Screen::About, 0), Target::Back, BACK, Some(BACK)),
         ];
-        for (screen, tiles) in [
-            (Screen::Launcher, &LAUNCHER_TILES[..]),
-            (Screen::Settings, &SETTINGS_TILES[..]),
-        ] {
-            let count = page_count(tiles);
-            for page in 0..count {
-                let key = (screen, page);
-                areas.push((key, Target::Back, BACK, Some(BACK)));
-                if page > 0 {
-                    areas.push((key, Target::PreviousPage, PREVIOUS_PAGE, None));
-                }
-                if page + 1 < count {
-                    areas.push((key, Target::NextPage, NEXT_PAGE, None));
-                }
-                areas.extend(page_tiles(tiles, page).map(|(tile, area)| (key, tile, area, None)));
-            }
-        }
+        paged_areas(&mut areas, Screen::Launcher, &LAUNCHER_TILES);
+        paged_areas(&mut areas, Screen::Settings, &SETTINGS_TILES);
         let row = TimerState::new().row();
         areas.extend(TIMER_ROW.iter().zip(row).filter_map(|(&area, button)| {
             button.map(|b| ((Screen::Timer, 0), Target::Timer(b.button), area, None))
         }));
         areas
+    }
+
+    /// The hit areas on every page of a screen of paged `tiles`.
+    fn paged_areas<T: Copy + Into<Target>>(areas: &mut Vec<HitArea>, screen: Screen, tiles: &[T]) {
+        let count = page_count(tiles);
+        for page in 0..count {
+            let key = (screen, page);
+            areas.push((key, Target::Back, BACK, Some(BACK)));
+            for (arrow, area, enabled) in page_arrows(page, count) {
+                if enabled {
+                    areas.push((key, arrow, area, None));
+                }
+            }
+            areas
+                .extend(page_tiles(tiles, page).map(|(tile, area)| (key, tile.into(), area, None)));
+        }
     }
 
     #[test]
@@ -260,10 +306,10 @@ mod tests {
 
     #[test]
     fn settings_is_the_last_tile() {
-        assert_eq!(LAUNCHER_TILES.last(), Some(&Target::Tile(Tile::Settings)));
+        assert_eq!(LAUNCHER_TILES.last(), Some(&Tile::Settings));
         for tile in LAUNCHER_TILES {
-            let (page, area) = find_tile(&LAUNCHER_TILES, tile).unwrap();
-            assert_eq!(hit_launcher(area.center(), page), Some(tile));
+            let (page, area) = find_tile(&LAUNCHER_TILES, &tile).unwrap();
+            assert_eq!(hit_launcher(area.center(), page), Some(Target::Tile(tile)));
         }
     }
 
@@ -280,6 +326,63 @@ mod tests {
         assert_eq!(page_count(&LAUNCHER_TILES), 1);
         assert_eq!(hit_launcher(PREVIOUS_PAGE.center(), 0), None);
         assert_eq!(hit_launcher(NEXT_PAGE.center(), 0), None);
+    }
+
+    #[test]
+    fn nine_tiles_fill_two_pages_and_part_of_a_third() {
+        let tiles: Vec<u8> = (0..9).collect();
+        assert_eq!(page_count(&tiles), 3);
+        let page = |n| page_tiles(&tiles, n).map(|(t, _)| t).collect::<Vec<_>>();
+        assert_eq!(page(1), [4, 5, 6, 7]);
+        assert_eq!(page(2), [8]);
+        assert_eq!(
+            page_tiles(&tiles, 2).next().map(|(_, area)| area),
+            Some(GRID[0])
+        );
+        assert!(page(3).is_empty(), "a page past the last has no tiles");
+        assert_eq!(find_tile(&tiles, &8), Some((2, GRID[0])));
+        assert_eq!(find_tile(&tiles, &9), None);
+        let enabled = |page| page_arrows(page, 3).map(|(_, _, enabled)| enabled);
+        assert_eq!(enabled(0), [false, true]);
+        assert_eq!(enabled(1), [true, true]);
+        assert_eq!(enabled(2), [true, false]);
+    }
+
+    #[test]
+    fn page_counts_and_arrows_hold_at_the_limits() {
+        assert_eq!(page_count::<u8>(&[]), 1);
+        assert_eq!(page_count(&[0u8; 4]), 1);
+        assert_eq!(page_count(&[0u8; 5]), 2);
+        assert_eq!(page_count(&[0u8; 1_000]), MAX_PAGES);
+        assert_eq!(
+            page_arrows(u8::MAX, u8::MAX).map(|(_, _, e)| e),
+            [true, false]
+        );
+        assert_eq!(page_arrows(0, 0).map(|(_, _, e)| e), [false, false]);
+    }
+
+    #[test]
+    fn a_page_past_the_last_hits_no_tiles() {
+        let page = page_count(&SETTINGS_TILES) + 3;
+        for area in GRID {
+            assert_eq!(hit_settings(area.center(), page), None);
+        }
+        assert_eq!(hit_settings(BACK.center(), page), Some(Target::Back));
+        assert_eq!(hit_settings(NEXT_PAGE.center(), page), None);
+    }
+
+    #[test]
+    fn max_pages_of_dots_fit_between_the_corners() {
+        let dots: Vec<Point> = page_dots(MAX_PAGES).collect();
+        assert_eq!(dots.len(), usize::from(MAX_PAGES));
+        for dot in dots {
+            let area = Rectangle::new(dot, Size::new(4, 4));
+            assert!(
+                NAV_CORNERS
+                    .iter()
+                    .all(|c| c.intersection(&area).is_zero_sized())
+            );
+        }
     }
 
     #[test]

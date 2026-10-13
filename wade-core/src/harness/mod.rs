@@ -209,7 +209,7 @@ enum Discrete {
     About(AboutView),
 }
 
-/// A hash of discrete state only: the screen and Settings page, Wade's expression and sleep
+/// A hash of discrete state only: the screen and its page, Wade's expression and sleep
 /// state (on every screen), the timer's state, duration, and digits, and every
 /// setting (later also the activity). Excludes build identity, `Pose`, and pixels, so tuning
 /// animation does not invalidate recordings (D16, D24). FNV-1a is stable
@@ -217,22 +217,7 @@ enum Discrete {
 #[must_use]
 pub fn state_hash(app: &App) -> u32 {
     let wade = app.wade();
-    // Explicit codes, not `as u8`: reordering or inserting variants must not
-    // change the hash of existing recordings. Never renumber these.
-    let screen = match app.screen() {
-        Screen::Buddy => 0u8,
-        Screen::Timer => 1,
-        Screen::Launcher => match app.launcher_page() {
-            0 => 2,
-            page => 0x10 | page.min(0x0f),
-        },
-        Screen::Settings => match app.settings_page() {
-            0 => 3,
-            1 => 5,
-            page => 0x20 | page.min(0x0f),
-        },
-        Screen::About => 4,
-    };
+    let screen = screen_code(app.screen(), app.launcher_page(), app.settings_page());
     let expression = match wade.expression() {
         Expression::Neutral => 0u8,
         Expression::Happy => 1,
@@ -279,8 +264,62 @@ pub fn state_hash(app: &App) -> u32 {
     ])
 }
 
+/// The screen and the page it shows, as one byte of the state hash.
+/// Explicit codes, not `as u8`: reordering or inserting variants must not
+/// change the hash of existing recordings. Never renumber these.
+fn screen_code(screen: Screen, launcher_page: u8, settings_page: u8) -> u8 {
+    // Pages added after the first recordings take the low four bits, which
+    // fit every page below `MAX_PAGES`.
+    match screen {
+        Screen::Buddy => 0,
+        Screen::Timer => 1,
+        Screen::Launcher => match launcher_page {
+            0 => 2,
+            page => 0x10 | (page & 0x0f),
+        },
+        Screen::Settings => match settings_page {
+            0 => 3,
+            1 => 5,
+            page => 0x20 | (page & 0x0f),
+        },
+        Screen::About => 4,
+    }
+}
+
 fn fnv1a(bytes: &[u8]) -> u32 {
     bytes.iter().fold(0x811c_9dc5, |h, &b| {
         (h ^ u32::from(b)).wrapping_mul(0x0100_0193)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+    use crate::layout::MAX_PAGES;
+
+    #[test]
+    fn every_screen_and_page_has_its_own_code() {
+        let mut codes = BTreeSet::new();
+        for screen in [Screen::Buddy, Screen::Timer, Screen::About] {
+            assert!(codes.insert(screen_code(screen, 0, 0)), "{screen:?}");
+        }
+        for page in 0..MAX_PAGES {
+            let launcher = screen_code(Screen::Launcher, page, 0);
+            let settings = screen_code(Screen::Settings, 0, page);
+            assert!(codes.insert(launcher), "Launcher page {page}");
+            assert!(codes.insert(settings), "Settings page {page}");
+        }
+    }
+
+    #[test]
+    fn the_first_recordings_keep_their_codes() {
+        assert_eq!(screen_code(Screen::Buddy, 0, 0), 0);
+        assert_eq!(screen_code(Screen::Timer, 0, 0), 1);
+        assert_eq!(screen_code(Screen::Launcher, 0, 0), 2);
+        assert_eq!(screen_code(Screen::Settings, 0, 0), 3);
+        assert_eq!(screen_code(Screen::About, 0, 1), 4);
+        assert_eq!(screen_code(Screen::Settings, 0, 1), 5);
+    }
 }

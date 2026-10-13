@@ -8,7 +8,7 @@ use common::framebuffer::{Framebuffer, assert_snapshot};
 use std::time::Duration;
 use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
-use wade_core::layout::{self, Target, Tile};
+use wade_core::layout::{self, SettingsTile, Target, Tile};
 use wade_core::settings::{Brightness, SettingsButton};
 use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
 use wade_core::view::{AboutView, ColorMode, EyeStyle, SettingsView, View};
@@ -330,7 +330,7 @@ fn each_brightness_level() {
 fn each_settings_button_pressed() {
     let pressed = std::iter::once(("back".to_owned(), Target::Back)).chain(
         layout::SETTINGS_TILES.iter().filter_map(|&tile| {
-            let Target::Settings(button) = tile else {
+            let SettingsTile::Toggle(button) = tile else {
                 return None;
             };
             let name = match button {
@@ -339,7 +339,7 @@ fn each_settings_button_pressed() {
                 SettingsButton::Chime => "chime",
                 SettingsButton::Brightness => "brightness",
             };
-            Some((name.to_owned(), tile))
+            Some((name.to_owned(), Target::Settings(button)))
         }),
     );
     for (name, target) in pressed {

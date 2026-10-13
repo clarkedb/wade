@@ -29,14 +29,8 @@ fn point() -> impl Strategy<Value = Point> {
         layout::BACK.center(),
     ];
     targets.extend(layout::TIMER_ROW.iter().map(Rectangle::center));
-    for tiles in [&layout::LAUNCHER_TILES[..], &layout::SETTINGS_TILES[..]] {
-        targets.extend(
-            tiles
-                .iter()
-                .filter_map(|&tile| layout::find_tile(tiles, tile))
-                .map(|(_, area)| area.center()),
-        );
-    }
+    // Settings' first page fills every slot of the grid that both screens share.
+    targets.extend(layout::page_tiles(&layout::SETTINGS_TILES, 0).map(|(_, area)| area.center()));
     targets.extend([layout::PREVIOUS_PAGE.center(), layout::NEXT_PAGE.center()]);
     prop_oneof![
         1 => (-20i32..340, -20i32..260).prop_map(|(x, y)| Point::new(x, y)),

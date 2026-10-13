@@ -446,13 +446,10 @@ mod tests {
         tap(
             &mut app,
             at,
-            layout::find_tile(
-                &layout::LAUNCHER_TILES,
-                layout::Target::Tile(layout::Tile::Timer),
-            )
-            .unwrap()
-            .1
-            .center(),
+            layout::find_tile(&layout::LAUNCHER_TILES, &layout::Tile::Timer)
+                .unwrap()
+                .1
+                .center(),
         );
         tap(
             &mut app,

@@ -193,15 +193,20 @@ impl App {
         }
     }
 
-    /// Move the current screen to another page. The hit test offers only
-    /// pages that exist.
+    /// Move the current screen to another of its pages.
     fn turn_page(&mut self, turn: impl FnOnce(u8) -> u8, out: &mut Output) {
-        let page = match self.screen {
-            Screen::Launcher => &mut self.launcher_page,
-            Screen::Settings => &mut self.settings_page,
+        let (page, count) = match self.screen {
+            Screen::Launcher => (
+                &mut self.launcher_page,
+                layout::page_count(&layout::LAUNCHER_TILES),
+            ),
+            Screen::Settings => (
+                &mut self.settings_page,
+                layout::page_count(&layout::SETTINGS_TILES),
+            ),
             Screen::Buddy | Screen::Timer | Screen::About => return,
         };
-        *page = turn(*page);
+        *page = turn(*page).min(count.saturating_sub(1));
         self.touch.cancel();
         out.redraw = true;
     }
@@ -277,10 +282,11 @@ impl App {
             self.save(out);
         }
         // A paged screen opens on its first page, except when returning from
-        // one of its own tiles.
-        match (self.screen, screen) {
-            (Screen::Buddy, Screen::Launcher) => self.launcher_page = 0,
-            (from, Screen::Settings) if from != Screen::About => self.settings_page = 0,
+        // one of its own tiles. Apps open from the Launcher, or from Buddy when
+        // the timer finishes, so Buddy forgets the Launcher's page.
+        match screen {
+            Screen::Buddy => self.launcher_page = 0,
+            Screen::Settings if self.screen != Screen::About => self.settings_page = 0,
             _ => {}
         }
         self.screen = screen;
@@ -513,6 +519,41 @@ mod tests {
 
     fn ms(ms: u64) -> Instant {
         Instant::from_millis(ms)
+    }
+
+    #[test]
+    fn the_launcher_keeps_its_page_for_its_apps_and_forgets_it_on_buddy() {
+        let mut app = App::new(ms(0), SEED, Settings::DEFAULT);
+        let mut out = Output::default();
+        app.switch_to(Screen::Launcher, &mut out);
+        app.launcher_page = 1;
+        app.switch_to(Screen::Timer, &mut out);
+        app.switch_to(Screen::Launcher, &mut out);
+        assert_eq!(app.launcher_page(), 1, "back from an app");
+
+        app.switch_to(Screen::Buddy, &mut out);
+        app.switch_to(Screen::Launcher, &mut out);
+        assert_eq!(app.launcher_page(), 0, "opened from Buddy");
+
+        // The timer finishing opens Timer from Buddy; back lands on the first page.
+        app.launcher_page = 1;
+        app.switch_to(Screen::Buddy, &mut out);
+        app.switch_to(Screen::Timer, &mut out);
+        app.switch_to(Screen::Launcher, &mut out);
+        assert_eq!(app.launcher_page(), 0, "back from a finished timer");
+    }
+
+    #[test]
+    fn turning_pages_stays_within_the_screen() {
+        let mut app = App::new(ms(0), SEED, Settings::DEFAULT);
+        let mut out = Output::default();
+        app.switch_to(Screen::Settings, &mut out);
+        let last = layout::page_count(&layout::SETTINGS_TILES) - 1;
+        app.turn_page(|_| u8::MAX, &mut out);
+        assert_eq!(app.settings_page(), last);
+        app.switch_to(Screen::Launcher, &mut out);
+        app.turn_page(|page| page.saturating_add(1), &mut out);
+        assert_eq!(app.launcher_page(), 0, "the Launcher has one page");
     }
 
     #[test]

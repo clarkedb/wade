@@ -2,7 +2,7 @@
 
 use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 
-use crate::layout::{self, Target};
+use crate::layout::{self, SettingsTile, Target};
 use crate::render::icons::Icon;
 use crate::render::widgets;
 use crate::settings::{Settings, SettingsButton};
@@ -19,9 +19,8 @@ where
         view.page,
         view.pressed,
         |tile, pressed| match tile {
-            Target::Settings(button) => icon(button, view.settings, pressed),
-            // About, the only other tile.
-            _ => Icon::Info,
+            SettingsTile::Toggle(button) => icon(button, view.settings, pressed),
+            SettingsTile::About => Icon::Info,
         },
         target,
     )

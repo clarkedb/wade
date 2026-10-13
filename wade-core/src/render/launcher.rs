@@ -23,10 +23,9 @@ where
 }
 
 /// Each tile shows its app's title icon.
-const fn icon(tile: Target) -> Icon {
+const fn icon(tile: Tile) -> Icon {
     match tile {
-        Target::Tile(Tile::Timer) => Icon::Stopwatch,
-        // Settings, the only other tile.
-        _ => Icon::Gear,
+        Tile::Timer => Icon::Stopwatch,
+        Tile::Settings => Icon::Gear,
     }
 }
