@@ -1856,7 +1856,7 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "wade-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "embedded-graphics",
  "heapless 0.9.3",
@@ -1865,7 +1865,7 @@ dependencies = [
 
 [[package]]
 name = "wade-cyd"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "critical-section",
  "embassy-embedded-hal",
@@ -1887,7 +1887,7 @@ dependencies = [
 
 [[package]]
 name = "wade-firmware"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "embedded-graphics",
  "embedded-storage-async",

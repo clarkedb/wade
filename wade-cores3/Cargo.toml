@@ -1,7 +1,7 @@
 [package]
 name         = "wade-cores3"
 description  = "Wade firmware for the M5Stack CoreS3 Lite"
-version      = "0.1.0"
+version      = "0.2.0"
 edition      = "2024"
 rust-version = "1.97"
 license      = "MIT"

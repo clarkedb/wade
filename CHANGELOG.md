@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/clarkedb/wade/compare/v0.1.0...v0.2.0) (2026-10-13)
+
+
+### Features
+
+* redesign the website around wade's real face ([#102](https://github.com/clarkedb/wade/issues/102)) ([337e79d](https://github.com/clarkedb/wade/commit/337e79d0014d7fe6ebb162430de3363a77295cef))
+
 ## 0.1.0 (2026-10-09)
 
 
