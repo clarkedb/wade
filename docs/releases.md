@@ -27,7 +27,7 @@ Release Please runs as the `wade-release` GitHub App. Pushes made with
 `GITHUB_TOKEN` do not trigger CI, and CI dispatched by a workflow does not count
 toward a PR's required checks, so the app's token is what lets the release PR
 pass them. The app needs read and write access to contents and pull requests,
-must be installed on this repository, and supplies the `RELEASE_APP_ID` and
+must be installed on this repository, and supplies the `RELEASE_APP_CLIENT_ID` and
 `RELEASE_APP_PRIVATE_KEY` Actions secrets. After merging, the release workflow
 starts verification from its own job outputs; CI skips tag pushes.
 
