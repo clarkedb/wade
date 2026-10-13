@@ -96,6 +96,7 @@ mod tests {
     use super::*;
     use embassy_futures::block_on;
     use sequential_storage::mock_flash::{MockFlashBase, WriteCountCheck};
+    use wade_core::settings::{Brightness, Volume};
     use wade_core::view::{ColorMode, EyeStyle};
 
     /// Four 1 KiB pages with 4-byte words, like a small slice of real flash.
@@ -110,7 +111,7 @@ mod tests {
         Settings::DEFAULT
             .with_eye_style(EyeStyle::Plain)
             .with_color(ColorMode::Mono)
-            .with_chime(false)
+            .with_volume(Volume::Soft)
     }
 
     #[test]
@@ -126,6 +127,27 @@ mod tests {
         let (flash, _) = store.map.destroy();
         let mut store = SettingsStore::new(flash, RANGE).unwrap();
         assert_eq!(block_on(store.load()).unwrap(), changed());
+    }
+
+    #[test]
+    fn settings_from_older_firmware_load_after_an_update() {
+        let plain_mono_silent = Settings::DEFAULT
+            .with_eye_style(EyeStyle::Plain)
+            .with_color(ColorMode::Mono)
+            .with_volume(Volume::Off);
+        for (bytes, expected) in [
+            (&[1, 1, 1, 0, 5][..], plain_mono_silent),
+            (
+                &[2, 1, 1, 0, 5, 1][..],
+                plain_mono_silent.with_brightness(Brightness::Half),
+            ),
+        ] {
+            let mut store = SettingsStore::new(flash(), RANGE).unwrap();
+            block_on(store.store(bytes)).unwrap();
+            let (flash, _) = store.map.destroy();
+            let mut store = SettingsStore::new(flash, RANGE).unwrap();
+            assert_eq!(block_on(store.load()).unwrap(), expected, "{bytes:?}");
+        }
     }
 
     #[test]

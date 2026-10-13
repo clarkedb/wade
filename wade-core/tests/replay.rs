@@ -8,6 +8,7 @@ use std::time::Duration;
 use wade_core::app::Screen;
 use wade_core::character::Expression;
 use wade_core::harness::recording::{FILE_SUFFIX, Input, Recording, Replay};
+use wade_core::settings::Volume;
 use wade_core::timer::TimerState;
 use wade_core::view::{ColorMode, EyeStyle};
 use wade_core::{Digit, Effect, Key, Settings, TouchPhase};
@@ -110,7 +111,9 @@ fn the_timer_session_ends_back_on_buddy_with_wade_groggy() {
         match effect {
             Effect::Chime => chimes += 1,
             Effect::SaveSettings(settings) => assert_eq!(settings, one_minute),
-            Effect::SetBrightness(_) => panic!("the session never changes brightness"),
+            Effect::SetBrightness(_) | Effect::SetVolume(_) => {
+                panic!("the session never changes the hardware")
+            }
         }
     }
     assert_eq!(chimes, 7);
@@ -118,12 +121,16 @@ fn the_timer_session_ends_back_on_buddy_with_wade_groggy() {
 
 #[test]
 fn the_settings_session_changes_every_setting_and_saves_twice() {
-    // Starts with the chime off. Opens Settings from the Launcher, switches
-    // the eyes, colors, and chime, and goes back, which saves. Then adds two
+    // Starts with the volume off. Opens Settings from the Launcher, switches
+    // the eyes and colors, steps the volume round to loud, and goes back, which
+    // saves. Then adds two
     // minutes on the Timer, returns to Buddy, and taps Wade after that change
     // saves.
     let (recording, replay) = replay("settings-session");
-    assert_eq!(recording.settings, Settings::DEFAULT.with_chime(false));
+    assert_eq!(
+        recording.settings,
+        Settings::DEFAULT.with_volume(Volume::Off)
+    );
     let toggled = Settings::DEFAULT
         .with_eye_style(EyeStyle::Plain)
         .with_color(ColorMode::Mono);
@@ -134,7 +141,11 @@ fn the_settings_session_changes_every_setting_and_saves_twice() {
     assert_eq!(h.app.settings(), changed);
     assert_eq!(
         h.effects,
-        [Effect::SaveSettings(toggled), Effect::SaveSettings(changed)]
+        [
+            Effect::SetVolume(Volume::Loud),
+            Effect::SaveSettings(toggled),
+            Effect::SaveSettings(changed)
+        ]
     );
     assert_eq!(
         h.app.timer_state(),

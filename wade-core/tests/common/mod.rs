@@ -9,7 +9,7 @@ use std::time::Duration;
 use embedded_graphics::geometry::Point;
 use wade_core::harness::Harness;
 use wade_core::layout::{self, SettingsTile, Tile};
-use wade_core::settings::{Brightness, SettingsButton};
+use wade_core::settings::{Brightness, SettingsButton, Volume};
 use wade_core::timer::TimerButton;
 use wade_core::view::{ColorMode, EyeStyle};
 use wade_core::{Digit, Instant, Key, Settings};
@@ -92,16 +92,16 @@ pub fn every_settings() -> impl Iterator<Item = Settings> {
                 .into_iter()
                 .map(move |color| (eye_style, color))
         })
-        .flat_map(|(eye_style, color)| [false, true].map(|chime| (eye_style, color, chime)))
-        .flat_map(|(eye_style, color, chime)| {
-            Brightness::ALL.map(|brightness| (eye_style, color, chime, brightness))
+        .flat_map(|(eye_style, color)| Volume::ALL.map(|volume| (eye_style, color, volume)))
+        .flat_map(|(eye_style, color, volume)| {
+            Brightness::ALL.map(|brightness| (eye_style, color, volume, brightness))
         })
-        .flat_map(|(eye_style, color, chime, brightness)| {
+        .flat_map(|(eye_style, color, volume, brightness)| {
             (1..=99).map(move |minutes| {
                 Settings::DEFAULT
                     .with_eye_style(eye_style)
                     .with_color(color)
-                    .with_chime(chime)
+                    .with_volume(volume)
                     .with_brightness(brightness)
                     .with_timer(Duration::from_mins(minutes))
                     .expect("1 to 99 minutes is a valid timer")

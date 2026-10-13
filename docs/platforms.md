@@ -13,7 +13,7 @@ for requirements and bringing a new device into the supported release targets.
 | Clock | `std::time::Instant` captured at startup; `Instant::from_millis(elapsed_ms)`. |
 | Input | Mouse button down → `Touch Down`; mouse movement while held → `Touch Move`; button up → `Touch Up`. Points passed to the core must be in 320×240 display coordinates. The simulator reports display coordinates after undoing the window scale. Number keys 0–9, Z, and P → `Key` events, which show an expression, put Wade to sleep, or switch his eye style (see [character.md](character.md#m1)). Space → `PowerButton`, standing in for the CoreS3's power button. |
 | Loop | The simulator offers only non-blocking event polling. The loop polls window events, then sleeps until the next deadline or for 10 ms, whichever is sooner. This polling stays inside the desktop crate. |
-| Audio | `rodio`, synthesizing `wade_core::sound::CHIME` as bell-like notes on its own thread, so the loop never waits. No audio files; without an output device, Wade runs silent. |
+| Audio | `rodio`, synthesizing `wade_core::sound::CHIME` as bell-like notes on its own thread, so the loop never waits. No audio files; without an output device, Wade runs silent. The samples are scaled to the volume setting, each level half the amplitude of the one above, applied at startup and on each `SetVolume` ([D34](decisions.md#d34-volume-is-a-setting-folded-into-the-chime-toggle)). |
 | Settings | A `settings` file under `wade/` in the user's config directory (`~/Library/Application Support` on macOS), replaced atomically on each `SaveSettings`. Failed writes retain the latest value and retry every two seconds, including on quit. A pending core change is also saved on quit. A missing, unreadable, or corrupt file starts Wade with the defaults. A replay starts with the settings it recorded and saves nothing. |
 | Brightness | A simulated backlight: every pixel is scaled as the backlight would scale its light, gamma-corrected so 25% looks like a quarter of the light rather than a quarter of the pixel value. Applied at startup and on each `SetBrightness` ([D32](decisions.md#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)). |
 | Seed | OS entropy, or `--seed <n>`. |
@@ -70,7 +70,7 @@ M5Stack's C++ library M5Unified is the reference for the board's initialization 
 
 | Task | Responsibility | Talks to the app task through |
 |---|---|---|
-| App | Owns `App`. Waits for an event or the next deadline, handles it, and draws the view to the display in bands. Sets brightness and saves settings itself. | (it is the app task) |
+| App | Owns `App`. Waits for an event or the next deadline, handles it, and draws the view to the display in bands. Sets brightness and volume and saves settings itself. | (it is the app task) |
 | Touch | Reads the touch controller and sends `Touch` events | Event channel |
 | Audio | Receives chime requests and plays the chime over I²S, synthesized once at startup with `wade_firmware::bell`. Powers the amplifier only while it plays. | Audio channel |
 | Power | Polls the PMIC for power button presses; M6 adds battery status and the proximity sensor | Event channel |
@@ -78,7 +78,7 @@ M5Stack's C++ library M5Unified is the reference for the board's initialization 
 
 Channels are fixed-capacity `embassy-sync` channels. Each producing task stamps its events with the current time when it creates them.
 
-There is one event channel into the app task, but one channel per consuming task out of it. An `embassy-sync` channel delivers each message to only one receiver, so a shared effect channel would let the network task receive a chime. The app task routes each effect to its consumer, or carries it out directly when it is cheap (brightness and display power over I²C, for example).
+There is one event channel into the app task, but one channel per consuming task out of it. An `embassy-sync` channel delivers each message to only one receiver, so a shared effect channel would let the network task receive a chime. The app task routes each effect to its consumer, or carries it out directly when it is cheap (brightness, volume, and display power over I²C, for example).
 
 The app task never waits on an outgoing channel. It uses `try_send`, and if a consumer's channel is full the effect is dropped and logged. Waiting would stall touch handling and rendering behind a chime that is still playing.
 
@@ -113,6 +113,8 @@ Settings: stored in the NVS data partition through `wade-firmware`'s settings st
 
 Brightness: the backlight's DLDO1 voltage, at four steps from 2.8 V to 3.3 V. Below about 2.7 V the screen is dark.
 
+Volume: the AW88298's volume register, whose top four bits attenuate. Loud keeps the chime as it played before volume was a setting; each level below it is one step quieter.
+
 Build with `--features measure` to log frame times, touch latency, and uptime ([hardware-notes.md](hardware-notes.md#cores3-lite)).
 
 ### Boot sequence
@@ -122,7 +124,7 @@ Build with `--features measure` to log frame times, touch latency, and uptime ([
 3. Configure the AW9523B: release resets, enable the display, touch, and amplifier, and pulse the LCD's reset.
 4. Initialize the display over SPI, then spawn the touch and audio tasks.
 5. Seed the PRNG from the hardware random number generator, load settings, and create `App`.
-6. Render the first frame, then turn on the backlight at the saved brightness.
+6. Render the first frame, then turn on the backlight at the saved brightness and set the saved volume.
 
 ### Toolchain setup
 
@@ -142,7 +144,7 @@ A supported classic-ESP32 target with a 2.8" 320×240 resistive touchscreen ([D3
 |---|---|
 | Display | ILI9341 over SPI with DMA at 40 MHz. No room for a framebuffer beside Wi-Fi, so frames are drawn in 40-row bands ([ui.md](ui.md#banded-rendering)), one drawn while the last is sent. |
 | Touch | XPT2046, resistive. The touch task waits for the controller's interrupt line, then samples at about 100 Hz until it clears. `wade-firmware` filters the samples and maps them to the screen with fixed calibration constants, turning them into Down, Move, and Up. |
-| Audio | Amp on a GPIO; the chime as PWM tones with a hardware fade. Needs a speaker plugged into the board. |
+| Audio | None yet: the chime and volume changes are logged. Planned: amp on a GPIO; the chime as PWM tones with a hardware fade. Needs a speaker plugged into the board. |
 | Settings | Stored in the pinned partition table's NVS data partition (24 KB) through `wade-firmware`'s settings store, which uses `sequential-storage` to spread writes across the partition. A missing or unusable partition is logged and Wade starts with the defaults. |
 | Brightness | PWM on the backlight pin |
 | Power | No PMIC or IO expander to configure; no power button, battery, proximity sensor, or RTC, so M6 does not apply |

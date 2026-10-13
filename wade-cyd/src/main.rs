@@ -180,7 +180,9 @@ async fn main(spawner: Spawner) -> ! {
         let output = app.handle(event);
         for effect in output.effects {
             match effect {
+                // No speaker yet, so the chime and its volume are only logged.
                 Effect::Chime => info!("chime"),
+                Effect::SetVolume(volume) => info!("volume {volume:?}"),
                 Effect::SetBrightness(brightness) => {
                     if let Err(e) = backlight.set_duty(brightness.percent()) {
                         warn!("backlight not set: {e:?}");

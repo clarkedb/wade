@@ -4,7 +4,7 @@ use common::{SEED, back, button, ms, open, setting};
 use wade_core::app::Screen;
 use wade_core::harness::{Harness, state_hash};
 use wade_core::layout::{self, Tile};
-use wade_core::settings::SettingsButton;
+use wade_core::settings::{SettingsButton, Volume};
 use wade_core::timer::{MIN_SET, TimerButton};
 use wade_core::{BuildInfo, Effect, Settings, TouchPhase, View};
 
@@ -21,7 +21,7 @@ fn about_returns_to_settings_and_saves_pending_changes_once() {
     let mut h = Harness::new(SEED);
     h.app = h.app.with_build_info(INFO);
     open(&mut h, ms(1_000), Tile::Settings);
-    h.tap(ms(1_010), setting(SettingsButton::Chime));
+    h.tap(ms(1_010), setting(SettingsButton::Volume));
     h.effects.clear();
     h.tap(ms(1_020), layout::NEXT_PAGE.center());
     h.tap(ms(1_021), common::about());
@@ -31,7 +31,9 @@ fn about_returns_to_settings_and_saves_pending_changes_once() {
     assert_eq!(view.info, INFO);
     assert_eq!(
         h.effects,
-        [Effect::SaveSettings(Settings::DEFAULT.with_chime(false))]
+        [Effect::SaveSettings(
+            Settings::DEFAULT.with_volume(Volume::Medium)
+        )]
     );
     h.effects.clear();
     assert_eq!(h.app.next_deadline(), None);
@@ -40,7 +42,7 @@ fn about_returns_to_settings_and_saves_pending_changes_once() {
     h.tap(ms(1_040), back());
     assert_eq!(h.app.screen(), Screen::Settings);
     assert_eq!(h.settings().page, 1);
-    assert!(!h.app.settings().chime());
+    assert_eq!(h.app.settings().volume(), Volume::Medium);
     assert!(h.effects.is_empty());
 }
 

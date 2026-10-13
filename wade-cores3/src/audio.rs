@@ -1,7 +1,8 @@
 //! The chime through the AW88298 amplifier over I²S (docs/hardware-notes.md#cores3-lite).
 //!
 //! The chime is synthesized once at startup into a DMA buffer, as 16-bit stereo.
-//! The amplifier is powered only while it plays.
+//! The amplifier is powered only while it plays, at the volume the app task
+//! last set.
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Receiver;
@@ -9,6 +10,7 @@ use esp_hal::Async;
 use esp_hal::dma::DmaTxBuf;
 use esp_hal::i2s::master::I2sTx;
 use log::warn;
+use wade_core::settings::Volume;
 use wade_core::sound::CHIME;
 use wade_firmware::bell;
 
@@ -29,8 +31,7 @@ const SYSCTRL_ON: u16 = 0x4040;
 const SYSCTRL_OFF: u16 = 0x4000;
 /// I²S format with 32 bit clocks a frame, and the rate index for 16 kHz.
 const I2SCTRL_16K: u16 = 0x14C3;
-/// Volume: the top bits attenuate, and full volume is too loud for a desk.
-const VOLUME: u16 = 0x1064;
+const VOLCTRL: u8 = 0x0C;
 
 /// A chime request from the app task.
 #[derive(Clone, Copy, Debug)]
@@ -42,6 +43,25 @@ async fn write(bus: &mut Bus, reg: u8, value: u16) {
     let [hi, lo] = value.to_be_bytes();
     if let Err(e) = embedded_hal_async::i2c::I2c::write(bus, AW88298, &[reg, hi, lo]).await {
         warn!("amplifier register {reg:#04x} not set: {e:?}");
+    }
+}
+
+/// The volume register at `volume`. Each step of its top four bits is audibly
+/// quieter, and full volume (`0x0064`) is too loud for a desk.
+const fn volume_register(volume: Volume) -> Option<u16> {
+    match volume {
+        // Nothing plays, so the amplifier keeps its last volume.
+        Volume::Off => None,
+        Volume::Soft => Some(0x3064),
+        Volume::Medium => Some(0x2064),
+        Volume::Loud => Some(0x1064),
+    }
+}
+
+/// Set how loud the next chime plays.
+pub async fn set_volume(bus: &mut Bus, volume: Volume) {
+    if let Some(value) = volume_register(volume) {
+        write(bus, VOLCTRL, value).await;
     }
 }
 
@@ -70,7 +90,6 @@ pub async fn run(
     write(&mut bus, 0x61, 0x0673).await; // boost off
     write(&mut bus, 0x05, 0x0008).await; // unmuted
     write(&mut bus, 0x06, I2SCTRL_16K).await;
-    write(&mut bus, 0x0C, VOLUME).await;
     loop {
         requests.receive().await;
         write(&mut bus, SYSCTRL, SYSCTRL_ON).await;

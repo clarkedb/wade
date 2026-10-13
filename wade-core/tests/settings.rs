@@ -11,7 +11,7 @@ use proptest::prelude::*;
 use wade_core::app::{SAVE_DELAY, Screen};
 use wade_core::harness::{Harness, state_hash};
 use wade_core::layout::{self, Target, Tile};
-use wade_core::settings::{Brightness, ENCODED_LEN, SettingsButton};
+use wade_core::settings::{Brightness, ENCODED_LEN, SettingsButton, Volume};
 use wade_core::timer::{MIN_SET, TimerButton, TimerPhase, TimerState};
 use wade_core::view::{ColorMode, EyeStyle};
 use wade_core::{Effect, Key, Settings, TouchPhase};
@@ -19,7 +19,7 @@ use wade_core::{Effect, Key, Settings, TouchPhase};
 #[test]
 fn every_value_survives_encoding() {
     let all: Vec<_> = every_settings().collect();
-    assert_eq!(all.len(), 2 * 2 * 2 * 4 * 99);
+    assert_eq!(all.len(), 2 * 2 * 4 * 4 * 99);
     for settings in all {
         assert_eq!(Settings::decode(&settings.encode()), settings);
     }
@@ -30,19 +30,20 @@ proptest! {
     fn any_bytes_decode_to_the_defaults_or_to_what_they_encode(
         bytes in prop_oneof![
             prop::collection::vec(any::<u8>(), 0..=2 * ENCODED_LEN),
-            // Near misses, in this layout and the first: the right length, each
-            // byte at or just past its valid range.
-            (0u8..4, 0u8..3, 0u8..3, 0u8..3, 0u8..=100, 0u8..5)
-                .prop_map(|(v, e, c, h, m, b)| vec![v, e, c, h, m, b]),
+            // Near misses, in this layout and the older ones: the right length,
+            // each byte at or just past its valid range.
+            (0u8..5, 0u8..3, 0u8..3, 0u8..5, 0u8..=100, 0u8..5)
+                .prop_map(|(v, e, c, s, m, b)| vec![v, e, c, s, m, b]),
             (0u8..3, 0u8..3, 0u8..3, 0u8..3, 0u8..=100)
                 .prop_map(|(v, e, c, h, m)| vec![v, e, c, h, m]),
         ],
     ) {
         if let Some(settings) = Settings::try_decode(&bytes) {
             // Older layouts come back in the current one.
-            prop_assert_eq!(Settings::try_decode(&settings.encode()), Some(settings));
-            if bytes.len() == ENCODED_LEN {
-                prop_assert_eq!(&settings.encode()[..], &bytes[..]);
+            let current = settings.encode();
+            prop_assert_eq!(Settings::try_decode(&current), Some(settings));
+            if bytes[0] == current[0] {
+                prop_assert_eq!(&current[..], &bytes[..]);
             }
         } else {
             prop_assert_eq!(Settings::decode(&bytes), Settings::DEFAULT);
@@ -113,11 +114,13 @@ fn run_a_one_minute_timer(h: &mut Harness) {
 }
 
 #[test]
-fn chime_off_silences_the_first_chime_and_every_repeat() {
+fn volume_off_silences_the_first_chime_and_every_repeat() {
     let mut h = Harness::new(SEED);
     open(&mut h, ms(500), Tile::Settings);
-    h.tap(ms(600), setting(SettingsButton::Chime));
-    assert!(!h.settings().settings.chime());
+    for step in 1..=3 {
+        h.tap(ms(500 + step * 50), setting(SettingsButton::Volume));
+    }
+    assert_eq!(h.settings().settings.volume(), Volume::Off);
     home(&mut h, ms(700));
     run_a_one_minute_timer(&mut h);
     assert!(!h.effects.contains(&Effect::Chime));
@@ -131,7 +134,7 @@ fn chime_off_silences_the_first_chime_and_every_repeat() {
 #[test]
 fn a_silent_timer_still_wakes_wade() {
     let silent_minute = Settings::DEFAULT
-        .with_chime(false)
+        .with_volume(Volume::Off)
         .with_timer(MIN_SET)
         .expect("1 minute");
     let mut h = Harness::with_settings(SEED, silent_minute);
@@ -170,15 +173,15 @@ fn the_timer_remembers_the_duration_last_set() {
 fn a_settings_button_shows_pressed_while_the_touch_stays_on_it() {
     let mut h = Harness::new(SEED);
     open(&mut h, ms(1_000), Tile::Settings);
-    let chime = setting(SettingsButton::Chime);
-    h.touch(ms(2_000), TouchPhase::Down, chime);
+    let volume = setting(SettingsButton::Volume);
+    h.touch(ms(2_000), TouchPhase::Down, volume);
     assert_eq!(
         h.settings().pressed,
-        Some(Target::Settings(SettingsButton::Chime))
+        Some(Target::Settings(SettingsButton::Volume))
     );
     h.touch(ms(2_050), TouchPhase::Move, setting(SettingsButton::Color));
     assert_eq!(h.settings().pressed, None);
-    h.touch(ms(2_100), TouchPhase::Up, chime);
+    h.touch(ms(2_100), TouchPhase::Up, volume);
     assert_eq!(h.app.settings(), Settings::DEFAULT);
 }
 
@@ -188,7 +191,7 @@ fn saves(h: &Harness) -> Vec<Settings> {
         .iter()
         .filter_map(|&e| match e {
             Effect::SaveSettings(settings) => Some(settings),
-            Effect::Chime | Effect::SetBrightness(_) => None,
+            Effect::Chime | Effect::SetBrightness(_) | Effect::SetVolume(_) => None,
         })
         .collect()
 }
@@ -217,9 +220,9 @@ fn stepping_through_durations_saves_once_they_stop_changing() {
 fn leaving_the_settings_screen_saves_at_once() {
     let mut h = Harness::new(SEED);
     open(&mut h, ms(1_000), Tile::Settings);
-    h.tap(ms(2_000), setting(SettingsButton::Chime));
+    h.tap(ms(2_000), setting(SettingsButton::Volume));
     h.tap(ms(2_500), back());
-    assert_eq!(saves(&h), [Settings::DEFAULT.with_chime(false)]);
+    assert_eq!(saves(&h), [Settings::DEFAULT.with_volume(Volume::Medium)]);
     h.run_until(ms(10_000));
     assert_eq!(saves(&h).len(), 1, "the pending save was not cancelled");
 }
@@ -301,7 +304,7 @@ fn brightness_applies_at_once_and_saves_with_the_rest() {
         .iter()
         .filter_map(|&e| match e {
             Effect::SetBrightness(b) => Some(b),
-            Effect::Chime | Effect::SaveSettings(_) => None,
+            Effect::Chime | Effect::SaveSettings(_) | Effect::SetVolume(_) => None,
         })
         .collect();
     assert_eq!(set, [Brightness::ThreeQuarters, Brightness::Half]);
@@ -314,31 +317,57 @@ fn brightness_applies_at_once_and_saves_with_the_rest() {
 }
 
 #[test]
-fn other_toggles_do_not_touch_the_backlight() {
+fn volume_applies_at_once_and_saves_with_the_rest() {
     let mut h = Harness::new(SEED);
     open(&mut h, ms(1_000), Tile::Settings);
-    for (i, button) in [
-        SettingsButton::EyeStyle,
-        SettingsButton::Color,
-        SettingsButton::Chime,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        h.tap(ms(2_000 + 500 * u64::try_from(i).unwrap()), setting(button));
-    }
-    assert!(
-        !h.effects
+    h.tap(ms(2_000), setting(SettingsButton::Volume));
+    h.tap(ms(2_500), setting(SettingsButton::Volume));
+    let set: Vec<_> = h
+        .effects
+        .iter()
+        .filter_map(|&e| match e {
+            Effect::SetVolume(v) => Some(v),
+            Effect::Chime | Effect::SaveSettings(_) | Effect::SetBrightness(_) => None,
+        })
+        .collect();
+    assert_eq!(set, [Volume::Medium, Volume::Soft]);
+    assert!(saves(&h).is_empty(), "saved only once the changes stop");
+    h.tap(ms(3_000), back());
+    assert_eq!(saves(&h), [Settings::DEFAULT.with_volume(Volume::Soft)]);
+}
+
+#[test]
+fn each_toggle_sets_only_its_own_hardware() {
+    for (button, expected) in [
+        (SettingsButton::EyeStyle, None),
+        (SettingsButton::Color, None),
+        (
+            SettingsButton::Volume,
+            Some(Effect::SetVolume(Volume::Medium)),
+        ),
+        (
+            SettingsButton::Brightness,
+            Some(Effect::SetBrightness(Brightness::ThreeQuarters)),
+        ),
+    ] {
+        let mut h = Harness::new(SEED);
+        open(&mut h, ms(1_000), Tile::Settings);
+        h.tap(ms(2_000), setting(button));
+        let set: Vec<_> = h
+            .effects
             .iter()
-            .any(|e| matches!(e, Effect::SetBrightness(_)))
-    );
+            .copied()
+            .filter(|e| matches!(e, Effect::SetBrightness(_) | Effect::SetVolume(_)))
+            .collect();
+        assert_eq!(set, Vec::from_iter(expected), "{button:?}");
+    }
 }
 
 #[test]
 fn settings_pages_keep_changes_and_the_pending_save_deadline() {
     let mut h = Harness::new(SEED);
     open(&mut h, ms(1_000), Tile::Settings);
-    h.tap(ms(1_010), setting(SettingsButton::Chime));
+    h.tap(ms(1_010), setting(SettingsButton::Volume));
     h.effects.clear();
     let hash = state_hash(&h.app);
     let deadline = h.app.next_deadline();
@@ -351,13 +380,16 @@ fn settings_pages_keep_changes_and_the_pending_save_deadline() {
     h.tap(ms(1_030), setting(SettingsButton::Brightness));
     h.tap(ms(1_040), layout::NEXT_PAGE.center());
     assert_eq!(h.settings().page, 1);
-    assert_eq!(h.app.settings(), Settings::DEFAULT.with_chime(false));
+    assert_eq!(
+        h.app.settings(),
+        Settings::DEFAULT.with_volume(Volume::Medium)
+    );
 
     h.tap(ms(1_050), layout::PREVIOUS_PAGE.center());
     assert_eq!(h.settings().page, 0);
     assert_eq!(state_hash(&h.app), hash);
     h.run_until(ms(1_010) + SAVE_DELAY);
-    assert_eq!(saves(&h), [Settings::DEFAULT.with_chime(false)]);
+    assert_eq!(saves(&h), [Settings::DEFAULT.with_volume(Volume::Medium)]);
 }
 
 #[test]

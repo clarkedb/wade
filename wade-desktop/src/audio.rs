@@ -5,12 +5,13 @@ use std::f32::consts::TAU;
 
 use rodio::buffer::SamplesBuffer;
 use rodio::math::nz;
-use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, SampleRate};
+use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, SampleRate, Source};
+use wade_core::settings::Volume;
 use wade_core::sound::{self, Tone};
 
 const SAMPLE_RATE: SampleRate = nz!(44_100);
 const MONO: ChannelCount = nz!(1);
-/// Peak amplitude of a note, fundamental and overtone together.
+/// Peak amplitude of a note, fundamental and overtone together, at loud.
 const VOLUME: f32 = 0.3;
 /// The octave overtone's share of a note, for a brighter, bell-like tone.
 const OVERTONE: f32 = 0.2;
@@ -23,17 +24,23 @@ pub struct Audio {
     // Playback stops when the device sink is dropped.
     sink: MixerDeviceSink,
     chime: SamplesBuffer,
+    /// What the chime's samples are scaled by, for the volume setting.
+    gain: f32,
 }
 
 impl Audio {
-    /// Open the default output device. Without one, say why and return `None`,
-    /// so Wade runs silent.
-    pub fn open() -> Option<Audio> {
+    /// Open the default output device, to chime at `volume`. Without one, say
+    /// why and return `None`, so Wade runs silent.
+    pub fn open(volume: Volume) -> Option<Audio> {
         match DeviceSinkBuilder::open_default_sink() {
             Ok(mut sink) => {
                 sink.log_on_drop(false);
                 let chime = SamplesBuffer::new(MONO, SAMPLE_RATE, synthesize(&sound::CHIME));
-                Some(Audio { sink, chime })
+                Some(Audio {
+                    sink,
+                    chime,
+                    gain: gain(volume),
+                })
             }
             Err(error) => {
                 eprintln!("no audio output, so the chime is silent: {error}");
@@ -42,9 +49,25 @@ impl Audio {
         }
     }
 
+    /// Takes effect from the next chime.
+    pub fn set_volume(&mut self, volume: Volume) {
+        self.gain = gain(volume);
+    }
+
     /// Start the chime and return at once. Chimes that overlap mix.
     pub fn chime(&self) {
-        self.sink.mixer().add(self.chime.clone());
+        self.sink.mixer().add(self.chime.clone().amplify(self.gain));
+    }
+}
+
+/// How much `volume` scales the chime: each level half the amplitude of the
+/// one above, about 6 dB quieter.
+fn gain(volume: Volume) -> f32 {
+    match volume {
+        Volume::Off => 0.0,
+        Volume::Soft => 0.25,
+        Volume::Medium => 0.5,
+        Volume::Loud => 1.0,
     }
 }
 
@@ -94,5 +117,17 @@ mod tests {
             "a sample is louder than VOLUME"
         );
         assert!(samples[0].abs() < 1e-3 && samples[count - 1].abs() < 1e-2);
+    }
+
+    #[test]
+    fn each_volume_is_quieter_than_the_one_above_and_off_is_silent() {
+        assert!(
+            (gain(Volume::Loud) - 1.0).abs() < f32::EPSILON,
+            "loud plays the chime as synthesized"
+        );
+        assert!(gain(Volume::Off).abs() < f32::EPSILON, "off is silent");
+        for pair in Volume::ALL.windows(2) {
+            assert!(gain(pair[0]) < gain(pair[1]), "{pair:?}");
+        }
     }
 }

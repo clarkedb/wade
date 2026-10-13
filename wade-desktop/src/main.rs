@@ -132,7 +132,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         (None, None) => Settings::DEFAULT,
     };
 
-    let audio = Audio::open();
+    let mut audio = Audio::open(settings.volume());
     let clock = Clock::new(args.time_scale);
     let mut app = App::new(Instant::from_millis(0), seed, settings).with_build_info(BUILD_INFO);
 
@@ -149,7 +149,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             recording,
             args.replay.as_ref().expect("replay path"),
             &clock,
-            audio.as_ref(),
+            audio.as_mut(),
             &mut app,
             &mut screen,
             &mut window,
@@ -168,7 +168,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let mut saver = storage.as_ref().map(SettingsSaver::new);
     live_loop(
         &clock,
-        audio.as_ref(),
+        audio.as_mut(),
         &mut saver,
         &mut app,
         &mut screen,
@@ -191,7 +191,7 @@ fn read_limited(reader: impl Read, max_bytes: usize) -> io::Result<String> {
 
 fn live_loop(
     clock: &Clock,
-    audio: Option<&Audio>,
+    mut audio: Option<&mut Audio>,
     saver: &mut Option<SettingsSaver<'_>>,
     app: &mut App,
     screen: &mut Screen,
@@ -206,7 +206,7 @@ fn live_loop(
         for sim_event in events {
             let now = clock.now();
             if let Some((output, became_done)) = due_deadline(app, now) {
-                redraw |= carry_out(&output, audio, saver.as_mut(), screen);
+                redraw |= carry_out(&output, audio.as_deref_mut(), saver.as_mut(), screen);
                 if became_done {
                     screen.show(&app.view(), window);
                     redraw = false;
@@ -224,7 +224,12 @@ fn live_loop(
             }
             let event = queued_input_event(sim_event, now, &mut mouse_down, skip_queued_input);
             if let Some(event) = event {
-                redraw |= carry_out(&app.handle(event), audio, saver.as_mut(), screen);
+                redraw |= carry_out(
+                    &app.handle(event),
+                    audio.as_deref_mut(),
+                    saver.as_mut(),
+                    screen,
+                );
                 if let Some(writer) = writer.as_mut() {
                     record_event(writer, event, app)?;
                     writer.flush()?;
@@ -234,7 +239,7 @@ fn live_loop(
 
         let now = clock.now();
         if let Some((output, became_done)) = due_deadline(app, now) {
-            redraw |= carry_out(&output, audio, saver.as_mut(), screen);
+            redraw |= carry_out(&output, audio.as_deref_mut(), saver.as_mut(), screen);
             if became_done {
                 screen.show(&app.view(), window);
                 redraw = false;
@@ -295,14 +300,14 @@ fn queued_input_event(
 /// six bytes.
 fn carry_out(
     output: &Output,
-    audio: Option<&Audio>,
+    mut audio: Option<&mut Audio>,
     mut saver: Option<&mut SettingsSaver<'_>>,
     screen: &mut Screen,
 ) -> bool {
     for &effect in &output.effects {
         match effect {
             Effect::Chime => {
-                if let Some(audio) = audio {
+                if let Some(audio) = &audio {
                     audio.chime();
                 }
             }
@@ -312,6 +317,11 @@ fn carry_out(
                 }
             }
             Effect::SetBrightness(brightness) => screen.set_brightness(brightness),
+            Effect::SetVolume(volume) => {
+                if let Some(audio) = audio.as_deref_mut() {
+                    audio.set_volume(volume);
+                }
+            }
         }
     }
     output.redraw
@@ -373,7 +383,7 @@ fn replay_loop(
     recording: &Recording,
     path: &Path,
     clock: &Clock,
-    audio: Option<&Audio>,
+    mut audio: Option<&mut Audio>,
     app: &mut App,
     screen: &mut Screen,
     window: &mut Window,
@@ -391,7 +401,12 @@ fn replay_loop(
                 .next_deadline()
                 .filter(|deadline| *deadline <= entry.at && *deadline <= now)
             {
-                if carry_out(&app.handle(Event::deadline(deadline)), audio, None, screen) {
+                if carry_out(
+                    &app.handle(Event::deadline(deadline)),
+                    audio.as_deref_mut(),
+                    None,
+                    screen,
+                ) {
                     screen.show(&app.view(), window);
                 }
             } else if entry.at <= now {
@@ -402,7 +417,7 @@ fn replay_loop(
                 if let Some(mismatch) = entry.mismatch(index, state_hash(app)) {
                     return Err(format!("{}: {mismatch}", path.display()).into());
                 }
-                if carry_out(&output, audio, None, screen) {
+                if carry_out(&output, audio.as_deref_mut(), None, screen) {
                     screen.show(&app.view(), window);
                 }
                 break;

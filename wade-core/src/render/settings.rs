@@ -38,13 +38,7 @@ fn icon(button: SettingsButton, settings: Settings, pressed: bool) -> Icon {
             ColorMode::Color if !pressed => Icon::ColorDots,
             ColorMode::Color | ColorMode::Mono => Icon::Dots,
         },
-        SettingsButton::Chime => {
-            if settings.chime() {
-                Icon::Bell
-            } else {
-                Icon::Muted
-            }
-        }
+        SettingsButton::Volume => Icon::Speaker(settings.volume()),
         SettingsButton::Brightness => Icon::Sun(settings.brightness()),
     }
 }

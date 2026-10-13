@@ -171,7 +171,7 @@ pub struct Output {
 pub enum Effect {
     /// Play the timer-finished chime, defined as a tone sequence in `wade_core::sound::CHIME`.
     /// Emitted when the timer finishes and repeated while it stays Done, unless
-    /// the chime setting is off (see ui.md).
+    /// the volume is off (see ui.md).
     Chime,
     /// Store these settings for the next start (see roadmap.md#m5-settings).
     SaveSettings(Settings),
@@ -208,7 +208,7 @@ pub struct App {
     timer: TimerState,   // keeps running on every screen
     touch: TouchTracker, // turns raw touch samples into taps
     rng: Rng,            // seeded PRNG for behavior
-    settings: Settings,  // eye style, colors, chime, timer duration
+    settings: Settings,  // eye style, colors, volume, brightness, timer duration
 }
 
 enum Screen {
@@ -249,6 +249,6 @@ New event kinds, effects, and constructor arguments are added only when a milest
 |---|---|---|---|
 | M2 Timer | none | `Chime` | none |
 | M3 CoreS3 port | none | none | none |
-| M5 Settings | none | `SaveSettings(Settings)`; `SetBrightness(Brightness)` ([D32](decisions.md#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)) | `App::new` takes loaded `Settings` |
+| M5 Settings | none | `SaveSettings(Settings)`; `SetBrightness(Brightness)` ([D32](decisions.md#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)); `SetVolume(Volume)` ([D34](decisions.md#d34-volume-is-a-setting-folded-into-the-chime-toggle)) | `App::new` takes loaded `Settings` |
 | M6 Power | `Power(PowerStatus)`, `Proximity(Proximity)` | `DisplayPower(bool)` | none |
 | M7 Weather | `Weather(WeatherUpdate)` | `FetchWeather` | none |

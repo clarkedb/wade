@@ -10,6 +10,7 @@ use wade_core::app::{Screen, TOUCH_GUARD};
 use wade_core::character::{Expression, GROGGY_DURATION, TIMER_REACTION};
 use wade_core::harness::Harness;
 use wade_core::layout::{Target, Tile, WADE_CENTER, WADE_FACE};
+use wade_core::settings::Volume;
 use wade_core::timer::{
     CHIME_INTERVAL, DEFAULT_SET, Digits, MAX_SET, MIN_SET, TimerButton, TimerPhase, TimerState,
 };
@@ -152,8 +153,9 @@ fn chimes_repeat_on_the_interval_ten_times() {
 
 #[test]
 fn a_late_repeat_rings_once_and_keeps_the_original_schedule() {
-    for audible in [true, false] {
-        let mut h = Harness::with_settings(SEED, Settings::DEFAULT.with_chime(audible));
+    for volume in Volume::ALL {
+        let audible = volume != Volume::Off;
+        let mut h = Harness::with_settings(SEED, Settings::DEFAULT.with_volume(volume));
         set_one_minute(&mut h, 1_000);
         h.tap(ms(2_000), button(TimerButton::Start));
         home(&mut h, ms(3_000));

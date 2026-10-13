@@ -67,12 +67,12 @@ pub const MAX_PAGES: u8 = 12;
 /// The Launcher's tiles, in order: apps first, Settings last.
 pub const LAUNCHER_TILES: [Tile; 2] = [Tile::Timer, Tile::Settings];
 
-/// The Settings screen's tiles, in order: Wade's look, the chime and
+/// The Settings screen's tiles, in order: Wade's look, volume and
 /// brightness, then the information button.
 pub const SETTINGS_TILES: [SettingsTile; 5] = [
     SettingsTile::Toggle(SettingsButton::EyeStyle),
     SettingsTile::Toggle(SettingsButton::Color),
-    SettingsTile::Toggle(SettingsButton::Chime),
+    SettingsTile::Toggle(SettingsButton::Volume),
     SettingsTile::Toggle(SettingsButton::Brightness),
     SettingsTile::About,
 ];
