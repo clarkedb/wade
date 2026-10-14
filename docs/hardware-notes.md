@@ -48,7 +48,11 @@ XPT2046, resistive, on its own SPI bus at 2 MHz. Pins: CLK 25, MOSI 32, MISO 39,
 
 ### Audio
 
-Amp on GPIO 26 (DAC2) to a 2-pin JST 1.25 mm speaker socket. Audio is not hardware-validated. The chime example plays the chime as PWM square waves with a hardware duty fade, and as 16 kHz DAC samples of the desktop's bell. PWM is preferred because it runs without the CPU.
+Amp on GPIO 26 (DAC2) to a 2-pin JST 1.25 mm speaker socket, labelled SPEAK. The chime example plays the chime as PWM square waves with a hardware duty fade, and as 16 kHz DAC samples of the desktop's bell.
+
+- With a 2 W 8 Ω speaker, both are quiet: easy to miss over a desk fan.
+- A full-swing square wave is louder than the DAC at full scale, and runs without the CPU, so Wade uses PWM. Each note holds, then fades. Loud is 50% duty; medium and soft, 17% and 8%, each halve the tone's strength.
+- Louder needs hardware changes, such as the amp's gain resistors or an external I²S amp.
 
 ### Flash
 

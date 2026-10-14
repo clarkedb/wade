@@ -92,7 +92,7 @@ Done when:
 
 ## CYD bring-up
 
-Done. A throwaway firmware in `bringup/cyd/`. It confirmed the panel, its orientation and colors; measured flush times and found DMA steady at 40 MHz but not 80; calibrated the resistive touchscreen and found a filter that works; drove the backlight by PWM; and measured memory with bands and with a full framebuffer. Audio is implemented but not hardware-validated. Findings are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
+Done. A throwaway firmware in `bringup/cyd/`. It confirmed the panel, its orientation and colors; measured flush times and found DMA steady at 40 MHz but not 80; calibrated the resistive touchscreen and found a filter that works; drove the backlight by PWM; and measured memory with bands and with a full framebuffer. It played the chime, quietly, through a speaker. Findings are in [hardware-notes.md](hardware-notes.md#cyd-esp32-2432s028r-single-usb-c).
 
 ## CYD port
 
@@ -102,7 +102,7 @@ Done when:
 
 | # | Criterion | Status |
 |---|---|---|
-| 1 | The desktop scenarios from M1, M2, and M5 work on the CYD | Met, except that chime output is not hardware-validated |
+| 1 | The desktop scenarios from M1, M2, and M5 work on the CYD | Met |
 | 2 | Blinks and expression transitions render at 20 fps or better (measured) | Met: 29 fps |
 | 3 | The time from touch to visible response is under 100 ms (measured) | Met: 34–39 ms |
 | 4 | The CYD runs for 1 hour without panicking or drifting | Met: 64 min, 31 ms drift |
