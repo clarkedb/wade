@@ -1,6 +1,6 @@
 //! Wade on the CYD (docs/platforms.md#cyd-wade-cyd).
 //!
-//! Runs the platform loop from docs/architecture.md#core-api: wait for a touch
+//! Runs the platform loop from docs/architecture.md#core-api: wait for input
 //! or the next deadline, hand it to the core, carry out effects, and redraw
 //! when asked.
 
@@ -13,6 +13,7 @@
 )]
 
 mod audio;
+mod button;
 mod display;
 #[cfg(feature = "measure")]
 mod measure;
@@ -27,7 +28,7 @@ use embassy_time::Timer;
 use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
 use esp_hal::dma_tx_buffer;
-use esp_hal::gpio::{DriveMode, Input, InputConfig, Level, Output, OutputConfig};
+use esp_hal::gpio::{DriveMode, Input, InputConfig, Level, Output, OutputConfig, Pull};
 use esp_hal::ledc::channel::{self, ChannelIFace};
 use esp_hal::ledc::timer::{self, TimerIFace};
 use esp_hal::ledc::{LSGlobalClkSource, Ledc, LowSpeed};
@@ -168,6 +169,12 @@ async fn main(spawner: Spawner) -> ! {
         )
         .expect("the audio task is spawned once"),
     );
+
+    let boot = Input::new(
+        peripherals.GPIO0,
+        InputConfig::default().with_pull(Pull::Up),
+    );
+    spawner.spawn(button::run(boot, EVENTS.sender()).expect("the button task is spawned once"));
 
     #[cfg(feature = "measure")]
     let mut stats = {

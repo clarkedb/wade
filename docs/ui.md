@@ -8,7 +8,7 @@
 | Color format | Rgb565 |
 | Physical size | 2.0" diagonal, about 200 pixels per inch |
 | Minimum touch target | 48×48 px (about 6 mm) |
-| Input | Touch, and on the CoreS3 the power button, which puts Wade to sleep and wakes him ([character.md](character.md#power-button)). There are no other user buttons besides reset. |
+| Input | Touch; the CoreS3's power button or the CYD's BOOT button puts Wade to sleep and wakes him ([character.md](character.md#power-button)). RESET restarts the device. |
 
 Desktop renders the same 320×240 image scaled 2× in a window. Mouse input maps to touch.
 

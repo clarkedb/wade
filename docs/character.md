@@ -161,7 +161,7 @@ Idle activities (M4):
 
 ### Power button
 
-The CoreS3's power button puts Wade to bed or gets him up. The desktop's space bar stands in for it.
+The CoreS3's power button and the CYD's BOOT button put Wade to bed or get him up. The desktop's space bar stands in for them.
 
 | Trigger | Result |
 |---|---|
