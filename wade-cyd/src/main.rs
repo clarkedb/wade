@@ -12,6 +12,7 @@
     holding buffers for the duration of a data transfer."
 )]
 
+mod audio;
 mod display;
 #[cfg(feature = "measure")]
 mod measure;
@@ -38,6 +39,7 @@ use esp_hal::timer::timg::TimerGroup;
 use log::{info, warn};
 use wade_core::{App, BuildInfo, Effect, Event, Instant, Settings};
 
+use audio::{CHIME_CAPACITY, Chime};
 use display::{BAND_BYTES, COMMAND_BYTES, Display};
 use touch::TouchPanel;
 
@@ -61,6 +63,7 @@ const TOUCH_CLOCK: Rate = Rate::from_mhz(2);
 /// wait when it is full.
 pub const EVENT_CAPACITY: usize = 16;
 static EVENTS: Channel<CriticalSectionRawMutex, Event, EVENT_CAPACITY> = Channel::new();
+static CHIMES: Channel<CriticalSectionRawMutex, Chime, CHIME_CAPACITY> = Channel::new();
 
 /// The core's clock: milliseconds since boot.
 fn now() -> Instant {
@@ -135,6 +138,7 @@ async fn main(spawner: Spawner) -> ! {
         }),
         None => Settings::DEFAULT,
     };
+    let mut volume = settings.volume();
     let mut app = App::new(now(), seed, settings).with_build_info(BUILD_INFO);
     display.show(&app.view()).await;
     // Turned on only once the first frame is up, so the panel's power-on noise never shows.
@@ -156,6 +160,14 @@ async fn main(spawner: Spawner) -> ! {
             drive_mode: DriveMode::PushPull,
         })
         .expect("the backlight channel configuration is valid");
+    spawner.spawn(
+        audio::run(
+            ledc.timer::<LowSpeed>(timer::Number::Timer1),
+            peripherals.GPIO26,
+            CHIMES.receiver(),
+        )
+        .expect("the audio task is spawned once"),
+    );
 
     #[cfg(feature = "measure")]
     let mut stats = {
@@ -180,9 +192,12 @@ async fn main(spawner: Spawner) -> ! {
         let output = app.handle(event);
         for effect in output.effects {
             match effect {
-                // No speaker yet, so the chime and its volume are only logged.
-                Effect::Chime => info!("chime"),
-                Effect::SetVolume(volume) => info!("volume {volume:?}"),
+                Effect::Chime => {
+                    if CHIMES.try_send(Chime(volume)).is_err() {
+                        warn!("chime queue full; dropped a chime");
+                    }
+                }
+                Effect::SetVolume(level) => volume = level,
                 Effect::SetBrightness(brightness) => {
                     if let Err(e) = backlight.set_duty(brightness.percent()) {
                         warn!("backlight not set: {e:?}");
