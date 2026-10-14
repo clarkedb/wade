@@ -147,7 +147,12 @@ A supported classic-ESP32 target with a 2.8" 320×240 resistive touchscreen ([D3
 | Audio | Amp on a GPIO; an audio task plays the chime as PWM square waves with a hardware fade. Volume sets the duty: each level halves the tone's strength. Needs a speaker plugged into the board, and is quiet. |
 | Settings | Stored in the pinned partition table's NVS data partition (24 KB) through `wade-firmware`'s settings store, which uses `sequential-storage` to spread writes across the partition. A missing or unusable partition is logged and Wade starts with the defaults. |
 | Brightness | PWM on the backlight pin |
-| Power | No PMIC or IO expander to configure; no power button, battery, proximity sensor, or RTC, so M6 does not apply |
+| Buttons | BOOT on GPIO0 sends `PowerButton`, with 30 ms of stable input on press and release and no repeat while held. A button held at startup is ignored until released. RESET restarts the chip. |
+| Power | No PMIC, IO expander, battery, proximity sensor, or RTC, so M6 does not apply |
+
+BOOT puts Wade to sleep or wakes him, as the CoreS3's power button does. The
+board stays powered and timers keep running. Holding BOOT during reset or
+power-up still enters the serial bootloader for flashing.
 
 Build with `--features measure` to log frame times, touch latency, and uptime ([hardware-notes.md](hardware-notes.md#measurements)).
 
