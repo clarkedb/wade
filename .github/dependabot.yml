@@ -17,6 +17,29 @@ updates:
       cargo:
         patterns: ["*"]
 
+  # The firmware crates are outside the root workspace, and their updates ship.
+  - package-ecosystem: cargo
+    directory: /wade-cores3
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: fix
+      include: scope
+    groups:
+      cores3:
+        patterns: ["*"]
+
+  - package-ecosystem: cargo
+    directory: /wade-cyd
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: fix
+      include: scope
+    groups:
+      cyd:
+        patterns: ["*"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
