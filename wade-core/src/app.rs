@@ -7,9 +7,9 @@ use crate::input::TouchTracker;
 use crate::layout::{self, Target, Tile};
 use crate::rng::Rng;
 use crate::settings::{Brightness, Settings, SettingsButton, Volume};
-use crate::time::{Duration, Instant};
+use crate::time::{Duration, Instant, millis};
 use crate::timer::{Chime, Digits, TimerButton, TimerPhase, TimerState};
-use crate::view::{AboutView, BuddyView, LauncherView, SettingsView, View};
+use crate::view::{AboutView, BuddyView, ClockView, LauncherView, SettingsView, View};
 
 /// Frame interval while something is moving (about 30 fps).
 pub const FRAME: Duration = Duration::from_millis(33);
@@ -29,6 +29,17 @@ pub const SAVE_DELAY: Duration = Duration::from_secs(2);
 /// presses are ignored: they were aimed at what the screen showed before, and
 /// could otherwise dismiss a timer its user never saw finish.
 pub const TOUCH_GUARD: Duration = Duration::from_millis(500);
+
+/// While he keeps time, Wade watches the countdown intently for this long
+/// before it ends.
+pub const COUNTDOWN: Duration = Duration::from_secs(10);
+
+/// While he keeps time with at least this long left, he may doze off on the
+/// job: one time in `DOZE_ONE_IN`, somewhere between `DOZE_PERCENT` of the way
+/// through what is left.
+pub const DOZE_MIN_REMAINING: Duration = Duration::from_mins(2);
+pub const DOZE_ONE_IN: u64 = 3;
+const DOZE_PERCENT: (u64, u64) = (30, 70);
 
 /// Side effects for the platform to carry out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -91,6 +102,10 @@ pub struct App {
     saved: Settings,
     /// When to save the settings: `SAVE_DELAY` after the last change.
     save_at: Option<Instant>,
+    /// When Wade dozes off while keeping time, if he will.
+    doze_at: Option<Instant>,
+    /// Whether this run of the timer has decided if he dozes off.
+    doze_decided: bool,
 }
 
 impl App {
@@ -114,6 +129,8 @@ impl App {
             settings,
             saved: settings,
             save_at: None,
+            doze_at: None,
+            doze_decided: false,
         }
     }
 
@@ -152,6 +169,7 @@ impl App {
             }
             EventKind::Deadline => {}
         }
+        self.keep_time(&mut out);
         out
     }
 
@@ -175,12 +193,13 @@ impl App {
         let launcher_page = self.launcher_page;
         let settings_page = self.settings_page;
         let row = self.timer.row();
+        let clock = self.clock_shown();
         let tap = if touch.phase == TouchPhase::Down && self.now < self.touch_guard_until {
             self.touch.cancel();
             None
         } else {
             self.touch.handle(touch, |p| match screen {
-                Screen::Buddy => layout::hit_buddy(p),
+                Screen::Buddy => layout::hit_buddy(p, clock),
                 Screen::Launcher => layout::hit_launcher(p, launcher_page),
                 Screen::Timer => layout::hit_timer(p, row),
                 Screen::Settings => layout::hit_settings(p, settings_page),
@@ -189,18 +208,27 @@ impl App {
         };
         out.redraw |= self.pressed_button() != pressed;
         match tap {
+            // A finished timer on Buddy is dismissed by a tap on Wade or on
+            // the countdown.
+            Some(Target::Wade | Target::Clock) if self.timer.phase() == TimerPhase::Done => {
+                self.dismiss(out);
+            }
             Some(Target::Wade) => out.redraw |= self.wade.on_tap(self.now),
             Some(Target::Apps) => self.switch_to(Screen::Launcher, out),
-            Some(Target::Tile(Tile::Timer)) => self.switch_to(Screen::Timer, out),
+            Some(Target::Clock | Target::Tile(Tile::Timer)) => self.switch_to(Screen::Timer, out),
             Some(Target::Tile(Tile::Settings)) => self.switch_to(Screen::Settings, out),
             Some(Target::About) => self.switch_to(Screen::About, out),
             Some(Target::PreviousPage) => self.turn_page(|page| page.saturating_sub(1), out),
             Some(Target::NextPage) => self.turn_page(|page| page.saturating_add(1), out),
             Some(Target::Back) => self.back(out),
             Some(Target::Timer(TimerButton::Dismiss)) => self.dismiss(out),
+            Some(Target::Timer(TimerButton::Watch)) => self.switch_to(Screen::Buddy, out),
             Some(Target::Timer(button)) => {
                 if self.timer.press(button, self.now) {
                     out.redraw = true;
+                    if matches!(button, TimerButton::Start | TimerButton::Resume) {
+                        self.doze_decided = false;
+                    }
                     self.remember_duration();
                 }
             }
@@ -287,12 +315,20 @@ impl App {
         }
     }
 
-    /// A chime fell due at `now`. The first brings up the Timer screen, from
-    /// any screen, and wakes Wade if he is asleep, even with the volume off.
+    /// A chime fell due at `now`. The first wakes Wade if he is asleep, even
+    /// with the volume off. If he was keeping time on Buddy, he reacts there;
+    /// from any other screen, it brings up the Timer screen.
     fn on_chime(&mut self, chime: Chime, out: &mut Output) {
         if chime == Chime::First {
-            self.wade.timer_finished(self.now);
-            self.switch_to(Screen::Timer, out);
+            let watching = self.screen == Screen::Buddy;
+            self.wade.timer_finished(self.now, watching);
+            if watching {
+                // The finish changes what a touch on Buddy means.
+                self.touch.cancel();
+                out.redraw = true;
+            } else {
+                self.switch_to(Screen::Timer, out);
+            }
             self.touch_guard_until = self.now + TOUCH_GUARD;
         }
         // Chimes that fall due in one event, after a late wake, ring once.
@@ -340,6 +376,58 @@ impl App {
         }
     }
 
+    /// Keep Wade in step with the timer while he keeps time: watching the
+    /// countdown, intent on it near the end, and maybe dozing off on the job.
+    fn keep_time(&mut self, out: &mut Output) {
+        let running = self.timer.phase() == TimerPhase::Running;
+        let watching = running && self.screen == Screen::Buddy;
+        self.wade.set_watching(watching);
+        if !running {
+            self.doze_at = None;
+        } else if watching && !self.doze_decided {
+            self.doze_decided = true;
+            let left = self.timer.remaining(self.now);
+            self.doze_at = (left >= DOZE_MIN_REMAINING
+                && self.rng.range_inclusive(1, DOZE_ONE_IN) == 1)
+                .then(|| {
+                    let percent = self.rng.range_inclusive(DOZE_PERCENT.0, DOZE_PERCENT.1);
+                    let ms = u64::try_from(left.as_millis()).unwrap_or(u64::MAX);
+                    self.now + Duration::from_millis(ms / 100 * percent)
+                });
+        }
+        if self.timer.phase() != TimerPhase::Done {
+            let intent = watching && self.timer.remaining(self.now) <= COUNTDOWN;
+            let resting = if intent {
+                Expression::Focused
+            } else {
+                Expression::Neutral
+            };
+            out.redraw |= self.wade.set_resting(self.now, resting) && self.wade_visible();
+        }
+        if self.doze_at.is_some_and(|t| t <= self.now) {
+            self.doze_at = None;
+            if watching {
+                out.redraw |= self.wade.sleep(self.now);
+            }
+        }
+    }
+
+    /// When Wade turns intent on the countdown, while he keeps time.
+    fn countdown_at(&self) -> Option<Instant> {
+        match self.timer {
+            TimerState::Running { ends_at, .. } if self.screen == Screen::Buddy => Some(
+                Instant::from_millis(ends_at.as_millis().saturating_sub(millis(COUNTDOWN))),
+            ),
+            _ => None,
+        }
+        .filter(|&t| t > self.now)
+    }
+
+    /// True while Buddy shows the countdown: whenever the timer is going.
+    fn clock_shown(&self) -> bool {
+        self.screen == Screen::Buddy && self.timer.phase() != TimerPhase::Ready
+    }
+
     /// The button under a touch in progress, drawn pressed. Wade has no pressed look.
     fn pressed_button(&self) -> Option<Target> {
         self.touch
@@ -353,10 +441,16 @@ impl App {
         let wade = include_wade
             .then(|| self.wade.next_transition(self.wade_visible()))
             .flatten();
-        [self.timer.next_transition(), self.save_at, wade]
-            .into_iter()
-            .flatten()
-            .min()
+        [
+            self.timer.next_transition(),
+            self.countdown_at(),
+            self.doze_at,
+            self.save_at,
+            wade,
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     /// True while a visible feature's pose is changing with time.
@@ -368,9 +462,9 @@ impl App {
         self.screen == Screen::Buddy
     }
 
-    /// The timer's digits, while the Timer screen shows them.
+    /// The timer's digits, while the Timer screen or the countdown shows them.
     fn visible_digits(&self) -> Option<Digits> {
-        (self.screen == Screen::Timer).then(|| self.timer.digits(self.now))
+        (self.screen == Screen::Timer || self.clock_shown()).then(|| self.timer.digits(self.now))
     }
 
     /// Advance `now` to `target`, applying every timed transition that became due
@@ -407,6 +501,7 @@ impl App {
             if let Some(chime) = self.timer.advance(self.now) {
                 self.on_chime(chime, out);
             }
+            self.keep_time(out);
             if !stalled {
                 let visible = self.wade_visible();
                 out.redraw |= self.wade.advance(self.now, visible);
@@ -434,13 +529,15 @@ impl App {
             .wade_visible()
             .then(|| self.wade.next_transition(true))
             .flatten();
-        let tick = (self.screen == Screen::Timer)
-            .then(|| self.timer.next_tick(self.now))
-            .flatten();
+        let tick = self
+            .visible_digits()
+            .and_then(|_| self.timer.next_tick(self.now));
         let frame = self.animating().then(|| self.now + FRAME);
         let deadline = [
             wade,
             self.timer.next_transition(),
+            self.countdown_at(),
+            self.doze_at,
             self.save_at,
             tick,
             frame,
@@ -476,6 +573,11 @@ impl App {
                 eye_style: self.settings.eye_style(),
                 color: self.settings.color(),
                 apps_pressed: self.touch.pressed() == Some(Target::Apps),
+                clock: self.clock_shown().then(|| ClockView {
+                    phase: self.timer.phase(),
+                    digits: self.timer.digits(self.now),
+                    pressed: self.touch.pressed() == Some(Target::Clock),
+                }),
             }),
             Screen::Launcher => View::Launcher(LauncherView {
                 page: self.launcher_page,
@@ -637,7 +739,8 @@ mod tests {
         let out = app.handle(Event::deadline(late));
         assert_eq!(out.effects.as_slice(), [Effect::Chime]);
         assert!(out.redraw);
-        assert_eq!(app.screen(), Screen::Timer);
+        // Wade was keeping time on Buddy, so he takes the finish there.
+        assert_eq!(app.screen(), Screen::Buddy);
         assert!(matches!(
             app.timer_state(),
             TimerState::Done { since, chimes: 10, .. } if since == ms(60_000)

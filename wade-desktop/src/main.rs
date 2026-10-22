@@ -517,7 +517,7 @@ mod tests {
             );
         }
         assert!(matches!(app.timer_state(), TimerState::Done { .. }));
-        assert_eq!(app.screen(), wade_core::app::Screen::Timer);
+        assert_eq!(app.screen(), wade_core::app::Screen::Buddy);
 
         tap(&mut app, Instant::from_millis(63_200), point);
         assert!(matches!(app.timer_state(), TimerState::Ready { .. }));

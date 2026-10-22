@@ -49,6 +49,9 @@ const GLANCE_INTERVAL_MIN: Duration = Duration::from_millis(1_200);
 const GLANCE_INTERVAL_MAX: Duration = Duration::from_millis(4_000);
 const GLANCE_DURATION: Duration = Duration::from_millis(80);
 const GLANCE_RECENTER_PERCENT: u64 = 40;
+/// While he keeps time, this share of glances checks the countdown below him.
+const CLOCK_GLANCE_PERCENT: u64 = 35;
+const CLOCK_GAZE: (f32, f32) = (0.0, 1.0);
 
 /// Neutral's idle squint: the eyes narrow by `SQUINT_DEPTH` and relax.
 const SQUINT_INTERVAL_MIN: Duration = Duration::from_millis(8_000);
@@ -261,6 +264,11 @@ pub(crate) struct Wade {
     next_twitch: Option<Instant>,
     twitch_at: Option<Instant>,
     groggy: Groggy,
+    /// The countdown is on screen with him, and he keeps an eye on it.
+    watching: bool,
+    /// What a timed expression returns to when it expires: Neutral, or what
+    /// the timer has him doing.
+    resting: Expression,
 }
 
 /// How being woken by the timer's chime plays out.
@@ -305,6 +313,8 @@ impl Wade {
             next_twitch: None,
             twitch_at: None,
             groggy: Groggy::No,
+            watching: false,
+            resting: Expression::Neutral,
         };
         wade.schedule_idle(now);
         wade
@@ -380,7 +390,15 @@ impl Wade {
                 let x = random_unit(&mut self.motion, 8);
                 let y = random_unit(&mut self.motion, 4) * 0.8;
                 let recenter = self.motion.range_inclusive(1, 100) <= GLANCE_RECENTER_PERCENT;
-                let to = if recenter { (0.0, 0.0) } else { (x, y) };
+                let check =
+                    self.watching && self.motion.range_inclusive(1, 100) <= CLOCK_GLANCE_PERCENT;
+                let to = if check {
+                    CLOCK_GAZE
+                } else if recenter {
+                    (0.0, 0.0)
+                } else {
+                    (x, y)
+                };
                 let from = self.glance(now);
                 if !same_point(from, to) {
                     (self.glance_from, self.glance_to, self.glance_at) = (from, to, now);
@@ -485,14 +503,46 @@ impl Wade {
         true
     }
 
-    /// The timer finished. If he was asleep, it wakes him, Sleepy, and he
-    /// stays groggy until the timer is dismissed.
-    pub fn timer_finished(&mut self, now: Instant) {
+    /// The timer finished. If he was keeping time, he startles, Surprised, and
+    /// is Proud until it is dismissed, or Flustered if it caught him napping.
+    /// Otherwise, if he was asleep, it wakes him, Sleepy, and he stays groggy
+    /// until the timer is dismissed.
+    pub fn timer_finished(&mut self, now: Instant, watching: bool) {
         self.now = now;
-        if self.asleep {
+        if watching {
+            self.resting = if self.asleep {
+                Expression::Flustered
+            } else {
+                Expression::Proud
+            };
+            self.change(now, Expression::Surprised);
+            self.expires_at = Some(now + WAKE_DURATION);
+        } else if self.asleep {
             self.change(now, Expression::Sleepy);
             self.groggy = Groggy::Woken;
         }
+    }
+
+    /// Whether the countdown is on screen with him, for his glances.
+    pub fn set_watching(&mut self, watching: bool) {
+        self.watching = watching;
+    }
+
+    /// What he returns to when a timed expression expires. If he is awake and
+    /// resting now, he moves to the new one at once. Returns true if the view
+    /// may have changed.
+    #[must_use = "a true result means the view must be redrawn"]
+    pub fn set_resting(&mut self, now: Instant, resting: Expression) -> bool {
+        if resting == self.resting {
+            return false;
+        }
+        let was = core::mem::replace(&mut self.resting, resting);
+        if self.asleep || self.expires_at.is_some() || self.expression != was {
+            return false;
+        }
+        self.now = now;
+        self.change(now, resting);
+        true
     }
 
     /// A finished timer was dismissed: Proud for `TIMER_REACTION`. If its
@@ -502,6 +552,7 @@ impl Wade {
     #[must_use = "a true result means the view must be redrawn"]
     pub fn timer_dismissed(&mut self, now: Instant, behavior: &mut Rng) -> bool {
         self.now = now;
+        self.resting = Expression::Neutral;
         let groggy = self.groggy == Groggy::Woken;
         let (expression, lasts) = if groggy {
             (Expression::Sleepy, GROGGY_DURATION)
@@ -599,7 +650,7 @@ impl Wade {
         if self.groggy == Groggy::DozingOff {
             self.fall_asleep(at);
         } else {
-            self.change(at, Expression::Neutral);
+            self.change(at, self.resting);
         }
     }
 

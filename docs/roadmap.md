@@ -69,12 +69,12 @@ Behavior tests:
 | Completion | At `ends_at`: Done, one `Chime`, screen switches to Timer |
 | Chime repeats | While Done, a `Chime` at `ends_at + 2 s`, `+ 4 s`, …, 10 in total; none after that |
 | Dismiss stops chimes | Dismissing after the third chime: no further `Chime` |
-| Completion while on Buddy | Same as above; the timer completes on time without the Timer screen being visible |
+| Completion on another screen | Same as above; the timer completes on time without the Timer screen being visible |
 | Completion mid-touch | Touch down on Wade, the timer completes, lift: no tap on the Timer screen, no change |
 | Wade while hidden | On the Timer screen, Wade requests no deadlines and never sets `redraw` |
 | Navigation | Leaving and returning to the Timer screen does not change the timer |
 | Deadlines on Timer screen while Running | The next deadline is the next second boundary or `ends_at`, whichever is sooner |
-| Deadlines on Buddy while Running | The timer contributes only `ends_at` |
+| Deadlines on another screen while Running | The timer contributes only `ends_at`; on Buddy, its countdown also ticks (see [ui.md](ui.md#keeping-time)) |
 | Bounds | −1m does nothing at 1:00; +1m does nothing at 99:00 |
 | Dismiss | Ready with the same `set`; screen returns to Buddy; Wade is Proud for 2 s |
 | Back while Done | Same as Dismiss |

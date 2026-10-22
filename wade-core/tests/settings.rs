@@ -98,15 +98,15 @@ fn eye_style_and_colors_change_wade_at_once() {
     assert_eq!(h.buddy().color, ColorMode::Mono);
 }
 
-/// Run a 1:00 timer from Buddy, started at 2 s, so it finishes at 62 s, and
-/// then let every repeat fall due.
+/// Run a 1:00 timer from the Launcher, started at 2 s, so it finishes at
+/// 62 s, and then let every repeat fall due.
 fn run_a_one_minute_timer(h: &mut Harness) {
     open(h, ms(1_000), Tile::Timer);
     for step in 1..=4 {
         h.tap(ms(1_000 + step * 100), button(TimerButton::Minus));
     }
     h.tap(ms(2_000), button(TimerButton::Start));
-    home(h, ms(3_000));
+    h.tap(ms(3_000), back());
     h.run_until(ms(62_000));
     assert_eq!(h.app.screen(), Screen::Timer);
     assert_eq!(h.timer().phase, TimerPhase::Done);

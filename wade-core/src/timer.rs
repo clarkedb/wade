@@ -62,6 +62,8 @@ pub enum TimerButton {
     Resume,
     Reset,
     Dismiss,
+    /// Hand the running timer to Wade: back to Buddy, where he keeps time.
+    Watch,
 }
 
 /// A button in the row as shown. A disabled one is dimmed and ignores taps.
@@ -206,7 +208,7 @@ impl TimerState {
                     enabled: longer(set).is_some(),
                 }),
             ],
-            TimerState::Running { .. } => [None, on(TimerButton::Pause), None],
+            TimerState::Running { .. } => [None, on(TimerButton::Pause), on(TimerButton::Watch)],
             TimerState::Paused { .. } => [on(TimerButton::Reset), on(TimerButton::Resume), None],
             TimerState::Done { .. } => [None, on(TimerButton::Dismiss), None],
         }
@@ -477,7 +479,7 @@ mod tests {
             buttons(TimerState::new()),
             [Some(B::Minus), Some(B::Start), Some(B::Plus)]
         );
-        assert_eq!(buttons(running(1)), [None, Some(B::Pause), None]);
+        assert_eq!(buttons(running(1)), [None, Some(B::Pause), Some(B::Watch)]);
         let paused = TimerState::Paused {
             set: MIN_SET,
             remaining: MIN_SET,

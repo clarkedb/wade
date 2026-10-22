@@ -93,12 +93,12 @@ An expression is a named target pose, numbered for the desktop keys (see [platfo
 | 1 | Happy | Being tapped | Slightly larger; lower lids pushed up into crescents | Blush |
 | 2 | Sad | No trigger yet | Smaller and drooping, outer corners cut | Tear, every few seconds |
 | 3 | Angry | No trigger yet | Short, inner corners cut deep; a tremble | Steam, flashing |
-| 4 | Surprised | Being woken by a tap (M1) or the power button, woken by an approach (M6) | Tall and wide | Exclaim, briefly |
+| 4 | Surprised | Being woken by a tap (M1) or the power button, woken by an approach (M6), a timer he keeps finishing | Tall and wide | Exclaim, briefly |
 | 5 | Sleepy | Falling asleep; groggy after the timer wakes him (M2) | Upper lids half down | |
 | 6 | Thinking | No trigger yet | Smaller, lids slightly down, looking up and to the side | Dots counting up |
-| 7 | Proud | Successes, repeated attention (M2, M4) | Smiling crescents, right eye taller, looking up and to one side | Sparkle |
-| 8 | Focused | Typing (M4) | Flattened, inner corners slightly cut, looking down | |
-| 9 | Flustered | Hubris backfire (M4) | Wide, worried, uneven | SweatDrop |
+| 7 | Proud | Successes, such as a finished timer; repeated attention (M2, M4) | Smiling crescents, right eye taller, looking up and to one side | Sparkle |
+| 8 | Focused | Watching the timer's last seconds; typing (M4) | Flattened, inner corners slightly cut, looking down | |
+| 9 | Flustered | Caught napping by a timer he keeps; hubris backfire (M4) | Wide, worried, uneven | SweatDrop |
 
 His pupils widen visibly when he is tapped. An expression that sets gaze holds it: glances pause until the expression ends. An expression's accent starts when the transition into it finishes, so it never appears on a half-formed face.
 
@@ -156,8 +156,23 @@ Idle activities (M4):
 | Trigger | Result |
 |---|---|
 | Returning to the Buddy screen after dismissing a finished timer (with Dismiss or back) | Proud for 2 s, then Neutral |
-| The timer finishing while he is asleep | It wakes him, Sleepy, out of sight on the Timer screen, even with the volume off |
+| The timer finishing on another screen while he is asleep | It wakes him, Sleepy, out of sight on the Timer screen, even with the volume off |
 | Dismissing a finished timer that woke him | Sleepy for 3 s instead of Proud, then a coin flip: Neutral, or back to sleep |
+
+### Keeping time
+
+When the timer runs while the Buddy screen is visible, its countdown shows below Wade and he keeps time (see [ui.md](ui.md#keeping-time)). He is proud to be trusted with it, which is also how he gets caught out.
+
+| Trigger | Result |
+|---|---|
+| A glance while keeping time | About a third of glances look down at the countdown |
+| The last 10 s | Focused on the countdown until it ends; a tap makes him Happy for 2 s, then he goes back to watching |
+| Keeping time with 2 min or more left, once per run | One time in three, he dozes off somewhere 30 to 70% of the way through what is left |
+| The timer finishing while he keeps time | Surprised for 1 s, then Proud until it is dismissed |
+| The timer finishing while he keeps time asleep | Caught napping: it wakes him Surprised for 1 s, then Flustered until it is dismissed |
+| Dismissing a timer he kept | Proud for 2 s, then Neutral, even if it caught him napping |
+
+Leaving Buddy, or pausing, ends his watch: he returns to Neutral, and the timer behaves as in M2.
 
 ### Power button
 

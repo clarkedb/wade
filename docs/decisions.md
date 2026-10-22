@@ -212,3 +212,9 @@ Rejected: supporting only the CoreS3, which drops the classic ESP32 target; supp
 Reason: desks differ, and one loudness for the chime suits only some of them. The chime toggle becomes a volume that steps down through loud, medium, soft, and off, then back to loud, as brightness steps ([D32](#d32-brightness-is-a-setting-and-the-desktop-simulates-the-backlight)). Loud is the chime as it played before, so older settings and recordings decode on as loud and off as off. The core emits `SetVolume` when it changes; platforms apply the loaded level at startup. The desktop scales its samples, the CoreS3 sets its amplifier's volume register, and the CYD sets its PWM duty. The toggle shows a speaker with one to three waves, struck through when off.
 
 Rejected: a volume toggle beside on/off, which needs a fifth slot and a volume that means nothing while the chime is off; a bell with ringing arcs, which must shrink to fit three arcs in a tile; a level louder than before, since the amplifier's full volume is too loud for a desk.
+
+## D35. Wade keeps time on Buddy, by hand-off rather than a setting
+
+Reason: the Timer screen hid Wade for the whole countdown, so the timer felt like a separate app rather than something he does. While it runs, Buddy shows a small countdown, and Wade glances at it, watches the last seconds, and takes the finish there. A watch button in the Running row hands the timer to him; staying on the Timer screen keeps the plain, quiet view, so both work without a setting. His tap area stops above the countdown so it can be a full 48 px target.
+
+Rejected: a setting that sends Start straight to Buddy, which adds a toggle and hides the choice; a small Wade on the Timer screen, which pushes his eyes toward the 24 px minimum and needs a second face layout.

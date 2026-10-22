@@ -88,10 +88,11 @@ fn the_m1_session_covers_every_input_and_ends_awake_with_plain_eyes() {
 }
 
 #[test]
-fn the_timer_session_ends_back_on_buddy_with_wade_groggy() {
+fn the_timer_session_catches_wade_napping_on_buddy() {
     // Set 1:00, start, pause, reset, start, pause, resume, go back, and fall
-    // asleep. A touch is in progress when the timer finishes and wakes Wade;
-    // Dismiss after the seventh chime leaves him Sleepy.
+    // asleep. A touch is in progress when the timer finishes on Buddy and
+    // catches him napping; a tap on him after the seventh chime dismisses it,
+    // and he is Proud regardless.
     let (_, replay) = replay("timer-session");
     let h = &replay.harness;
     assert_eq!(
@@ -101,8 +102,7 @@ fn the_timer_session_ends_back_on_buddy_with_wade_groggy() {
         }
     );
     assert_eq!(h.app.screen(), Screen::Buddy);
-    assert_eq!(h.buddy().expression, Expression::Sleepy);
-    assert!(!h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Proud);
     let one_minute = Settings::DEFAULT
         .with_timer(Duration::from_mins(1))
         .expect("1 minute");
@@ -169,8 +169,8 @@ fn the_about_session_navigates_settings_pages_and_ends_on_about() {
 #[test]
 fn the_power_button_session_dismisses_the_timer_that_woke_wade() {
     // The button puts Wade to sleep from Buddy and the Launcher, and wakes
-    // him. Asleep with a 1:00 timer running, the chime wakes him; a press
-    // just after it is ignored, and the next dismisses it.
+    // him. Asleep on Buddy with a 1:00 timer running, the chime catches him
+    // napping; a press just after it is ignored, and the next dismisses it.
     let (recording, replay) = replay("power-button-session");
     let presses = recording
         .entries
@@ -186,6 +186,5 @@ fn the_power_button_session_dismisses_the_timer_that_woke_wade() {
         }
     );
     assert_eq!(h.app.screen(), Screen::Buddy);
-    assert_eq!(h.buddy().expression, Expression::Sleepy);
-    assert!(!h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Proud);
 }

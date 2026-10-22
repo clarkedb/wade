@@ -14,8 +14,13 @@ pub const SCREEN: Rectangle = Rectangle::new(Point::zero(), SCREEN_SIZE);
 
 /// Center of Wade's face on the Buddy screen.
 pub const WADE_CENTER: Point = Point::new(160, 120);
-/// Wade's hit area: his eyes and the space around them, clear of the navigation corners.
-pub const WADE_FACE: Rectangle = Rectangle::new(Point::new(48, 36), Size::new(224, 168));
+/// Wade's hit area: his eyes and the space around them, clear of the navigation
+/// corners and the countdown below him.
+pub const WADE_FACE: Rectangle = Rectangle::new(Point::new(48, 36), Size::new(224, 156));
+
+/// The countdown Wade keeps on the Buddy screen while the timer is going,
+/// along the bottom edge between the corners. Tapping it opens the timer.
+pub const CLOCK: Rectangle = Rectangle::new(Point::new(104, 192), Size::new(112, 48));
 
 /// The back button, top-left on every app screen.
 pub const BACK: Rectangle = Rectangle::new(Point::new(0, 0), NAV_SIZE);
@@ -163,6 +168,8 @@ pub enum Tile {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Target {
     Wade,
+    /// The countdown on the Buddy screen.
+    Clock,
     Apps,
     Back,
     About,
@@ -173,11 +180,14 @@ pub enum Target {
     Settings(SettingsButton),
 }
 
-/// The target under `point` on the Buddy screen, if any.
+/// The target under `point` on the Buddy screen, if any. The countdown takes
+/// touches only while `clock` shows it.
 #[must_use]
-pub fn hit_buddy(point: Point) -> Option<Target> {
+pub fn hit_buddy(point: Point, clock: bool) -> Option<Target> {
     if APPS.contains(point) {
         Some(Target::Apps)
+    } else if clock && CLOCK.contains(point) {
+        Some(Target::Clock)
     } else {
         WADE_FACE.contains(point).then_some(Target::Wade)
     }
@@ -254,6 +264,7 @@ mod tests {
         let mut areas = vec![
             ((Screen::Buddy, 0), Target::Wade, WADE_FACE, None),
             ((Screen::Buddy, 0), Target::Apps, APPS, Some(APPS)),
+            ((Screen::Buddy, 0), Target::Clock, CLOCK, None),
             ((Screen::Timer, 0), Target::Back, BACK, Some(BACK)),
             ((Screen::About, 0), Target::Back, BACK, Some(BACK)),
         ];
@@ -284,13 +295,13 @@ mod tests {
 
     #[test]
     fn center_hits_wade_and_corner_does_not() {
-        assert_eq!(hit_buddy(WADE_CENTER), Some(Target::Wade));
-        assert_eq!(hit_buddy(Point::new(2, 2)), None);
+        assert_eq!(hit_buddy(WADE_CENTER, false), Some(Target::Wade));
+        assert_eq!(hit_buddy(Point::new(2, 2), false), None);
     }
 
     #[test]
     fn each_navigation_button_hits_only_on_its_screen() {
-        assert_eq!(hit_buddy(APPS.center()), Some(Target::Apps));
+        assert_eq!(hit_buddy(APPS.center(), false), Some(Target::Apps));
         let timer = |p| hit_timer(p, TimerState::new().row());
         let launcher = |p| hit_launcher(p, 0);
         for hit in [launcher, timer] {
@@ -301,7 +312,7 @@ mod tests {
             assert_eq!(hit_settings(BACK.center(), page), Some(Target::Back));
             assert_eq!(hit_settings(APPS.center(), page), None);
         }
-        assert_eq!(hit_buddy(BACK.center()), None);
+        assert_eq!(hit_buddy(BACK.center(), false), None);
     }
 
     #[test]

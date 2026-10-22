@@ -4,7 +4,7 @@ use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 
 use crate::layout::{self, Target};
 use crate::render::icons::Icon;
-use crate::render::{digits, widgets};
+use crate::render::{digits, palette, widgets};
 use crate::timer::TimerButton;
 use crate::view::TimerView;
 
@@ -14,7 +14,13 @@ where
 {
     widgets::back_button(view.pressed == Some(Target::Back), target)?;
     widgets::title(Icon::Stopwatch, target)?;
-    digits::time(view.digits, target)?;
+    digits::time(
+        view.digits,
+        layout::TIMER_DIGITS,
+        digits::LARGE,
+        palette::EYE,
+        target,
+    )?;
     for (&slot, button) in layout::TIMER_ROW.iter().zip(view.row) {
         if let Some(button) = button {
             let pressed = view.pressed == Some(Target::Timer(button.button));
@@ -39,5 +45,6 @@ const fn icon(button: TimerButton) -> Icon {
         TimerButton::Pause => Icon::Pause,
         TimerButton::Reset => Icon::Stop,
         TimerButton::Dismiss => Icon::Check,
+        TimerButton::Watch => Icon::Pupils,
     }
 }
