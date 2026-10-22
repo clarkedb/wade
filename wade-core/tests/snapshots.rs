@@ -10,8 +10,8 @@ use wade_core::character::{ASLEEP, Accent, Expression, Pose};
 use wade_core::harness::Harness;
 use wade_core::layout::{self, SettingsTile, Target, Tile};
 use wade_core::settings::{Brightness, SettingsButton, Volume};
-use wade_core::timer::{MAX_SET, MIN_SET, TimerButton, TimerState};
-use wade_core::view::{AboutView, ColorMode, EyeStyle, SettingsView, View};
+use wade_core::timer::{Digits, MAX_SET, MIN_SET, TimerButton, TimerPhase, TimerState};
+use wade_core::view::{AboutView, BuddyView, ClockView, ColorMode, EyeStyle, SettingsView, View};
 use wade_core::{App, BuildInfo, Instant, Settings, TouchPhase, render};
 
 /// The whole screen for `view`.
@@ -74,6 +74,53 @@ fn buddy_apps_pressed() {
     let mut h = Harness::new(common::SEED);
     h.touch(common::ms(1_000), TouchPhase::Down, common::apps());
     snapshot("buddy_apps_pressed", &h.app.view());
+}
+
+#[test]
+fn buddy_keeping_time() {
+    let cases = [
+        (
+            "buddy_keeping_time",
+            Expression::Neutral,
+            TimerPhase::Running,
+            Digits::new(4, 37),
+        ),
+        (
+            "buddy_counting_down",
+            Expression::Focused,
+            TimerPhase::Running,
+            Digits::new(0, 7),
+        ),
+        (
+            "buddy_timer_paused",
+            Expression::Neutral,
+            TimerPhase::Paused,
+            Digits::new(2, 5),
+        ),
+        (
+            "buddy_timer_done",
+            Expression::Proud,
+            TimerPhase::Done,
+            Digits::new(0, 0),
+        ),
+    ];
+    for (name, expression, phase, digits) in cases {
+        let view = View::Buddy(BuddyView {
+            expression,
+            asleep: false,
+            blinking: false,
+            pose: at_rest(expression),
+            eye_style: EyeStyle::Pupils,
+            color: ColorMode::Color,
+            apps_pressed: false,
+            clock: Some(ClockView {
+                phase,
+                digits,
+                pressed: false,
+            }),
+        });
+        snapshot(name, &view);
+    }
 }
 
 #[test]

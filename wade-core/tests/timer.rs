@@ -4,12 +4,14 @@ mod common;
 
 use std::time::Duration;
 
-use common::{SEED, apps, back, button, home, ms, open};
+use common::{SEED, back, button, home, ms, open};
 use embedded_graphics::geometry::Point;
-use wade_core::app::{Screen, TOUCH_GUARD};
-use wade_core::character::{Expression, GROGGY_DURATION, TIMER_REACTION};
+use wade_core::app::{COUNTDOWN, Screen, TOUCH_GUARD};
+use wade_core::character::{
+    Expression, GROGGY_DURATION, HAPPY_DURATION, TIMER_REACTION, WAKE_DURATION,
+};
 use wade_core::harness::Harness;
-use wade_core::layout::{Target, Tile, WADE_CENTER, WADE_FACE};
+use wade_core::layout::{self, Target, Tile, WADE_CENTER};
 use wade_core::settings::Volume;
 use wade_core::timer::{
     CHIME_INTERVAL, DEFAULT_SET, Digits, MAX_SET, MIN_SET, TimerButton, TimerPhase, TimerState,
@@ -25,13 +27,24 @@ fn set_one_minute(h: &mut Harness, t: u64) {
     assert_eq!(h.app.timer_state().duration(), MIN_SET);
 }
 
-/// Open the Timer screen at 1 s, set 1:00, start it at 2 s, and return to
-/// Buddy at 3 s. It finishes at 62 s.
-fn one_minute_timer_from_buddy() -> Harness {
+/// Open the Timer screen at 1 s, set 1:00, start it at 2 s, and go back to
+/// the Launcher at 3 s. It finishes at 62 s, away from the Timer screen and
+/// from Wade.
+fn one_minute_timer_from_the_launcher() -> Harness {
     let mut h = Harness::new(SEED);
     set_one_minute(&mut h, 1_000);
     h.tap(ms(2_000), button(TimerButton::Start));
-    home(&mut h, ms(3_000));
+    h.tap(ms(3_000), back());
+    h
+}
+
+/// Like `one_minute_timer_from_the_launcher`, but handed to Wade at 3 s, so
+/// he keeps time on Buddy.
+fn one_minute_timer_with_wade() -> Harness {
+    let mut h = Harness::new(SEED);
+    set_one_minute(&mut h, 1_000);
+    h.tap(ms(2_000), button(TimerButton::Start));
+    h.tap(ms(3_000), button(TimerButton::Watch));
     h
 }
 
@@ -126,11 +139,11 @@ fn finishing_chimes_and_shows_done_on_the_timer_screen() {
 }
 
 #[test]
-fn finishing_on_buddy_switches_to_the_timer_on_time() {
-    let mut h = one_minute_timer_from_buddy();
+fn finishing_elsewhere_switches_to_the_timer_on_time() {
+    let mut h = one_minute_timer_from_the_launcher();
     // run_until panics if the timer finishes without a requested deadline.
     h.run_until(before(ENDS_AT, 1));
-    assert_eq!(h.app.screen(), Screen::Buddy);
+    assert_eq!(h.app.screen(), Screen::Launcher);
     h.run_until(ENDS_AT);
     assert_eq!(h.app.screen(), Screen::Timer);
     assert_eq!(h.timer().phase, TimerPhase::Done);
@@ -139,7 +152,7 @@ fn finishing_on_buddy_switches_to_the_timer_on_time() {
 
 #[test]
 fn chimes_repeat_on_the_interval_ten_times() {
-    let mut h = one_minute_timer_from_buddy();
+    let mut h = one_minute_timer_from_the_launcher();
     for (k, rung) in (0..10).zip(0..) {
         h.run_until(before(chime(k), 1));
         assert_eq!(chimes(&h), rung, "early chime {k}");
@@ -158,7 +171,7 @@ fn a_late_repeat_rings_once_and_keeps_the_original_schedule() {
         let mut h = Harness::with_settings(SEED, Settings::DEFAULT.with_volume(volume));
         set_one_minute(&mut h, 1_000);
         h.tap(ms(2_000), button(TimerButton::Start));
-        home(&mut h, ms(3_000));
+        h.tap(ms(3_000), back());
         h.run_until(ENDS_AT);
         assert_eq!(chimes(&h), usize::from(audible));
 
@@ -184,7 +197,7 @@ fn a_late_repeat_rings_once_and_keeps_the_original_schedule() {
 
 #[test]
 fn dismissing_stops_the_chimes() {
-    let mut h = one_minute_timer_from_buddy();
+    let mut h = one_minute_timer_from_the_launcher();
     h.run_until(chime(2));
     assert_eq!(chimes(&h), 3);
     h.tap(chime(2) + CHIME_INTERVAL / 2, button(TimerButton::Dismiss));
@@ -194,25 +207,21 @@ fn dismissing_stops_the_chimes() {
 
 #[test]
 fn a_touch_in_progress_when_the_timer_finishes_is_ignored() {
-    // On Wade, over Dismiss once the Timer screen shows; and on the apps button.
-    let over_dismiss = button(TimerButton::Dismiss);
-    assert!(WADE_FACE.contains(over_dismiss));
-    for point in [over_dismiss, apps()] {
-        let mut h = one_minute_timer_from_buddy();
-        h.touch(before(ENDS_AT, 1_000), TouchPhase::Down, point);
-        h.run_until(ENDS_AT);
-        assert_eq!(h.timer().pressed, None, "{point:?} still pressed");
-        h.touch(after(ENDS_AT, 1_000), TouchPhase::Up, point);
-        assert_eq!(h.app.screen(), Screen::Timer);
-        assert_eq!(h.timer().phase, TimerPhase::Done);
-    }
+    // On the back button, which dismisses once the Timer screen shows Done.
+    let mut h = one_minute_timer_from_the_launcher();
+    h.touch(before(ENDS_AT, 1_000), TouchPhase::Down, back());
+    h.run_until(ENDS_AT);
+    assert_eq!(h.timer().pressed, None, "back still pressed");
+    h.touch(after(ENDS_AT, 1_000), TouchPhase::Up, back());
+    assert_eq!(h.app.screen(), Screen::Timer);
+    assert_eq!(h.timer().phase, TimerPhase::Done);
 }
 
 #[test]
 fn a_touch_that_starts_just_after_the_timer_finishes_is_ignored() {
-    let mut h = one_minute_timer_from_buddy();
-    // Aimed at Wade, but over Dismiss by the time it lands.
-    let point = button(TimerButton::Dismiss);
+    let mut h = one_minute_timer_from_the_launcher();
+    // Aimed at the Launcher's back button, which dismisses by the time it lands.
+    let point = back();
     h.touch(after(ENDS_AT, 150), TouchPhase::Down, point);
     assert_eq!(h.timer().pressed, None);
     h.touch(after(ENDS_AT, 200), TouchPhase::Up, point);
@@ -223,7 +232,7 @@ fn a_touch_that_starts_just_after_the_timer_finishes_is_ignored() {
 
 #[test]
 fn a_repeat_chime_does_not_cancel_a_press() {
-    let mut h = one_minute_timer_from_buddy();
+    let mut h = one_minute_timer_from_the_launcher();
     let point = button(TimerButton::Dismiss);
     h.touch(before(chime(1), 50), TouchPhase::Down, point);
     h.touch(after(chime(1), 50), TouchPhase::Up, point);
@@ -281,22 +290,20 @@ fn deadlines_on_the_timer_screen_are_the_next_tick_or_the_end() {
 }
 
 #[test]
-fn on_buddy_the_timer_adds_only_its_end_to_the_deadlines() {
-    // Twins whose only difference is that one starts the timer.
-    let mut running = one_minute_timer_from_buddy();
-    let mut ready = Harness::new(SEED);
-    set_one_minute(&mut ready, 1_000);
-    home(&mut ready, ms(3_000));
-    let follow = |h: &mut Harness| {
-        let mut deadlines = Vec::new();
-        while let Some(d) = h.app.next_deadline().filter(|&d| d < ENDS_AT) {
-            h.handle(Event::deadline(d));
-            deadlines.push(d);
-        }
-        deadlines
-    };
-    assert_eq!(follow(&mut running), follow(&mut ready));
-    assert_eq!(running.app.next_deadline(), Some(ENDS_AT));
+fn on_buddy_the_countdown_ticks_every_second() {
+    let mut h = one_minute_timer_with_wade();
+    let mut deadlines = Vec::new();
+    while let Some(d) = h.app.next_deadline().filter(|&d| d < ENDS_AT) {
+        h.handle(Event::deadline(d));
+        let clock = h.buddy().clock.expect("the countdown shows");
+        assert_eq!(clock.digits, h.app.timer_state().digits(d), "at {d:?}");
+        deadlines.push(d);
+    }
+    for k in 1..=58 {
+        let tick = before(ENDS_AT, k * 1_000);
+        assert!(deadlines.contains(&tick), "no tick at {tick:?}");
+    }
+    assert_eq!(h.app.next_deadline(), Some(ENDS_AT));
 }
 
 #[test]
@@ -356,19 +363,19 @@ fn dismissing_makes_wade(h: &mut Harness, point: Point, expression: Expression) 
 
 #[test]
 fn dismiss_returns_to_buddy_and_wade_is_proud() {
-    let mut h = one_minute_timer_from_buddy();
+    let mut h = one_minute_timer_from_the_launcher();
     dismissing_makes_wade(&mut h, button(TimerButton::Dismiss), Expression::Proud);
 }
 
 #[test]
 fn back_while_done_dismisses() {
-    let mut h = one_minute_timer_from_buddy();
+    let mut h = one_minute_timer_from_the_launcher();
     dismissing_makes_wade(&mut h, back(), Expression::Proud);
 }
 
 #[test]
 fn the_power_button_dismisses_a_finished_timer() {
-    let mut h = one_minute_timer_from_buddy();
+    let mut h = one_minute_timer_from_the_launcher();
     h.power_button(after(ENDS_AT, 5_000));
     assert_eq!(h.app.timer_state(), TimerState::Ready { set: MIN_SET });
     assert_eq!(h.app.screen(), Screen::Buddy);
@@ -378,21 +385,21 @@ fn the_power_button_dismisses_a_finished_timer() {
 
 #[test]
 fn the_power_button_just_after_the_timer_finishes_is_ignored() {
-    let mut h = one_minute_timer_from_buddy();
+    let mut h = one_minute_timer_from_the_launcher();
     h.power_button(after(ENDS_AT, 200));
     assert_eq!(h.timer().phase, TimerPhase::Done);
     h.power_button(ENDS_AT + TOUCH_GUARD);
     assert_eq!(h.app.screen(), Screen::Buddy);
 }
 
-/// Put Wade to sleep, then run a 1:00 timer from Buddy that wakes him at
+/// Put Wade to sleep, then run a 1:00 timer from the Launcher that wakes him at
 /// `ENDS_AT`, and dismiss it 5 s later. Returns when it was dismissed.
 fn dismiss_a_timer_that_woke_him(h: &mut Harness) -> Instant {
     h.key(ms(500), Key::Z);
     set_one_minute(h, 1_000);
     h.tap(ms(2_000), button(TimerButton::Start));
-    home(h, ms(3_000));
-    assert!(h.buddy().asleep);
+    h.tap(ms(3_000), back());
+    assert!(h.wade_asleep());
     h.run_until(ENDS_AT);
     assert!(!h.wade_asleep(), "the chime did not wake him");
     let at = after(ENDS_AT, 5_000);
@@ -436,4 +443,154 @@ fn only_the_timer_that_woke_him_leaves_him_groggy() {
     h.tap(ms(83_000), button(TimerButton::Start));
     h.tap(ms(144_000), button(TimerButton::Dismiss));
     assert_eq!(h.buddy().expression, Expression::Proud);
+}
+
+#[test]
+fn the_watch_button_hands_the_timer_to_wade() {
+    let h = one_minute_timer_with_wade();
+    assert_eq!(h.app.screen(), Screen::Buddy);
+    let clock = h.buddy().clock.expect("the countdown shows");
+    assert_eq!(clock.phase, TimerPhase::Running);
+    assert_eq!(clock.digits.to_string(), "00:59");
+}
+
+#[test]
+fn the_countdown_shows_on_buddy_only_while_the_timer_is_going() {
+    let mut h = Harness::new(SEED);
+    assert_eq!(h.buddy().clock, None);
+    set_one_minute(&mut h, 1_000);
+    home(&mut h, ms(2_000));
+    assert_eq!(h.buddy().clock, None, "shown while Ready");
+    // Tapping where the countdown would be does nothing.
+    h.tap(ms(2_500), layout::CLOCK.center());
+    assert_eq!(h.app.screen(), Screen::Buddy);
+}
+
+#[test]
+fn tapping_the_countdown_opens_the_timer() {
+    let mut h = one_minute_timer_with_wade();
+    h.tap(ms(10_000), layout::CLOCK.center());
+    assert_eq!(h.app.screen(), Screen::Timer);
+    assert_eq!(h.timer().phase, TimerPhase::Running);
+}
+
+#[test]
+fn wade_is_intent_on_the_last_seconds() {
+    let mut h = one_minute_timer_with_wade();
+    let countdown = before(ENDS_AT, 10_000);
+    assert_eq!(COUNTDOWN, Duration::from_secs(10));
+    h.run_until(before(countdown, 1));
+    assert_eq!(h.buddy().expression, Expression::Neutral);
+    h.run_until(countdown);
+    assert_eq!(h.buddy().expression, Expression::Focused);
+    // A tap distracts him only briefly.
+    let tap = after(countdown, 1_000);
+    h.tap(tap, WADE_CENTER);
+    assert_eq!(h.buddy().expression, Expression::Happy);
+    h.run_until(tap + HAPPY_DURATION);
+    assert_eq!(h.buddy().expression, Expression::Focused);
+}
+
+#[test]
+fn pausing_ends_his_watch() {
+    let mut h = one_minute_timer_with_wade();
+    let countdown = before(ENDS_AT, 10_000);
+    h.run_until(after(countdown, 500));
+    assert_eq!(h.buddy().expression, Expression::Focused);
+    h.tap(after(countdown, 1_000), layout::CLOCK.center());
+    h.tap(after(countdown, 1_000), button(TimerButton::Pause));
+    home(&mut h, after(countdown, 2_000));
+    assert_eq!(h.buddy().expression, Expression::Neutral);
+    assert_eq!(
+        h.buddy().clock.map(|clock| clock.phase),
+        Some(TimerPhase::Paused)
+    );
+}
+
+#[test]
+fn finishing_while_wade_keeps_time_stays_on_buddy() {
+    let mut h = one_minute_timer_with_wade();
+    h.run_until(ENDS_AT);
+    assert_eq!(h.app.screen(), Screen::Buddy);
+    assert_eq!(chimes(&h), 1);
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+    let clock = h.buddy().clock.expect("the countdown shows");
+    assert_eq!(clock.phase, TimerPhase::Done);
+    assert_eq!(clock.digits.to_string(), "00:00");
+    h.run_until(ENDS_AT + WAKE_DURATION);
+    assert_eq!(h.buddy().expression, Expression::Proud);
+    // Proud until dismissed, however long the chimes run.
+    h.run_until(after(ENDS_AT, 60_000));
+    assert_eq!(h.buddy().expression, Expression::Proud);
+}
+
+#[test]
+fn a_tap_on_wade_or_the_countdown_dismisses_a_timer_he_kept() {
+    for point in [WADE_CENTER, layout::CLOCK.center()] {
+        let mut h = one_minute_timer_with_wade();
+        dismissing_makes_wade(&mut h, point, Expression::Proud);
+        assert_eq!(h.buddy().clock, None);
+    }
+}
+
+#[test]
+fn a_touch_on_wade_in_progress_when_he_finishes_is_ignored() {
+    let mut h = one_minute_timer_with_wade();
+    h.touch(before(ENDS_AT, 1_000), TouchPhase::Down, WADE_CENTER);
+    h.run_until(ENDS_AT);
+    h.touch(after(ENDS_AT, 1_000), TouchPhase::Up, WADE_CENTER);
+    assert_eq!(h.app.timer_state().phase(), TimerPhase::Done);
+}
+
+#[test]
+fn a_tap_on_wade_just_after_he_finishes_is_ignored() {
+    let mut h = one_minute_timer_with_wade();
+    h.tap(after(ENDS_AT, 100), WADE_CENTER);
+    assert_eq!(h.app.timer_state().phase(), TimerPhase::Done);
+    h.tap(ENDS_AT + TOUCH_GUARD, WADE_CENTER);
+    assert_eq!(h.app.timer_state().phase(), TimerPhase::Ready);
+}
+
+#[test]
+fn wade_sometimes_dozes_off_on_the_job_and_is_flustered_when_caught() {
+    let (mut dozed, mut stayed) = (0, 0);
+    for seed in 0..40 {
+        let mut h = Harness::new(seed);
+        open(&mut h, ms(1_000), Tile::Timer);
+        h.tap(ms(2_000), button(TimerButton::Start));
+        h.tap(ms(3_000), button(TimerButton::Watch));
+        let ends_at = ms(302_000);
+        let mut slept = false;
+        while let Some(d) = h.app.next_deadline().filter(|&d| d < ends_at) {
+            h.handle(Event::deadline(d));
+            slept |= h.buddy().asleep;
+        }
+        h.run_until(ends_at + WAKE_DURATION);
+        let expected = if slept {
+            dozed += 1;
+            Expression::Flustered
+        } else {
+            stayed += 1;
+            Expression::Proud
+        };
+        assert_eq!(h.buddy().expression, expected, "seed {seed}");
+    }
+    assert!(
+        dozed >= 5 && stayed >= 15,
+        "{dozed} dozed off and {stayed} stayed awake"
+    );
+}
+
+#[test]
+fn wade_never_dozes_off_on_a_short_timer() {
+    for seed in 0..40 {
+        let mut h = Harness::new(seed);
+        set_one_minute(&mut h, 1_000);
+        h.tap(ms(2_000), button(TimerButton::Start));
+        h.tap(ms(3_000), button(TimerButton::Watch));
+        while let Some(d) = h.app.next_deadline().filter(|&d| d < ENDS_AT) {
+            h.handle(Event::deadline(d));
+            assert!(!h.buddy().asleep, "seed {seed} dozed at {d:?}");
+        }
+    }
 }

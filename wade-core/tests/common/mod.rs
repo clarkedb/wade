@@ -78,7 +78,7 @@ pub fn button(button: TimerButton) -> Point {
     let slot = match button {
         TimerButton::Minus | TimerButton::Reset => 0,
         TimerButton::Start | TimerButton::Pause | TimerButton::Resume | TimerButton::Dismiss => 1,
-        TimerButton::Plus => 2,
+        TimerButton::Plus | TimerButton::Watch => 2,
     };
     layout::TIMER_ROW[slot].center()
 }

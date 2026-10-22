@@ -16,7 +16,8 @@ use crate::settings::{Settings, Volume};
 use crate::time::Instant;
 use crate::timer::TimerPhase;
 use crate::view::{
-    AboutView, BuddyView, ColorMode, EyeStyle, LauncherView, SettingsView, TimerView, View,
+    AboutView, BuddyView, ClockView, ColorMode, EyeStyle, LauncherView, SettingsView, TimerView,
+    View,
 };
 
 #[derive(Debug)]
@@ -188,6 +189,7 @@ impl Harness {
                 eye_style: buddy.eye_style,
                 color: buddy.color,
                 apps_pressed: buddy.apps_pressed,
+                clock: buddy.clock,
             },
             View::Launcher(launcher) => Discrete::Launcher(launcher),
             View::Timer(timer) => Discrete::Timer(timer),
@@ -208,6 +210,7 @@ enum Discrete {
         eye_style: EyeStyle,
         color: ColorMode,
         apps_pressed: bool,
+        clock: Option<ClockView>,
     },
     Launcher(LauncherView),
     Timer(TimerView),

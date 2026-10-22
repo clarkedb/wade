@@ -13,3 +13,6 @@ pub const WATER: Rgb565 = Rgb565::new(12, 46, 31);
 pub const SPARKLE: Rgb565 = Rgb565::new(31, 56, 8);
 /// Low-contrast marks, such as the apps icon, and buttons that ignore taps.
 pub const DIM: Rgb565 = Rgb565::new(9, 20, 11);
+/// The countdown Wade keeps on the Buddy screen: quieter than his eyes, but
+/// readable at a glance.
+pub const CLOCK: Rgb565 = Rgb565::new(15, 32, 18);

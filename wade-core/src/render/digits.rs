@@ -58,6 +58,16 @@ pub const LARGE: Scale = Scale {
     colon: 24,
 };
 
+/// The countdown Wade keeps on the Buddy screen, at half size.
+pub const SMALL: Scale = Scale {
+    width: 18,
+    height: 32,
+    thickness: 4,
+    gap: 2,
+    spacing: 5,
+    colon: 12,
+};
+
 /// The time as MM:SS at `scale` in `color`, centered in `band`.
 pub fn time<T>(
     digits: Digits,

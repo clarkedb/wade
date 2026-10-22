@@ -80,6 +80,7 @@ fn buddy(pose: Pose, eye_style: EyeStyle, color: ColorMode) -> View {
         eye_style,
         color,
         apps_pressed: false,
+        clock: None,
     })
 }
 

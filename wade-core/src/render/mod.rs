@@ -2,6 +2,7 @@
 
 mod about;
 mod band;
+mod clock;
 mod digits;
 pub mod face;
 mod icons;
@@ -30,6 +31,9 @@ where
     match view {
         View::Buddy(buddy) => {
             face::draw(&buddy.pose, buddy.eye_style, buddy.color, target)?;
+            if let Some(clock) = buddy.clock {
+                clock::draw(clock, target)?;
+            }
             widgets::apps_button(buddy.apps_pressed, target)
         }
         View::Launcher(launcher) => launcher::draw(*launcher, target),

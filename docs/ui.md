@@ -33,12 +33,17 @@ Launcher ──(tile)──► Timer or Settings
 Timer or Settings ──(back button)──► Launcher
 Settings ──(information button)──► About ──(back button)──► Settings
 Launcher ──(back button)──► Buddy
-Timer finishes, on any screen ──► Timer, showing Done
-Timer in Done ──(Dismiss, back, or power button)──► Buddy, Wade Proud (or groggy, if the timer woke him)
+Timer, while Running ──(watch button)──► Buddy, Wade keeping time
+Buddy ──(countdown, while the timer is going)──► Timer
+Timer finishes, on Buddy ──► Buddy, showing Done
+Timer finishes, on any other screen ──► Timer, showing Done
+Timer in Done ──(Dismiss, back, or power button; on Buddy, a tap on Wade or the countdown)──► Buddy, Wade Proud (or groggy, if the timer woke him off Buddy)
 Any other screen ──(power button)──► Buddy, Wade asleep
 ```
 
 The one exception to back returning to the Launcher is a finished timer: dismissing it, with Dismiss, back, or the power button, always returns to Buddy so Wade can react.
+
+Someone who wants the timer without Wade's company stays on the Timer screen; handing it to him is a choice, not a setting.
 
 ## Touch handling
 
@@ -56,7 +61,13 @@ The four 48×48 corners are reserved for navigation: back top-left and apps bott
 
 ## Buddy screen
 
-Wade fills the screen. The apps button is a 48×48 hit area in the bottom-right corner with a small, low-contrast icon. Wade's hit area is a rectangle around his eyes, clear of the corners. In M1 through M3, touches elsewhere do nothing; M4 adds gaze-following (see [character.md](character.md#behavior-rules)).
+Wade fills the screen. The apps button is a 48×48 hit area in the bottom-right corner with a small, low-contrast icon. Wade's hit area is a rectangle around his eyes, clear of the corners and the countdown. In M1 through M3, touches elsewhere do nothing; M4 adds gaze-following (see [character.md](character.md#behavior-rules)).
+
+### Keeping time
+
+While the timer is Running, Paused, or Done, Buddy shows its countdown along the bottom edge between the corners: MM:SS in half-size seven-segment digits, quieter than Wade's eyes, dimmer still while Paused, and as bright as his eyes once Done. The countdown is a 112×48 hit area. A tap on it opens the Timer screen, or dismisses a finished timer. While Ready there is no countdown and the area takes no touches.
+
+Wade keeps time whenever Buddy is visible while the timer runs: he glances at the countdown, watches it intently for the last 10 s, and may doze off on a long one (see [character.md](character.md#keeping-time)). When it finishes, Buddy stays on screen and Wade reacts there; a tap on Wade or the countdown, or the power button, dismisses it. The same touch guard applies as when the Timer screen comes up.
 
 ## Launcher
 
@@ -113,11 +124,11 @@ pub enum TimerState {
 | Duration range | 1 to 99 minutes, in 1-minute steps. The timer remembers the duration last set, across restarts, and starts at 5:00 the first time. |
 | Display | MM:SS. Remaining time rounds up to whole seconds, so the display shows 00:01 during the last second. The digits change on second boundaries measured back from `ends_at` (at `ends_at − k × 1 s`), not on whole seconds of the clock. |
 | Pause and resume | Pause stores `remaining = ends_at.saturating_since(now)`. Resume sets `ends_at = now + remaining`. |
-| Completion | When `now` reaches `ends_at`, the timer enters Done with `since = ends_at`, emits `Effect::Chime`, and switches the screen to Timer. |
+| Completion | When `now` reaches `ends_at`, the timer enters Done with `since = ends_at` and emits `Effect::Chime`. On Buddy, the screen stays; on any other screen, it switches to Timer. |
 | Chime repeats | While Done, the chime repeats every 2 s: at `since + 2 s`, `since + 4 s`, and so on, for 10 chimes in total including the first. Chimes that fall due together, after a late wake, play once. Dismissing stops them. With the volume off, none of them sound; the timer still finishes, shows Done, and wakes Wade. |
 | Screen independence | The timer runs regardless of which screen is visible. |
-| Dismiss | The Dismiss button or the back button. Done returns to Ready with the same `set`, the screen returns to Buddy, and Wade is Proud for 2 s, or groggy if the timer woke him (see [character.md](character.md#m2-adds)). |
-| Deadlines | While Running: `ends_at`. While Running and the Timer screen is visible: also the next second boundary, so the digits update on time. While Done: the next chime repeat, until the tenth. |
+| Dismiss | The Dismiss button or the back button, or on Buddy a tap on Wade or the countdown. Done returns to Ready with the same `set`, the screen returns to Buddy, and Wade is Proud for 2 s, or groggy if the timer woke him (see [character.md](character.md#m2-adds)). |
+| Deadlines | While Running: `ends_at`. While Running and the Timer screen or Buddy's countdown is visible: also the next second boundary, so the digits update on time, and on Buddy the start of the last 10 s. While Done: the next chime repeat, until the tenth. |
 
 ### Layout
 
@@ -135,7 +146,7 @@ The button row sits above the bottom corners, with 8 px side margins and 16 px g
 | State | Left | Center | Right |
 |---|---|---|---|
 | Ready | −1m (minus) | Start (play) | +1m (plus) |
-| Running | (empty) | Pause (two bars) | (empty) |
+| Running | (empty) | Pause (two bars) | Watch (a small pair of Wade's eyes): hand the timer to Wade on Buddy |
 | Paused | Reset (stop square) | Resume (play) | (empty) |
 | Done | (empty) | Dismiss (check mark) | (empty) |
 

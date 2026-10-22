@@ -39,7 +39,6 @@ fn each_tile_opens_its_app_and_back_returns_to_the_launcher() {
 #[test]
 fn a_timer_finishing_elsewhere_is_dismissed_to_buddy() {
     for (screen, from_buddy) in [
-        (Screen::Buddy, &[][..]),
         (Screen::Launcher, &[apps()][..]),
         (Screen::Settings, &[apps(), tile(Tile::Settings)][..]),
     ] {

@@ -29,6 +29,18 @@ pub struct BuddyView {
     pub color: ColorMode,
     /// True while a touch that began on the apps button stays on it.
     pub apps_pressed: bool,
+    /// The countdown Wade keeps while the timer is going, if it is.
+    pub clock: Option<ClockView>,
+}
+
+/// The countdown on the Buddy screen (docs/ui.md#buddy-screen).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ClockView {
+    pub phase: TimerPhase,
+    /// The time shown: 00:00 once Done.
+    pub digits: Digits,
+    /// True while a touch that began on the countdown stays on it.
+    pub pressed: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -45,5 +45,6 @@ const fn icon(button: TimerButton) -> Icon {
         TimerButton::Pause => Icon::Pause,
         TimerButton::Reset => Icon::Stop,
         TimerButton::Dismiss => Icon::Check,
+        TimerButton::Watch => Icon::Pupils,
     }
 }
