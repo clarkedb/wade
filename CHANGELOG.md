@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.0](https://github.com/clarkedb/wade/compare/v0.2.0...v0.3.0) (2026-10-22)
+
+
+### Features
+
+* let wade keep time on buddy ([#117](https://github.com/clarkedb/wade/issues/117)) ([a61ce46](https://github.com/clarkedb/wade/commit/a61ce4670c2d040fd60f8e48f8ab991ac1a5429c))
+* play the chime on the cyd ([#112](https://github.com/clarkedb/wade/issues/112)) ([c6e1f82](https://github.com/clarkedb/wade/commit/c6e1f8238290a99b44f162e006d7797a31be2615))
+* put wade to sleep with the cyd boot button ([#114](https://github.com/clarkedb/wade/issues/114)) ([be59559](https://github.com/clarkedb/wade/commit/be59559228931602b94ae579f609afe565a9151e))
+
 ## [0.2.0](https://github.com/clarkedb/wade/compare/v0.1.0...v0.2.0) (2026-10-13)
 
 
