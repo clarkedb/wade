@@ -3,10 +3,10 @@
 mod mood;
 mod pose;
 
-pub use mood::MoodLevel;
+pub use mood::{Feeling, MoodLevel};
 pub use pose::{Accent, Pose, Prop};
 
-use mood::{MOOD_CAUGHT, MOOD_SUCCESS, MOOD_TAP, Mood};
+use mood::Mood;
 
 use core::f32::consts::TAU;
 
@@ -345,9 +345,6 @@ pub(crate) struct Wade {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Groggy {
     No,
-    /// The timer he kept caught him napping, so dismissing it earns him no
-    /// credit.
-    Caught,
     /// The timer woke him, so dismissing it leaves him Sleepy
     /// instead of Proud.
     Woken,
@@ -580,7 +577,6 @@ impl Wade {
         if self.wake(now) {
             return true;
         }
-        self.mood.add(now, MOOD_TAP);
         self.set(now, Expression::Happy, Some((HAPPY_DURATION, Then::Rest)));
         true
     }
@@ -609,8 +605,6 @@ impl Wade {
         self.now = now;
         if watching {
             self.resting = if self.asleep {
-                self.mood.add(now, MOOD_CAUGHT);
-                self.groggy = Groggy::Caught;
                 Expression::Flustered
             } else {
                 Expression::Proud
@@ -649,23 +643,19 @@ impl Wade {
     }
 
     /// A finished timer was dismissed: Proud for `TIMER_REACTION`. If its
-    /// timer woke him, he is Sleepy for `GROGGY_DURATION` instead, and a coin
-    /// flip from `behavior` decides whether he then wakes up or dozes off.
+    /// timer woke him, he is Sleepy for `GROGGY_DURATION` instead, and then
+    /// wakes up, or dozes off if `doze_off`.
     /// Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]
-    pub fn timer_dismissed(&mut self, now: Instant, behavior: &mut Rng) -> bool {
+    pub fn timer_dismissed(&mut self, now: Instant, doze_off: bool) -> bool {
         self.now = now;
         self.resting = Expression::Neutral;
-        let groggy = self.groggy == Groggy::Woken;
-        let (expression, lasts) = if groggy {
+        let (expression, lasts) = if self.groggy() {
             (Expression::Sleepy, GROGGY_DURATION)
         } else {
-            if self.groggy != Groggy::Caught {
-                self.mood.add(now, MOOD_SUCCESS);
-            }
             (Expression::Proud, TIMER_REACTION)
         };
-        let then = if groggy && behavior.range_inclusive(1, 2) == 1 {
+        let then = if self.groggy() && doze_off {
             Then::Sleep
         } else {
             Then::Rest
@@ -710,6 +700,21 @@ impl Wade {
     #[must_use]
     pub fn mood(&self, now: Instant) -> MoodLevel {
         self.mood.level(now)
+    }
+
+    /// Move his mood by `feeling`. If he is `visible` and Neutral, he eases
+    /// into a new level's look. Returns true if a motion started.
+    #[must_use = "a true result means the view must be redrawn"]
+    pub fn feel(&mut self, now: Instant, feeling: Feeling, visible: bool) -> bool {
+        self.now = now;
+        self.mood.add(now, feeling.points());
+        self.show_mood(now, visible)
+    }
+
+    /// The timer's chime woke him, and he stays groggy until it is dismissed.
+    #[must_use]
+    pub fn groggy(&self) -> bool {
+        self.groggy == Groggy::Woken
     }
 
     #[must_use]
@@ -1365,10 +1370,12 @@ mod tests {
     }
 
     #[test]
-    fn taps_lift_his_mood_and_it_fades() {
+    fn feelings_lift_his_mood_and_it_fades() {
         let mut wade = Wade::new(ms(0), 3);
         for i in 0..4 {
-            let _ = wade.on_tap(ms(1_000 + i * 100));
+            let at = ms(1_000 + i * 100);
+            let _ = wade.on_tap(at);
+            let _ = wade.feel(at, Feeling::Tap, true);
         }
         assert_eq!(wade.mood(ms(2_000)), MoodLevel::Pleased);
         run(&mut wade, ms(5_000), |_, _| {});
@@ -1380,32 +1387,6 @@ mod tests {
         run(&mut wade, ms(10 * 60_000), |_, _| {});
         assert_eq!(wade.mood(ms(10 * 60_000)), MoodLevel::Plain);
         assert_eq!(wade.base(ms(10 * 60_000)), Expression::Neutral.pose());
-    }
-
-    #[test]
-    fn being_caught_napping_deflates_him() {
-        let mut wade = Wade::new(ms(0), 3);
-        let _ = wade.timer_dismissed(ms(0), &mut Rng::new(1));
-        let _ = wade.timer_dismissed(ms(100), &mut Rng::new(1));
-        assert_eq!(wade.mood(ms(100)), MoodLevel::Pleased);
-        let _ = wade.sleep(ms(200));
-        wade.timer_finished(ms(300), true);
-        assert_eq!(wade.mood(ms(300)), MoodLevel::Plain);
-    }
-
-    #[test]
-    fn being_caught_earns_no_credit_for_the_dismissal() {
-        let mut wade = Wade::new(ms(0), 3);
-        let _ = wade.timer_dismissed(ms(0), &mut Rng::new(1));
-        let _ = wade.timer_dismissed(ms(100), &mut Rng::new(1));
-        let _ = wade.sleep(ms(200));
-        wade.timer_finished(ms(300), true);
-        let _ = wade.timer_dismissed(ms(400), &mut Rng::new(1));
-        assert_eq!(wade.expression(), Expression::Proud);
-        assert_eq!(wade.mood(ms(400)), MoodLevel::Plain);
-        // The next timer he keeps earns full credit again.
-        let _ = wade.timer_dismissed(ms(500), &mut Rng::new(1));
-        assert_eq!(wade.mood(ms(500)), MoodLevel::Pleased);
     }
 
     /// Pleased with exactly enough points, so his mood drops at 6 s.
