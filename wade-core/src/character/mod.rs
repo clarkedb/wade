@@ -857,14 +857,13 @@ impl Wade {
         if self.asleep {
             return ASLEEP;
         }
-        let pose = self.expression.pose();
-        let to = self.shown_mood.tint(self.expression, pose);
+        let to = self.shown_mood.tint(self.expression);
         if !self.easing_mood() {
             return to;
         }
         let t = fraction(now.saturating_since(self.mood_at), MOOD_TRANSITION);
         self.mood_from
-            .tint(self.expression, pose)
+            .tint(self.expression)
             .lerp(&to, smoothstep(t))
     }
 
@@ -1294,7 +1293,7 @@ mod tests {
         assert_eq!(wade.mood(ms(2_000)), MoodLevel::Pleased);
         run(&mut wade, ms(5_000), |_, _| {});
         assert_eq!(wade.expression(), Expression::Neutral);
-        let pleased = MoodLevel::Pleased.tint(Expression::Neutral, Pose::REST);
+        let pleased = MoodLevel::Pleased.tint(Expression::Neutral);
         let base = wade.base(ms(5_000));
         assert!((base.lower_lid - pleased.lower_lid).abs() < 1e-6);
         assert!((base.pupil - pleased.pupil).abs() < 1e-6);

@@ -31,10 +31,11 @@ impl MoodLevel {
         }
     }
 
-    /// `pose`, the target of `expression`, as this mood colors it. Only
-    /// Neutral shows his mood.
+    /// The target pose of `expression` as this mood colors it. Only Neutral
+    /// shows his mood.
     #[must_use]
-    pub const fn tint(self, expression: Expression, pose: Pose) -> Pose {
+    pub const fn tint(self, expression: Expression) -> Pose {
+        let pose = expression.pose();
         match (expression, self) {
             (Expression::Neutral, MoodLevel::Pleased) => Pose {
                 lower_lid: 0.1,

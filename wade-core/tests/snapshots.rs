@@ -128,7 +128,7 @@ fn neutral_when_pleased() {
     for (eye_style, prefix) in STYLES {
         face(
             &format!("{prefix}_neutral_pleased"),
-            &MoodLevel::Pleased.tint(Expression::Neutral, Expression::Neutral.pose()),
+            &MoodLevel::Pleased.tint(Expression::Neutral),
             eye_style,
         );
     }
