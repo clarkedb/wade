@@ -102,7 +102,7 @@ These are property tests: `proptest` generates random event sequences, from rand
 
 A snapshot test builds a `View`, draws it into an in-memory 320×240 test framebuffer, and compares the result with `wade-core/tests/snapshots/<name>.png`. On a mismatch, the test writes `<name>.actual.png` next to the golden image and fails. Running `UPDATE_SNAPSHOTS=1 cargo test` rewrites the golden images, and the diff is reviewed in version control.
 
-Snapshot cases include each expression at rest with its accent, and a glance, in both eye styles; each colored accent in mono; and Wade asleep and mid-blink. These draw his face alone. Whole-screen cases cover Buddy at startup, once awake, with the apps button pressed, and keeping time in each timer phase; the Launcher with each button pressed; the Timer screen in each state with each button pressed; and both Settings pages, with every setting changed and each button pressed, including the page arrows and Info tile. Golden images are generated on desktop.
+Snapshot cases include each expression at rest with its accent, and a glance, in both eye styles; each colored accent in mono; Neutral when Pleased, in both eye styles; and Wade asleep and mid-blink. These draw his face alone. Whole-screen cases cover Buddy at startup, once awake, with the apps button pressed, and keeping time in each timer phase; the Launcher with each button pressed; the Timer screen in each state with each button pressed; and both Settings pages, with every setting changed and each button pressed, including the page arrows and Info tile. Golden images are generated on desktop.
 
 ## Recording and replay
 

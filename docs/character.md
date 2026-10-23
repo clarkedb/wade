@@ -113,13 +113,30 @@ A beat is a short scripted reaction: expressions played in order, each held for 
 
 Asleep is a state, not an expression; the expression is Sleepy. He does not blink, glance, or squint while asleep.
 
+## Mood
+
+His mood is how pleased with himself he has been lately: points from 0 to 100 that fade one every 6 s, so a full mood is gone in 10 minutes. It changes slowly and colors what he does rather than setting an expression.
+
+| Event | Points |
+|---|---|
+| A tap on him while awake | +8 |
+| Dismissing a finished timer he takes credit for (Proud) | +30 |
+| The timer catching him napping while he keeps time | −40, and dismissing it earns nothing |
+
+| Level | Points | Shows as |
+|---|---|---|
+| Plain | 0–29 | Neutral as drawn |
+| Pleased | 30–100 | Neutral with a slight smile from below and wider pupils. Keeping time, he dozes off one time in two instead of three: pride before the fall. |
+
+Only Neutral shows his mood. When the level changes while he is Neutral and on screen, he eases into the new look over 1 s, alongside any expression change still under way; otherwise the new look applies at once. A level change is a scheduled transition, so mood adds no frames while he is still.
+
 ## Animation
 
 The rendered pose is built in layers, applied in this order, each computed from elapsed time.
 
 | Layer | Behavior |
 |---|---|
-| Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out: 300 ms as the eyes open at startup, 1 s into sleep. |
+| Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out: 300 ms as the eyes open at startup, 1 s into sleep. A change of mood eases Neutral over 1 s ([Mood](#mood)). |
 | Pop | On an expression change, the eyes jump 12% taller (30% into Surprised) and ease back over 400 ms. |
 | Squint | In Neutral, every 8 to 16 s, the eyes narrow by 40% and relax over 400 ms. |
 | Twitch | Asleep, 5 to 9 s after he falls asleep and then every 6 to 12 s, the eyes flicker open slightly for 300 ms, too little to show his pupils. |
@@ -177,7 +194,7 @@ When the timer runs while the Buddy screen is visible, its countdown shows below
 |---|---|
 | A glance while keeping time | About a third of glances look down at the countdown |
 | The last 10 s | Focused on the countdown until it ends; a tap makes him Happy for 2 s, then he goes back to watching |
-| Keeping time with 2 min or more left, once per run | One time in three, he dozes off somewhere 30 to 70% of the way through what is left |
+| Keeping time with 2 min or more left, once per run | One time in three (two when [Pleased](#mood)), he dozes off somewhere 30 to 70% of the way through what is left |
 | The timer finishing while he keeps time | Surprised for 1 s, then Proud until it is dismissed |
 | The timer finishing while he keeps time asleep | Caught napping: it wakes him Surprised for 1 s, then Flustered until it is dismissed |
 | Dismissing a timer he kept | Proud for 2 s, then Neutral, even if it caught him napping |

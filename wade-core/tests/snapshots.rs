@@ -6,7 +6,7 @@ mod common;
 
 use common::framebuffer::{Framebuffer, assert_snapshot};
 use std::time::Duration;
-use wade_core::character::{ASLEEP, Accent, Expression, Pose};
+use wade_core::character::{ASLEEP, Accent, Expression, MoodLevel, Pose};
 use wade_core::harness::Harness;
 use wade_core::layout::{self, SettingsTile, Target, Tile};
 use wade_core::settings::{Brightness, SettingsButton, Volume};
@@ -38,7 +38,7 @@ fn at_rest(expression: Expression) -> Pose {
     Pose {
         accent,
         accent_phase: still_phase(accent),
-        ..expression.pose()
+        ..expression.pose(MoodLevel::Plain)
     }
 }
 
@@ -124,6 +124,17 @@ fn buddy_keeping_time() {
 }
 
 #[test]
+fn neutral_when_pleased() {
+    for (eye_style, prefix) in STYLES {
+        face(
+            &format!("{prefix}_neutral_pleased"),
+            &Expression::Neutral.pose(MoodLevel::Pleased),
+            eye_style,
+        );
+    }
+}
+
+#[test]
 fn each_expression_at_rest() {
     for (eye_style, prefix) in STYLES {
         for (number, expression) in Expression::ALL.into_iter().enumerate() {
@@ -163,7 +174,7 @@ fn each_colored_accent_in_mono() {
 fn glancing() {
     let pose = Pose {
         gaze: (-0.8, 0.5),
-        ..Expression::Neutral.pose()
+        ..Expression::Neutral.pose(MoodLevel::Plain)
     };
     for (eye_style, prefix) in STYLES {
         face(&format!("{prefix}_glancing"), &pose, eye_style);
@@ -184,7 +195,7 @@ fn asleep() {
 fn mid_blink() {
     let pose = Pose {
         eye_open: 0.3,
-        ..Expression::Neutral.pose()
+        ..Expression::Neutral.pose(MoodLevel::Plain)
     };
     face("mid_blink", &pose, EyeStyle::Pupils);
 }

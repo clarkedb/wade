@@ -1,8 +1,12 @@
 //! Wade: state, expressions, animation, and the pose rig (docs/character.md).
 
+mod mood;
 mod pose;
 
+pub use mood::MoodLevel;
 pub use pose::{Accent, Pose, Prop};
+
+use mood::{MOOD_CAUGHT, MOOD_SUCCESS, MOOD_TAP, Mood};
 
 use core::f32::consts::TAU;
 
@@ -39,6 +43,8 @@ pub const EXPRESSION_TRANSITION: Duration = Duration::from_millis(200);
 const START_TRANSITION: Duration = Duration::from_millis(300);
 /// How long the eyes take to shut when he falls asleep.
 const SLEEP_TRANSITION: Duration = Duration::from_millis(1_000);
+/// How long Neutral takes to settle into a new mood's look.
+const MOOD_TRANSITION: Duration = Duration::from_millis(1_000);
 
 /// On an expression change the eyes jump this much taller, then settle.
 const POP: f32 = 0.12;
@@ -121,11 +127,19 @@ impl Expression {
         Expression::Flustered,
     ];
 
-    /// The target pose for this expression, without its accent.
+    /// The target pose for this expression in `mood`, without its accent.
+    /// Only Neutral shows his mood.
     #[must_use]
-    pub const fn pose(self) -> Pose {
+    pub const fn pose(self, mood: MoodLevel) -> Pose {
         match self {
-            Expression::Neutral => Pose::REST,
+            Expression::Neutral => match mood {
+                MoodLevel::Plain => Pose::REST,
+                MoodLevel::Pleased => Pose {
+                    lower_lid: 0.1,
+                    pupil: 33.0,
+                    ..Pose::REST
+                },
+            },
             Expression::Happy => Pose {
                 eye_size: (90.0, 90.0),
                 lower_lid: 0.44,
@@ -315,12 +329,22 @@ pub(crate) struct Wade {
     resting: Expression,
     /// The steps of a beat still to play after the current timed expression.
     beat: &'static [(Expression, Duration)],
+    mood: Mood,
+    /// The mood his pose shows. It catches up with `mood` at a transition.
+    shown_mood: MoodLevel,
+    /// Neutral eases from this mood's look to `shown_mood`'s over
+    /// `MOOD_TRANSITION`, starting at `mood_at`, apart from expression changes.
+    mood_from: MoodLevel,
+    mood_at: Instant,
 }
 
 /// How being woken by the timer's chime plays out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Groggy {
     No,
+    /// The timer he kept caught him napping, so dismissing it earns him no
+    /// credit.
+    Caught,
     /// The timer woke him, so dismissing it leaves him Sleepy
     /// instead of Proud.
     Woken,
@@ -362,6 +386,10 @@ impl Wade {
             watching: false,
             resting: Expression::Neutral,
             beat: &[],
+            mood: Mood::new(now),
+            shown_mood: MoodLevel::Plain,
+            mood_from: MoodLevel::Plain,
+            mood_at: now,
         };
         wade.schedule_idle(now);
         wade
@@ -379,6 +407,8 @@ impl Wade {
         let end = |start: Option<Instant>, length| start.map(|t| t + length);
         [
             self.expires_at,
+            self.mood.next_drop(self.now),
+            self.easing_mood().then(|| self.mood_at + MOOD_TRANSITION),
             Some(self.settled_at()),
             (self.pop > 0.0).then(|| self.changed_at + POP_DURATION),
             self.accent_end(),
@@ -416,6 +446,7 @@ impl Wade {
             self.expire(now);
             changed = true;
         }
+        changed |= self.show_mood(now, visible);
         let idle = visible && !self.asleep;
         if self.next_blink <= now {
             if idle {
@@ -491,6 +522,7 @@ impl Wade {
             self.expire(t);
         }
         self.now = now;
+        self.settle_mood(now);
         self.schedule_idle(now);
         self.next_tear = self.next_tear.map(|_| now + TEAR_DELAY);
         self.next_twitch = self
@@ -519,6 +551,7 @@ impl Wade {
             || during_opt(self.squint_at, SQUINT_DURATION)
             || during_opt(self.tear_at, TEAR_FALL)
             || during_opt(self.twitch_at, TWITCH_DURATION)
+            || (self.easing_mood() && during(self.mood_at, MOOD_TRANSITION))
             || (self.accent().moves() && self.accent_end().is_some_and(|end| now < end))
     }
 
@@ -530,6 +563,7 @@ impl Wade {
         if self.wake(now) {
             return true;
         }
+        self.mood.add(now, MOOD_TAP);
         if self.expression != Expression::Happy {
             self.change(now, Expression::Happy);
         }
@@ -559,6 +593,8 @@ impl Wade {
         self.now = now;
         if watching {
             self.resting = if self.asleep {
+                self.mood.add(now, MOOD_CAUGHT);
+                self.groggy = Groggy::Caught;
                 Expression::Flustered
             } else {
                 Expression::Proud
@@ -605,6 +641,9 @@ impl Wade {
         let (expression, lasts) = if groggy {
             (Expression::Sleepy, GROGGY_DURATION)
         } else {
+            if self.groggy != Groggy::Caught {
+                self.mood.add(now, MOOD_SUCCESS);
+            }
             (Expression::Proud, TIMER_REACTION)
         };
         if self.asleep || expression != self.expression {
@@ -654,6 +693,12 @@ impl Wade {
         }
         self.fall_asleep(now);
         true
+    }
+
+    /// How pleased with himself he has been lately.
+    #[must_use]
+    pub fn mood(&self, now: Instant) -> MoodLevel {
+        self.mood.level(now)
     }
 
     #[must_use]
@@ -749,9 +794,35 @@ impl Wade {
         self.next_twitch = None;
     }
 
+    /// Bring the pose up to date with his mood. If he is visible, awake, and
+    /// Neutral, he eases into the new look; otherwise it applies at once.
+    /// Returns true if a motion started.
+    fn show_mood(&mut self, now: Instant, visible: bool) -> bool {
+        let mood = self.mood.level(now);
+        if mood == self.shown_mood {
+            return false;
+        }
+        let ease = visible && !self.asleep && self.expression == Expression::Neutral;
+        self.mood_from = if ease { self.shown_mood } else { mood };
+        self.mood_at = now;
+        self.shown_mood = mood;
+        ease
+    }
+
+    /// Show his mood at once, with no ease.
+    fn settle_mood(&mut self, now: Instant) {
+        self.shown_mood = self.mood.level(now);
+        self.mood_from = self.shown_mood;
+    }
+
+    fn easing_mood(&self) -> bool {
+        self.mood_from != self.shown_mood
+    }
+
     /// Move to `expression`, awake.
     fn change(&mut self, now: Instant, expression: Expression) {
         self.begin_change(now);
+        self.settle_mood(now);
         self.expression = expression;
         self.asleep = false;
         self.transition = EXPRESSION_TRANSITION;
@@ -790,17 +861,23 @@ impl Wade {
         self.changed_at + self.transition
     }
 
-    fn target(&self) -> Pose {
+    fn target(&self, now: Instant) -> Pose {
         if self.asleep {
-            ASLEEP
-        } else {
-            self.expression.pose()
+            return ASLEEP;
         }
+        let to = self.expression.pose(self.shown_mood);
+        if !self.easing_mood() {
+            return to;
+        }
+        let t = fraction(now.saturating_since(self.mood_at), MOOD_TRANSITION);
+        self.expression
+            .pose(self.mood_from)
+            .lerp(&to, smoothstep(t))
     }
 
     fn base(&self, now: Instant) -> Pose {
         let t = fraction(now.saturating_since(self.changed_at), self.transition);
-        self.from.lerp(&self.target(), smoothstep(t))
+        self.from.lerp(&self.target(now), smoothstep(t))
     }
 
     fn glance(&self, now: Instant) -> (f32, f32) {
@@ -1062,7 +1139,7 @@ mod tests {
     fn glances_pause_while_an_expression_holds_its_gaze() {
         let mut wade = Wade::new(ms(0), 3);
         hold(&mut wade, Expression::Thinking, ms(1_000));
-        let held = Expression::Thinking.pose().gaze;
+        let held = Expression::Thinking.pose(MoodLevel::Plain).gaze;
         run(&mut wade, ms(60_000), |wade, t| {
             if t >= ms(1_200) {
                 assert_eq!(wade.pose(t).gaze, held, "gaze moved at {t:?}");
@@ -1213,6 +1290,92 @@ mod tests {
         wade.fast_forward(ms(60_000));
         assert_eq!(wade.expression(), Expression::Neutral);
         assert_eq!(wade.expires_at, None);
+    }
+
+    #[test]
+    fn taps_lift_his_mood_and_it_fades() {
+        let mut wade = Wade::new(ms(0), 3);
+        for i in 0..4 {
+            let _ = wade.on_tap(ms(1_000 + i * 100));
+        }
+        assert_eq!(wade.mood(ms(2_000)), MoodLevel::Pleased);
+        run(&mut wade, ms(5_000), |_, _| {});
+        assert_eq!(wade.expression(), Expression::Neutral);
+        let pleased = Expression::Neutral.pose(MoodLevel::Pleased);
+        let base = wade.base(ms(5_000));
+        assert!((base.lower_lid - pleased.lower_lid).abs() < 1e-6);
+        assert!((base.pupil - pleased.pupil).abs() < 1e-6);
+        run(&mut wade, ms(10 * 60_000), |_, _| {});
+        assert_eq!(wade.mood(ms(10 * 60_000)), MoodLevel::Plain);
+        assert_eq!(
+            wade.base(ms(10 * 60_000)),
+            Expression::Neutral.pose(MoodLevel::Plain)
+        );
+    }
+
+    #[test]
+    fn being_caught_napping_deflates_him() {
+        let mut wade = Wade::new(ms(0), 3);
+        let _ = wade.timer_dismissed(ms(0), &mut Rng::new(1));
+        let _ = wade.timer_dismissed(ms(100), &mut Rng::new(1));
+        assert_eq!(wade.mood(ms(100)), MoodLevel::Pleased);
+        let _ = wade.sleep(ms(200));
+        wade.timer_finished(ms(300), true);
+        assert_eq!(wade.mood(ms(300)), MoodLevel::Plain);
+    }
+
+    #[test]
+    fn being_caught_earns_no_credit_for_the_dismissal() {
+        let mut wade = Wade::new(ms(0), 3);
+        let _ = wade.timer_dismissed(ms(0), &mut Rng::new(1));
+        let _ = wade.timer_dismissed(ms(100), &mut Rng::new(1));
+        let _ = wade.sleep(ms(200));
+        wade.timer_finished(ms(300), true);
+        let _ = wade.timer_dismissed(ms(400), &mut Rng::new(1));
+        assert_eq!(wade.expression(), Expression::Proud);
+        assert_eq!(wade.mood(ms(400)), MoodLevel::Plain);
+        // The next timer he keeps earns full credit again.
+        let _ = wade.timer_dismissed(ms(500), &mut Rng::new(1));
+        assert_eq!(wade.mood(ms(500)), MoodLevel::Pleased);
+    }
+
+    /// Pleased with exactly enough points, so his mood drops at 6 s.
+    fn just_pleased() -> Wade {
+        let mut wade = Wade::new(ms(0), 3);
+        wade.mood.add(ms(0), 30);
+        quiet(&mut wade);
+        wade
+    }
+
+    #[test]
+    fn a_mood_drop_keeps_a_pop_in_progress() {
+        let mut wade = just_pleased();
+        hold(&mut wade, Expression::Neutral, ms(5_900));
+        let _ = wade.advance(ms(6_000), true);
+        assert_eq!(wade.mood(ms(6_000)), MoodLevel::Plain);
+        // 200 ms into the pop, the eyes are still about 3% taller.
+        assert!(wade.pose(ms(6_100)).eye_size.1 > 87.0);
+    }
+
+    #[test]
+    fn the_mood_ease_takes_a_second() {
+        let mut wade = just_pleased();
+        hold(&mut wade, Expression::Neutral, ms(1_000));
+        let _ = wade.advance(ms(6_000), true);
+        assert!(wade.animating(ms(6_500)));
+        assert_eq!(wade.next_transition(true), Some(ms(7_000)));
+        let _ = wade.advance(ms(7_000), true);
+        assert!(!wade.animating(ms(7_000)));
+        assert!(wade.base(ms(7_000)).lower_lid.abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_hidden_mood_drop_applies_at_once() {
+        let mut wade = just_pleased();
+        hold(&mut wade, Expression::Neutral, ms(1_000));
+        assert!(!wade.advance(ms(6_000), false), "a redraw while hidden");
+        assert!(!wade.animating(ms(6_000)));
+        assert!(wade.base(ms(6_000)).lower_lid.abs() < 1e-6);
     }
 
     #[test]

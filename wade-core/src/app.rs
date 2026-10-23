@@ -1,6 +1,6 @@
 //! `App`: the core's entry point. Owns all state and routes events to features.
 
-use crate::character::{Beat, Expression, Wade};
+use crate::character::{Beat, Expression, MoodLevel, Wade};
 use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
 use crate::info::BuildInfo;
 use crate::input::TouchTracker;
@@ -35,10 +35,11 @@ pub const TOUCH_GUARD: Duration = Duration::from_millis(500);
 pub const COUNTDOWN: Duration = Duration::from_secs(10);
 
 /// While he keeps time with at least this long left, he may doze off on the
-/// job: one time in `DOZE_ONE_IN`, somewhere between `DOZE_PERCENT` of the way
-/// through what is left.
+/// job: one time in `DOZE_ONE_IN`, or `DOZE_ONE_IN_PLEASED` when he is pleased
+/// with himself, somewhere between `DOZE_PERCENT` of the way through what is left.
 pub const DOZE_MIN_REMAINING: Duration = Duration::from_mins(2);
 pub const DOZE_ONE_IN: u64 = 3;
+pub const DOZE_ONE_IN_PLEASED: u64 = 2;
 const DOZE_PERCENT: (u64, u64) = (30, 70);
 
 /// Side effects for the platform to carry out.
@@ -395,8 +396,12 @@ impl App {
         } else if watching && !self.doze_decided {
             self.doze_decided = true;
             let left = self.timer.remaining(self.now);
-            self.doze_at = (left >= DOZE_MIN_REMAINING
-                && self.rng.range_inclusive(1, DOZE_ONE_IN) == 1)
+            let one_in = if self.wade.mood(self.now) >= MoodLevel::Pleased {
+                DOZE_ONE_IN_PLEASED
+            } else {
+                DOZE_ONE_IN
+            };
+            self.doze_at = (left >= DOZE_MIN_REMAINING && self.rng.range_inclusive(1, one_in) == 1)
                 .then(|| {
                     let percent = self.rng.range_inclusive(DOZE_PERCENT.0, DOZE_PERCENT.1);
                     let ms = u64::try_from(left.as_millis()).unwrap_or(u64::MAX);
