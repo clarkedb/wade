@@ -135,14 +135,14 @@ impl Expression {
             Expression::Neutral => match mood {
                 MoodLevel::Plain => Pose::REST,
                 MoodLevel::Pleased => Pose {
-                    eye_size: (88.0, 88.0),
-                    pupil: 37.0,
+                    lower_lid: 0.1,
+                    pupil: 33.0,
                     ..Pose::REST
                 },
                 MoodLevel::Smug => Pose {
-                    upper_lid: 0.12,
-                    asymmetry: 0.35,
-                    pupil: 37.0,
+                    lower_lid: 0.2,
+                    asymmetry: 0.5,
+                    pupil: 34.0,
                     ..Pose::REST
                 },
             },

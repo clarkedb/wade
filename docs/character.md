@@ -126,8 +126,8 @@ His mood is how pleased with himself he has been lately: points from 0 to 100 th
 | Level | Points | Shows as |
 |---|---|---|
 | Plain | 0–29 | Neutral as drawn |
-| Pleased | 30–69 | Neutral, a touch larger, with wide, warm pupils |
-| Smug | 70–100 | Neutral with lids slightly hooded and the right eye taller: a knowing look. Keeping time, he dozes off one time in two instead of three: pride before the fall. |
+| Pleased | 30–69 | Neutral with a slight smile from below and wider pupils |
+| Smug | 70–100 | Smiling a little more than Pleased, the right eye clearly taller. Keeping time, he dozes off one time in two instead of three: pride before the fall. |
 
 Only Neutral shows his mood. When the level changes while he is Neutral, he eases into the new look over 1 s, without a pop; otherwise the next expression change picks it up. A level change is a scheduled transition, so mood adds no frames while he is still.
 
