@@ -3,7 +3,8 @@
 mod mood;
 mod pose;
 
-pub use mood::{Feeling, MoodLevel};
+pub(crate) use mood::Feeling;
+pub use mood::MoodLevel;
 pub use pose::{Accent, Pose, Prop};
 
 use mood::Mood;
@@ -17,15 +18,8 @@ use crate::time::{Duration, Instant, millis};
 /// behavior's (docs/architecture.md#randomness).
 const MOTION_STREAM: u64 = 0x6D6F_7469_6F6E_5EED;
 
-/// How long Wade stays Happy after a tap on him.
-pub const HAPPY_DURATION: Duration = Duration::from_millis(2_000);
-/// How long Wade stays Surprised after a tap wakes him.
+/// How long Wade stays Surprised after being woken.
 pub const WAKE_DURATION: Duration = Duration::from_millis(1_000);
-/// How long Wade stays Proud after a finished timer is dismissed.
-pub const TIMER_REACTION: Duration = Duration::from_millis(2_000);
-/// How long Wade stays Sleepy after dismissing a timer that woke him.
-/// Then a coin flip decides whether he wakes up or dozes off again.
-pub const GROGGY_DURATION: Duration = Duration::from_millis(3_000);
 /// How long a blink takes, closing and reopening.
 pub const BLINK_DURATION: Duration = Duration::from_millis(120);
 /// A blink shuts fast and reopens slower; together they make `BLINK_DURATION`.
@@ -326,7 +320,6 @@ pub(crate) struct Wade {
     tear_at: Option<Instant>,
     next_twitch: Option<Instant>,
     twitch_at: Option<Instant>,
-    groggy: Groggy,
     /// The countdown is on screen with him, and he keeps an eye on it.
     watching: bool,
     /// What a timed expression returns to when it expires: Neutral, or what
@@ -341,13 +334,13 @@ pub(crate) struct Wade {
     mood_at: Instant,
 }
 
-/// How being woken by the timer's chime plays out.
+/// What follows an expression [`Wade::react`] shows for a time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Groggy {
-    No,
-    /// The timer woke him, so dismissing it leaves him Sleepy
-    /// instead of Proud.
-    Woken,
+pub enum After {
+    /// His resting expression: Neutral, or what the timer has him doing.
+    Rest,
+    /// Asleep.
+    Sleep,
 }
 
 /// A timed expression: when it ends, and what follows.
@@ -397,7 +390,6 @@ impl Wade {
             tear_at: None,
             next_twitch: None,
             twitch_at: None,
-            groggy: Groggy::No,
             watching: false,
             resting: Expression::Neutral,
             mood: Mood::new(now),
@@ -569,18 +561,6 @@ impl Wade {
             || (self.accent().moves() && self.accent_end().is_some_and(|end| now < end))
     }
 
-    /// A tap landed on Wade: Happy for `HAPPY_DURATION`, restarted by another
-    /// tap, or, if asleep, Surprised for `WAKE_DURATION`.
-    /// Returns true if the view may have changed.
-    #[must_use = "a true result means the view must be redrawn"]
-    pub fn on_tap(&mut self, now: Instant) -> bool {
-        if self.wake(now) {
-            return true;
-        }
-        self.set(now, Expression::Happy, Some((HAPPY_DURATION, Then::Rest)));
-        true
-    }
-
     /// If he is asleep, wake him: Surprised for `WAKE_DURATION`.
     /// Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]
@@ -595,29 +575,6 @@ impl Wade {
             Some((WAKE_DURATION, Then::Rest)),
         );
         true
-    }
-
-    /// The timer finished. If he was keeping time, he startles, Surprised, and
-    /// is Proud until it is dismissed, or Flustered if it caught him napping.
-    /// Otherwise, if he was asleep, it wakes him, Sleepy, and he stays groggy
-    /// until the timer is dismissed.
-    pub fn timer_finished(&mut self, now: Instant, watching: bool) {
-        self.now = now;
-        if watching {
-            self.resting = if self.asleep {
-                Expression::Flustered
-            } else {
-                Expression::Proud
-            };
-            self.set(
-                now,
-                Expression::Surprised,
-                Some((WAKE_DURATION, Then::Rest)),
-            );
-        } else if self.asleep {
-            self.set(now, Expression::Sleepy, None);
-            self.groggy = Groggy::Woken;
-        }
     }
 
     /// Whether the countdown is on screen with him, for his glances.
@@ -642,26 +599,22 @@ impl Wade {
         true
     }
 
-    /// A finished timer was dismissed: Proud for `TIMER_REACTION`. If its
-    /// timer woke him, he is Sleepy for `GROGGY_DURATION` instead, and then
-    /// wakes up, or dozes off if `doze_off`.
-    /// Returns true if the view may have changed.
+    /// Show `expression` for `lasts`, waking him if asleep, and then what
+    /// `after` says. Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]
-    pub fn timer_dismissed(&mut self, now: Instant, doze_off: bool) -> bool {
+    pub fn react(
+        &mut self,
+        expression: Expression,
+        lasts: Duration,
+        after: After,
+        now: Instant,
+    ) -> bool {
         self.now = now;
-        self.resting = Expression::Neutral;
-        let (expression, lasts) = if self.groggy() {
-            (Expression::Sleepy, GROGGY_DURATION)
-        } else {
-            (Expression::Proud, TIMER_REACTION)
-        };
-        let then = if self.groggy() && doze_off {
-            Then::Sleep
-        } else {
-            Then::Rest
+        let then = match after {
+            After::Rest => Then::Rest,
+            After::Sleep => Then::Sleep,
         };
         self.set(now, expression, Some((lasts, then)));
-        self.groggy = Groggy::No;
         true
     }
 
@@ -707,14 +660,8 @@ impl Wade {
     #[must_use = "a true result means the view must be redrawn"]
     pub fn feel(&mut self, now: Instant, feeling: Feeling, visible: bool) -> bool {
         self.now = now;
-        self.mood.add(now, feeling.points());
+        self.mood.feel(now, feeling);
         self.show_mood(now, visible)
-    }
-
-    /// The timer's chime woke him, and he stays groggy until it is dismissed.
-    #[must_use]
-    pub fn groggy(&self) -> bool {
-        self.groggy == Groggy::Woken
     }
 
     #[must_use]
@@ -1331,7 +1278,12 @@ mod tests {
     fn a_tap_cuts_a_beat_short() {
         let mut wade = Wade::new(ms(0), 3);
         let _ = wade.play(Beat::Eureka, ms(1_000));
-        let _ = wade.on_tap(ms(1_200));
+        let _ = wade.react(
+            Expression::Happy,
+            Duration::from_secs(2),
+            After::Rest,
+            ms(1_200),
+        );
         run(&mut wade, ms(10_000), |wade, t| {
             assert_ne!(wade.expression(), Expression::Proud, "at {t:?}");
         });
@@ -1349,10 +1301,11 @@ mod tests {
         });
         // A plan to doze off is forgotten when he is shown Sleepy.
         let mut wade = Wade::new(ms(0), 3);
-        wade.set(
-            ms(1_000),
+        let _ = wade.react(
             Expression::Sleepy,
-            Some((GROGGY_DURATION, Then::Sleep)),
+            Duration::from_secs(3),
+            After::Sleep,
+            ms(1_000),
         );
         let _ = wade.show(Expression::Sleepy, ms(1_500));
         run(&mut wade, ms(10_000), |wade, t| {
@@ -1374,7 +1327,7 @@ mod tests {
         let mut wade = Wade::new(ms(0), 3);
         for i in 0..4 {
             let at = ms(1_000 + i * 100);
-            let _ = wade.on_tap(at);
+            let _ = wade.react(Expression::Happy, Duration::from_secs(2), After::Rest, at);
             let _ = wade.feel(at, Feeling::Tap, true);
         }
         assert_eq!(wade.mood(ms(2_000)), MoodLevel::Pleased);

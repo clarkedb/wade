@@ -21,8 +21,7 @@ pub enum Feeling {
 
 impl Feeling {
     /// The points this feeling adds to his mood.
-    #[must_use]
-    pub const fn points(self) -> i32 {
+    const fn points(self) -> i32 {
         match self {
             Feeling::Tap => 8,
             Feeling::Success => 30,
@@ -106,6 +105,11 @@ impl Mood {
         let into_step = millis(now.saturating_since(self.at)) % millis(MOOD_DECAY);
         self.points = points;
         self.at = Instant::from_millis(now.as_millis() - into_step);
+    }
+
+    /// Move the mood at `now` by how `feeling` moves it.
+    pub fn feel(&mut self, now: Instant, feeling: Feeling) {
+        self.add(now, feeling.points());
     }
 
     /// When the mood next falls to a lower level, if it can.

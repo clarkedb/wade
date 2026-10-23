@@ -4,8 +4,9 @@ mod common;
 
 use common::{SEED, apps, back, digit, home, ms, open, tile};
 use embedded_graphics::geometry::Point;
+use wade_core::app::TIMER_REACTION;
 use wade_core::app::{FRAME, STALL_LIMIT, Screen};
-use wade_core::character::{Expression, TIMER_REACTION};
+use wade_core::character::Expression;
 use wade_core::harness::Harness;
 use wade_core::layout::{self, Target, Tile, WADE_CENTER};
 use wade_core::timer::{MIN_SET, TimerButton, TimerPhase};
