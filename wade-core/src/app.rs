@@ -107,8 +107,8 @@ pub struct App {
     doze_at: Option<Instant>,
     /// Whether this run of the timer has decided if he dozes off.
     doze_decided: bool,
-    /// The beat the desktop's B key plays next, as an index into `Beat::ALL`.
-    next_beat: usize,
+    /// The beat the desktop's B key plays next.
+    next_beat: Beat,
 }
 
 impl App {
@@ -134,7 +134,7 @@ impl App {
             save_at: None,
             doze_at: None,
             doze_decided: false,
-            next_beat: 0,
+            next_beat: Beat::Eureka,
         }
     }
 
@@ -313,8 +313,8 @@ impl App {
                 .show(Expression::ALL[usize::from(digit.get())], self.now),
             Key::Z => self.wade.sleep(self.now),
             Key::B => {
-                let beat = Beat::ALL[self.next_beat];
-                self.next_beat = (self.next_beat + 1) % Beat::ALL.len();
+                let beat = self.next_beat;
+                self.next_beat = beat.next();
                 self.wade.play(beat, self.now)
             }
             Key::P => {
