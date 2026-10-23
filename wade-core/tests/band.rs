@@ -7,7 +7,7 @@ use std::time::Duration;
 use common::framebuffer::Framebuffer;
 use embedded_graphics::prelude::*;
 use proptest::prelude::*;
-use wade_core::character::{ASLEEP, Accent, Expression, Pose};
+use wade_core::character::{ASLEEP, Accent, Expression, MoodLevel, Pose};
 use wade_core::harness::Harness;
 use wade_core::layout::{SCREEN_SIZE, Tile};
 use wade_core::render::{self, Band, ROW_BYTES};
@@ -90,7 +90,7 @@ fn every_expression() {
         let pose = Pose {
             accent: expression.accent(),
             accent_phase: 0.5,
-            ..expression.pose()
+            ..expression.pose(MoodLevel::Plain)
         };
         for eye_style in [EyeStyle::Pupils, EyeStyle::Plain] {
             for color in [ColorMode::Color, ColorMode::Mono] {
@@ -109,7 +109,7 @@ fn asleep_and_mid_blink() {
     };
     let blink = Pose {
         eye_open: 0.3,
-        ..Expression::Neutral.pose()
+        ..Expression::Neutral.pose(MoodLevel::Plain)
     };
     for pose in [asleep, blink] {
         assert_every_height(&buddy(pose, EyeStyle::Pupils, ColorMode::Color));
