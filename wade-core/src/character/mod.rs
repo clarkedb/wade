@@ -135,14 +135,14 @@ impl Expression {
             Expression::Neutral => match mood {
                 MoodLevel::Plain => Pose::REST,
                 MoodLevel::Pleased => Pose {
-                    lower_lid: 0.1,
-                    pupil: 33.0,
+                    eye_size: (88.0, 88.0),
+                    pupil: 37.0,
                     ..Pose::REST
                 },
                 MoodLevel::Smug => Pose {
-                    lower_lid: 0.18,
-                    asymmetry: 0.2,
-                    pupil: 34.0,
+                    upper_lid: 0.12,
+                    asymmetry: 0.35,
+                    pupil: 37.0,
                     ..Pose::REST
                 },
             },
@@ -1281,7 +1281,7 @@ mod tests {
         run(&mut wade, ms(5_000), |_, _| {});
         assert_eq!(wade.expression(), Expression::Neutral);
         let smug = Expression::Neutral.pose(MoodLevel::Smug);
-        assert!((wade.base(ms(5_000)).lower_lid - smug.lower_lid).abs() < 1e-6);
+        assert_eq!(wade.base(ms(5_000)), smug);
         run(&mut wade, ms(10 * 60_000), |_, _| {});
         assert_eq!(wade.mood(ms(10 * 60_000)), MoodLevel::Plain);
         assert_eq!(
