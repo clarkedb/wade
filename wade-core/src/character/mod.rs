@@ -226,7 +226,7 @@ impl Expression {
 pub enum Beat {
     /// He works something out: Thinking, then Proud of himself.
     Eureka,
-    /// Pride backfires: Proud, then Flustered.
+    /// Pride backfires: Flustered, then back to rest.
     Hubris,
     /// Poked once too often: a startle, then a huff.
     Huff,
@@ -243,20 +243,18 @@ impl Beat {
         const fn ms(ms: u64) -> Duration {
             Duration::from_millis(ms)
         }
-        // Long enough for the dots to count to three.
+        // Ends as the dots reach three, before they start over.
         const EUREKA: &[(Expression, Duration)] = &[
-            (Expression::Thinking, ms(1_700)),
+            (Expression::Thinking, ms(1_450)),
             (Expression::Proud, ms(1_500)),
         ];
-        const HUBRIS: &[(Expression, Duration)] = &[
-            (Expression::Proud, ms(1_500)),
-            (Expression::Flustered, ms(1_500)),
-        ];
+        const HUBRIS: &[(Expression, Duration)] = &[(Expression::Flustered, ms(1_500))];
         const HUFF: &[(Expression, Duration)] = &[
             (Expression::Surprised, ms(500)),
             (Expression::Angry, ms(1_200)),
         ];
-        const MOPE: &[(Expression, Duration)] = &[(Expression::Sad, ms(3_000))];
+        // Long enough for his first tear to finish falling.
+        const MOPE: &[(Expression, Duration)] = &[(Expression::Sad, ms(4_000))];
         match self {
             Beat::Eureka => EUREKA,
             Beat::Hubris => HUBRIS,
@@ -1191,8 +1189,8 @@ mod tests {
             seen,
             [
                 (ms(1_000), Expression::Thinking),
-                (ms(2_700), Expression::Proud),
-                (ms(4_200), Expression::Neutral),
+                (ms(2_450), Expression::Proud),
+                (ms(3_950), Expression::Neutral),
             ]
         );
     }
@@ -1200,10 +1198,10 @@ mod tests {
     #[test]
     fn a_tap_cuts_a_beat_short() {
         let mut wade = Wade::new(ms(0), 3);
-        let _ = wade.play(Beat::Hubris, ms(1_000));
+        let _ = wade.play(Beat::Eureka, ms(1_000));
         let _ = wade.on_tap(ms(1_200));
         run(&mut wade, ms(10_000), |wade, t| {
-            assert_ne!(wade.expression(), Expression::Flustered, "at {t:?}");
+            assert_ne!(wade.expression(), Expression::Proud, "at {t:?}");
         });
         assert_eq!(wade.expression(), Expression::Neutral);
     }

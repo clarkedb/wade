@@ -106,10 +106,10 @@ A beat is a short scripted reaction: expressions played in order, each held for 
 
 | Beat | Steps | Meant for |
 |---|---|---|
-| Eureka | Thinking 1.7 s, Proud 1.5 s | Working something out |
-| Hubris | Proud 1.5 s, Flustered 1.5 s | Pride backfiring (M4) |
+| Eureka | Thinking 1.45 s, Proud 1.5 s | Working something out |
+| Hubris | Flustered 1.5 s | Pride backfiring: a tap while Proud (M4) |
 | Huff | Surprised 0.5 s, Angry 1.2 s | Being poked once too often |
-| Mope | Sad 3 s | Being let down, such as the timer he keeps being reset |
+| Mope | Sad 4 s | Being let down, such as the timer he keeps being reset |
 
 Asleep is a state, not an expression; the expression is Sleepy. He does not blink, glance, or squint while asleep.
 

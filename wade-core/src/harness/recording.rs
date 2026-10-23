@@ -2,7 +2,7 @@
 //! event with the state hash after it (docs/testing.md#recording-and-replay).
 //!
 //! ```text
-//! wade-events 3
+//! wade-events 4
 //! seed 8127364512
 //! settings 030000030503
 //! 1000 down 160 110 #3f9a1c02
@@ -30,13 +30,16 @@ use crate::time::Instant;
 use super::Harness;
 
 /// The newest header version this code writes. The parser accepts every older one.
-pub const VERSION: u32 = 3;
+pub const VERSION: u32 = 4;
 
 /// The first version whose recordings carry the settings they started with.
 const SETTINGS_SINCE: u32 = 2;
 
 /// The first version whose recordings can press the power button.
 const POWER_BUTTON_SINCE: u32 = 3;
+
+/// The first version whose recordings can press the desktop's B key.
+const KEY_B_SINCE: u32 = 4;
 
 /// Filename suffix for recordings in `wade-core/tests/recordings/`.
 pub const FILE_SUFFIX: &str = ".events.wade";
@@ -331,7 +334,7 @@ impl FromStr for Recording {
                     let key = match name {
                         "z" => Key::Z,
                         "p" => Key::P,
-                        "b" => Key::B,
+                        "b" if version >= KEY_B_SINCE => Key::B,
                         _ => {
                             let digit = name
                                 .parse::<u8>()
@@ -427,7 +430,7 @@ mod tests {
 
     #[test]
     fn parses_and_writes_each_input_kind() {
-        let source = "wade-events 3\nseed 42\nsettings 030101016301\n0 down -1 240 #0123abcd\n0 move 2 3 #89abcdef\n10 up 2 3 #ffffffff\n10 key 9 #00000000\n20 key z #00000001\n30 key p #00000002\n40 power-button #00000003\n";
+        let source = "wade-events 4\nseed 42\nsettings 030101016301\n0 down -1 240 #0123abcd\n0 move 2 3 #89abcdef\n10 up 2 3 #ffffffff\n10 key 9 #00000000\n20 key z #00000001\n30 key p #00000002\n35 key b #00000004\n40 power-button #00000003\n";
         let recording: Recording = source.parse().unwrap();
         assert_eq!(recording.seed, 42);
         assert_eq!(recording.settings.eye_style(), crate::view::EyeStyle::Plain);
@@ -437,7 +440,7 @@ mod tests {
             recording.settings.brightness(),
             crate::settings::Brightness::Half
         );
-        assert_eq!(recording.entries.len(), 7);
+        assert_eq!(recording.entries.len(), 8);
         assert_eq!(recording.to_string(), source);
     }
 
@@ -470,7 +473,7 @@ mod tests {
     fn reports_the_bad_line() {
         for (source, line) in [
             ("", 1),
-            ("wade-events 4\nseed 1\n", 1),
+            ("wade-events 5\nseed 1\n", 1),
             ("wade-events 1\nseed nope\n", 2),
             ("wade-events 2\nseed 1\n", 3),
             ("wade-events 2\nseed 1\nsettings 01000001\n", 3),
@@ -483,6 +486,10 @@ mod tests {
             ("wade-events 1\nseed 1\n0 key 10 #00000000\n", 3),
             (
                 "wade-events 2\nseed 1\nsettings 0100000105\n0 power-button #00000000\n",
+                4,
+            ),
+            (
+                "wade-events 3\nseed 1\nsettings 0100000105\n0 key b #00000000\n",
                 4,
             ),
             (

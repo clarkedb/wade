@@ -114,6 +114,7 @@ pub enum Key {
     Digit(Digit), // 0–9: show that expression
     Z,            // put Wade to sleep
     P,            // switch Wade's eye style
+    B,            // play the next of Wade's beats
 }
 ```
 

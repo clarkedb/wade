@@ -271,3 +271,30 @@ fn wakeups_stay_well_below_the_frame_rate() {
         );
     }
 }
+
+#[test]
+fn b_plays_each_beat_in_turn() {
+    let mut h = Harness::new(SEED);
+    let firsts = [
+        Expression::Thinking,
+        Expression::Flustered,
+        Expression::Surprised,
+        Expression::Sad,
+        Expression::Thinking,
+    ];
+    for (i, first) in (0..).zip(firsts) {
+        h.key(ms(1_000 + i * 100), Key::B);
+        assert_eq!(h.buddy().expression, first, "press {i}");
+    }
+}
+
+#[test]
+fn b_wakes_him_into_the_beat() {
+    let mut h = Harness::new(SEED);
+    h.key(ms(1_000), Key::Z);
+    h.run_until(ms(3_000));
+    assert!(h.buddy().asleep);
+    h.key(ms(3_000), Key::B);
+    assert!(!h.buddy().asleep);
+    assert_eq!(h.buddy().expression, Expression::Thinking);
+}
