@@ -124,15 +124,12 @@ fn buddy_keeping_time() {
 }
 
 #[test]
-fn neutral_in_each_mood() {
-    for mood in [MoodLevel::Pleased, MoodLevel::Smug] {
-        let name = format!("{mood:?}").to_lowercase();
-        face(
-            &format!("pupils_neutral_{name}"),
-            &Expression::Neutral.pose(mood),
-            EyeStyle::Pupils,
-        );
-    }
+fn neutral_when_pleased() {
+    face(
+        "pupils_neutral_pleased",
+        &Expression::Neutral.pose(MoodLevel::Pleased),
+        EyeStyle::Pupils,
+    );
 }
 
 #[test]

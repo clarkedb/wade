@@ -19,7 +19,6 @@ pub enum MoodLevel {
     #[default]
     Plain,
     Pleased,
-    Smug,
 }
 
 impl MoodLevel {
@@ -28,14 +27,11 @@ impl MoodLevel {
         match self {
             MoodLevel::Plain => 0,
             MoodLevel::Pleased => 30,
-            MoodLevel::Smug => 70,
         }
     }
 
     const fn of(points: u32) -> MoodLevel {
-        if points >= MoodLevel::Smug.floor() {
-            MoodLevel::Smug
-        } else if points >= MoodLevel::Pleased.floor() {
+        if points >= MoodLevel::Pleased.floor() {
             MoodLevel::Pleased
         } else {
             MoodLevel::Plain

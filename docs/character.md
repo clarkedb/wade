@@ -126,8 +126,7 @@ His mood is how pleased with himself he has been lately: points from 0 to 100 th
 | Level | Points | Shows as |
 |---|---|---|
 | Plain | 0–29 | Neutral as drawn |
-| Pleased | 30–69 | Neutral with a slight smile from below and wider pupils |
-| Smug | 70–100 | Smiling a little more than Pleased, the right eye clearly taller. Keeping time, he dozes off one time in two instead of three: pride before the fall. |
+| Pleased | 30–100 | Neutral with a slight smile from below and wider pupils. Keeping time, he dozes off one time in two instead of three: pride before the fall. |
 
 Only Neutral shows his mood. When the level changes while he is Neutral, he eases into the new look over 1 s, without a pop; otherwise the next expression change picks it up. A level change is a scheduled transition, so mood adds no frames while he is still.
 
@@ -195,7 +194,7 @@ When the timer runs while the Buddy screen is visible, its countdown shows below
 |---|---|
 | A glance while keeping time | About a third of glances look down at the countdown |
 | The last 10 s | Focused on the countdown until it ends; a tap makes him Happy for 2 s, then he goes back to watching |
-| Keeping time with 2 min or more left, once per run | One time in three (two when [Smug](#mood)), he dozes off somewhere 30 to 70% of the way through what is left |
+| Keeping time with 2 min or more left, once per run | One time in three (two when [Pleased](#mood)), he dozes off somewhere 30 to 70% of the way through what is left |
 | The timer finishing while he keeps time | Surprised for 1 s, then Proud until it is dismissed |
 | The timer finishing while he keeps time asleep | Caught napping: it wakes him Surprised for 1 s, then Flustered until it is dismissed |
 | Dismissing a timer he kept | Proud for 2 s, then Neutral, even if it caught him napping |

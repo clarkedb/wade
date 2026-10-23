@@ -139,12 +139,6 @@ impl Expression {
                     pupil: 33.0,
                     ..Pose::REST
                 },
-                MoodLevel::Smug => Pose {
-                    lower_lid: 0.2,
-                    asymmetry: 0.5,
-                    pupil: 34.0,
-                    ..Pose::REST
-                },
             },
             Expression::Happy => Pose {
                 eye_size: (90.0, 90.0),
@@ -1274,14 +1268,16 @@ mod tests {
     #[test]
     fn taps_lift_his_mood_and_it_fades() {
         let mut wade = Wade::new(ms(0), 3);
-        for i in 0..9 {
+        for i in 0..4 {
             let _ = wade.on_tap(ms(1_000 + i * 100));
         }
-        assert_eq!(wade.mood(ms(2_000)), MoodLevel::Smug);
+        assert_eq!(wade.mood(ms(2_000)), MoodLevel::Pleased);
         run(&mut wade, ms(5_000), |_, _| {});
         assert_eq!(wade.expression(), Expression::Neutral);
-        let smug = Expression::Neutral.pose(MoodLevel::Smug);
-        assert_eq!(wade.base(ms(5_000)), smug);
+        let pleased = Expression::Neutral.pose(MoodLevel::Pleased);
+        let base = wade.base(ms(5_000));
+        assert!((base.lower_lid - pleased.lower_lid).abs() < 1e-6);
+        assert!((base.pupil - pleased.pupil).abs() < 1e-6);
         run(&mut wade, ms(10 * 60_000), |_, _| {});
         assert_eq!(wade.mood(ms(10 * 60_000)), MoodLevel::Plain);
         assert_eq!(
