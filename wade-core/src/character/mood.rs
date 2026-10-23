@@ -17,6 +17,8 @@ pub enum Feeling {
     Success,
     /// The timer he keeps catching him napping on the job.
     Caught,
+    /// Poked by a burst of taps: his mood drops to nothing.
+    Huff,
 }
 
 impl Feeling {
@@ -26,6 +28,8 @@ impl Feeling {
             Feeling::Tap => 8,
             Feeling::Success => 30,
             Feeling::Caught => -40,
+            // More than any mood holds, so it always ends at zero.
+            Feeling::Huff => i32::MIN,
         }
     }
 }

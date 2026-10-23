@@ -610,7 +610,7 @@ fn dozes_after(taps: u64) -> usize {
         .filter(|&seed| {
             let mut h = Harness::new(seed);
             for i in 0..taps {
-                h.tap(ms(100 + i * 100), WADE_CENTER);
+                h.tap(ms(100 + i * 250), WADE_CENTER);
             }
             open(&mut h, ms(1_000), Tile::Timer);
             h.tap(ms(2_000), button(TimerButton::Start));

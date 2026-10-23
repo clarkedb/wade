@@ -4,7 +4,11 @@ mod common;
 
 use common::{OUTSIDE_WADE, SEED, digit, ms};
 use embedded_graphics::geometry::Point;
-use wade_core::app::{FRAME, STALL_LIMIT};
+use std::time::Duration;
+
+use wade_core::app::{
+    FRAME, HUBRIS_ONE_IN, HUFF_POKES, POKE_GAP, PROUD_DURATION, PROUD_TAPS, STALL_LIMIT,
+};
 use wade_core::character::{
     BLINK_DURATION, BLINK_INTERVAL_MAX, BLINK_INTERVAL_MIN, DOUBLE_BLINK_GAP, Expression,
 };
@@ -297,4 +301,127 @@ fn b_wakes_him_into_the_beat() {
     h.key(ms(3_000), Key::B);
     assert!(!h.buddy().asleep);
     assert_eq!(h.buddy().expression, Expression::Thinking);
+}
+
+/// Tap Wade `n` times, `gap` ms apart, from `from` ms.
+fn taps(h: &mut Harness, from: u64, n: u64, gap: u64) {
+    for i in 0..n {
+        h.tap(ms(from + i * gap), WADE_CENTER);
+    }
+}
+
+/// Deliberate taps, slower than pokes.
+const STEADY: u64 = 300;
+/// Pokes, faster than `POKE_GAP`.
+const RAPID: u64 = 100;
+
+#[test]
+fn the_tap_speeds_straddle_the_poke_gap() {
+    assert_eq!(POKE_GAP, Duration::from_millis(200));
+    assert_eq!((PROUD_TAPS, HUFF_POKES), (5, 6));
+}
+
+#[test]
+fn four_steady_taps_keep_him_happy() {
+    let mut h = Harness::new(SEED);
+    taps(&mut h, 1_000, 4, STEADY);
+    assert_eq!(h.buddy().expression, Expression::Happy);
+}
+
+#[test]
+fn a_fifth_steady_tap_makes_him_proud() {
+    let mut h = Harness::new(SEED);
+    assert_eq!(PROUD_DURATION, Duration::from_secs(3));
+    taps(&mut h, 1_000, 5, STEADY);
+    assert_eq!(h.buddy().expression, Expression::Proud);
+    h.run_until(ms(5_199));
+    assert_eq!(h.buddy().expression, Expression::Proud);
+    h.run_until(ms(5_200));
+    assert_eq!(h.buddy().expression, Expression::Neutral);
+}
+
+#[test]
+fn taps_spread_out_never_make_him_proud() {
+    let mut h = Harness::new(SEED);
+    for i in 0..10 {
+        h.tap(ms(1_000 + i * 1_100), WADE_CENTER);
+        assert_eq!(h.buddy().expression, Expression::Happy, "tap {i}");
+    }
+}
+
+#[test]
+fn a_steady_burst_keeps_him_proud_and_never_backfires() {
+    for seed in 0..40 {
+        let mut h = Harness::new(seed);
+        taps(&mut h, 1_000, 7, STEADY);
+        assert_eq!(h.buddy().expression, Expression::Proud, "seed {seed}");
+    }
+}
+
+#[test]
+fn poking_goes_straight_from_happy_to_a_huff() {
+    let mut h = Harness::new(SEED);
+    let mut seen = Vec::new();
+    for i in 0..7 {
+        h.tap(ms(1_000 + i * RAPID), WADE_CENTER);
+        seen.push(h.buddy().expression);
+    }
+    let mut expected = [Expression::Happy; 7];
+    expected[6] = Expression::Surprised;
+    assert_eq!(seen, expected);
+    h.run_until(ms(2_200));
+    assert_eq!(h.buddy().expression, Expression::Angry);
+}
+
+#[test]
+fn a_huff_ignores_taps_and_sours_his_mood() {
+    let mut h = Harness::new(SEED);
+    // Four steady taps leave him Pleased.
+    taps(&mut h, 1_000, 4, STEADY);
+    h.run_until(ms(6_000));
+    assert!(h.buddy().pose.lower_lid > 0.05, "not Pleased");
+    taps(&mut h, 6_000, 7, RAPID);
+    h.run_until(ms(7_200));
+    assert_eq!(h.buddy().expression, Expression::Angry);
+    // A steady tap during the huff gets no reaction.
+    h.tap(ms(7_300), WADE_CENTER);
+    assert_eq!(h.buddy().expression, Expression::Angry);
+    h.run_until(ms(10_000));
+    assert_eq!(h.buddy().expression, Expression::Neutral);
+    assert!(h.buddy().pose.lower_lid.abs() < 1e-6, "still Pleased");
+}
+
+#[test]
+fn endless_poking_keeps_him_huffing_until_it_stops() {
+    let mut h = Harness::new(SEED);
+    let mut angry = 0;
+    for i in 0..100 {
+        h.tap(ms(1_000 + i * RAPID), WADE_CENTER);
+        assert_ne!(h.buddy().expression, Expression::Proud, "tap {i}");
+        angry += usize::from(h.buddy().expression == Expression::Angry);
+    }
+    assert!(angry > 60, "angry for only {angry} of 100 taps");
+    h.run_until(ms(14_000));
+    assert_eq!(h.buddy().expression, Expression::Neutral);
+}
+
+#[test]
+fn a_fresh_tap_while_proud_sometimes_backfires() {
+    let (mut backfired, mut restarted) = (0, 0);
+    for seed in 0..200 {
+        let mut h = Harness::new(seed);
+        taps(&mut h, 1_000, 5, STEADY);
+        // More than a burst window after the last tap, while still Proud.
+        h.tap(ms(4_300), WADE_CENTER);
+        match h.buddy().expression {
+            Expression::Flustered => backfired += 1,
+            Expression::Proud => restarted += 1,
+            other => panic!("seed {seed}: {other:?}"),
+        }
+    }
+    assert_eq!(HUBRIS_ONE_IN, 4);
+    assert!(
+        (30..=70).contains(&backfired) && backfired + restarted == 200,
+        "{backfired} backfired and {restarted} restarted Proud, of 200"
+    );
 }
