@@ -125,11 +125,13 @@ fn buddy_keeping_time() {
 
 #[test]
 fn neutral_when_pleased() {
-    face(
-        "pupils_neutral_pleased",
-        &Expression::Neutral.pose(MoodLevel::Pleased),
-        EyeStyle::Pupils,
-    );
+    for (eye_style, prefix) in STYLES {
+        face(
+            &format!("{prefix}_neutral_pleased"),
+            &Expression::Neutral.pose(MoodLevel::Pleased),
+            eye_style,
+        );
+    }
 }
 
 #[test]

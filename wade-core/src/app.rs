@@ -396,7 +396,7 @@ impl App {
         } else if watching && !self.doze_decided {
             self.doze_decided = true;
             let left = self.timer.remaining(self.now);
-            let one_in = if self.wade.mood(self.now) == MoodLevel::Pleased {
+            let one_in = if self.wade.mood(self.now) >= MoodLevel::Pleased {
                 DOZE_ONE_IN_PLEASED
             } else {
                 DOZE_ONE_IN

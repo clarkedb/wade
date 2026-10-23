@@ -121,14 +121,14 @@ His mood is how pleased with himself he has been lately: points from 0 to 100 th
 |---|---|
 | A tap on him while awake | +8 |
 | Dismissing a finished timer he takes credit for (Proud) | +30 |
-| The timer catching him napping while he keeps time | −40 |
+| The timer catching him napping while he keeps time | −40, and dismissing it earns nothing |
 
 | Level | Points | Shows as |
 |---|---|---|
 | Plain | 0–29 | Neutral as drawn |
 | Pleased | 30–100 | Neutral with a slight smile from below and wider pupils. Keeping time, he dozes off one time in two instead of three: pride before the fall. |
 
-Only Neutral shows his mood. When the level changes while he is Neutral, he eases into the new look over 1 s, without a pop; otherwise the next expression change picks it up. A level change is a scheduled transition, so mood adds no frames while he is still.
+Only Neutral shows his mood. When the level changes while he is Neutral and on screen, he eases into the new look over 1 s, alongside any expression change still under way; otherwise the new look applies at once. A level change is a scheduled transition, so mood adds no frames while he is still.
 
 ## Animation
 
@@ -136,7 +136,7 @@ The rendered pose is built in layers, applied in this order, each computed from 
 
 | Layer | Behavior |
 |---|---|
-| Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out: 300 ms as the eyes open at startup, 1 s into sleep. |
+| Base expression | When the expression changes, the pose moves from its current value to the new target over 200 ms with ease-in-out: 300 ms as the eyes open at startup, 1 s into sleep. A change of mood eases Neutral over 1 s ([Mood](#mood)). |
 | Pop | On an expression change, the eyes jump 12% taller (30% into Surprised) and ease back over 400 ms. |
 | Squint | In Neutral, every 8 to 16 s, the eyes narrow by 40% and relax over 400 ms. |
 | Twitch | Asleep, 5 to 9 s after he falls asleep and then every 6 to 12 s, the eyes flicker open slightly for 300 ms, too little to show his pupils. |

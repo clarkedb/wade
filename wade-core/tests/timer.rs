@@ -604,6 +604,37 @@ fn wade_sometimes_dozes_off_on_the_job_and_is_flustered_when_caught() {
     );
 }
 
+/// How many of 60 seeds doze off keeping a 5:00 timer, after `taps` on Wade.
+fn dozes_after(taps: u64) -> usize {
+    (0..60)
+        .filter(|&seed| {
+            let mut h = Harness::new(seed);
+            for i in 0..taps {
+                h.tap(ms(100 + i * 100), WADE_CENTER);
+            }
+            open(&mut h, ms(1_000), Tile::Timer);
+            h.tap(ms(2_000), button(TimerButton::Start));
+            h.tap(ms(3_000), button(TimerButton::Watch));
+            let mut slept = false;
+            while let Some(d) = h.app.next_deadline().filter(|&d| d < ms(302_000)) {
+                h.handle(Event::deadline(d));
+                slept |= h.buddy().asleep;
+            }
+            slept
+        })
+        .count()
+}
+
+#[test]
+fn a_pleased_wade_dozes_off_more_often() {
+    // Four taps leave him Pleased when he starts keeping time.
+    let (plain, pleased) = (dozes_after(0), dozes_after(4));
+    assert!(
+        pleased > plain && pleased >= 24,
+        "{plain} dozed off Plain and {pleased} Pleased, of 60"
+    );
+}
+
 #[test]
 fn wade_never_dozes_off_on_a_short_timer() {
     for seed in 0..40 {
