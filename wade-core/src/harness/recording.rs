@@ -172,6 +172,7 @@ impl fmt::Display for Entry {
                 Key::Digit(digit) => write!(f, "key {}", digit.get())?,
                 Key::Z => f.write_str("key z")?,
                 Key::P => f.write_str("key p")?,
+                Key::B => f.write_str("key b")?,
             },
             Input::PowerButton => f.write_str("power-button")?,
         }
@@ -330,6 +331,7 @@ impl FromStr for Recording {
                     let key = match name {
                         "z" => Key::Z,
                         "p" => Key::P,
+                        "b" => Key::B,
                         _ => {
                             let digit = name
                                 .parse::<u8>()

@@ -171,7 +171,7 @@ fn input() -> impl Strategy<Value = Input> {
     prop_oneof![
         3 => prop::sample::select(targets).prop_map(Input::Tap),
         1 => (0i32..320, 0i32..240).prop_map(|(x, y)| Input::Tap(Point::new(x, y))),
-        1 => prop_oneof![(0u8..10).prop_map(common::digit), Just(Key::Z), Just(Key::P)]
+        1 => prop_oneof![(0u8..10).prop_map(common::digit), Just(Key::Z), Just(Key::P), Just(Key::B)]
             .prop_map(Input::Key),
     ]
 }
