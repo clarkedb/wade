@@ -1,6 +1,6 @@
 //! `App`: the core's entry point. Owns all state and routes events to features.
 
-use crate::character::{Expression, Wade};
+use crate::character::{Beat, Expression, Wade};
 use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
 use crate::info::BuildInfo;
 use crate::input::TouchTracker;
@@ -106,6 +106,8 @@ pub struct App {
     doze_at: Option<Instant>,
     /// Whether this run of the timer has decided if he dozes off.
     doze_decided: bool,
+    /// The beat the desktop's B key plays next, as an index into `Beat::ALL`.
+    next_beat: usize,
 }
 
 impl App {
@@ -131,6 +133,7 @@ impl App {
             save_at: None,
             doze_at: None,
             doze_decided: false,
+            next_beat: 0,
         }
     }
 
@@ -308,6 +311,11 @@ impl App {
                 .wade
                 .show(Expression::ALL[usize::from(digit.get())], self.now),
             Key::Z => self.wade.sleep(self.now),
+            Key::B => {
+                let beat = Beat::ALL[self.next_beat];
+                self.next_beat = (self.next_beat + 1) % Beat::ALL.len();
+                self.wade.play(beat, self.now)
+            }
             Key::P => {
                 self.change_settings(self.settings.toggled(SettingsButton::EyeStyle));
                 true

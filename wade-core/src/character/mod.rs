@@ -220,6 +220,50 @@ impl Expression {
     }
 }
 
+/// A short scripted reaction: expressions played in order, each held for its
+/// time, then back to what he rests in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Beat {
+    /// He works something out: Thinking, then Proud of himself.
+    Eureka,
+    /// Pride backfires: Flustered, then back to rest.
+    Hubris,
+    /// Poked once too often: a startle, then a huff.
+    Huff,
+    /// Let down: Sad long enough for a tear.
+    Mope,
+}
+
+impl Beat {
+    pub const ALL: [Beat; 4] = [Beat::Eureka, Beat::Hubris, Beat::Huff, Beat::Mope];
+
+    /// Each expression in order and how long it holds.
+    #[must_use]
+    pub const fn steps(self) -> &'static [(Expression, Duration)] {
+        const fn ms(ms: u64) -> Duration {
+            Duration::from_millis(ms)
+        }
+        // Ends as the dots reach three, before they start over.
+        const EUREKA: &[(Expression, Duration)] = &[
+            (Expression::Thinking, ms(1_450)),
+            (Expression::Proud, ms(1_500)),
+        ];
+        const HUBRIS: &[(Expression, Duration)] = &[(Expression::Flustered, ms(1_500))];
+        const HUFF: &[(Expression, Duration)] = &[
+            (Expression::Surprised, ms(500)),
+            (Expression::Angry, ms(1_200)),
+        ];
+        // Long enough for his first tear to finish falling.
+        const MOPE: &[(Expression, Duration)] = &[(Expression::Sad, ms(4_000))];
+        match self {
+            Beat::Eureka => EUREKA,
+            Beat::Hubris => HUBRIS,
+            Beat::Huff => HUFF,
+            Beat::Mope => MOPE,
+        }
+    }
+}
+
 /// Asleep: the eyes shut to thin lines.
 pub const ASLEEP: Pose = Pose {
     eye_size: (75.0, 8.0),
@@ -269,6 +313,8 @@ pub(crate) struct Wade {
     /// What a timed expression returns to when it expires: Neutral, or what
     /// the timer has him doing.
     resting: Expression,
+    /// The steps of a beat still to play after the current timed expression.
+    beat: &'static [(Expression, Duration)],
 }
 
 /// How being woken by the timer's chime plays out.
@@ -315,6 +361,7 @@ impl Wade {
             groggy: Groggy::No,
             watching: false,
             resting: Expression::Neutral,
+            beat: &[],
         };
         wade.schedule_idle(now);
         wade
@@ -440,7 +487,7 @@ impl Wade {
     /// applies and the idle schedule restarts from `now`. Every motion is a
     /// function of elapsed time with a fixed end, so all have long finished.
     pub fn fast_forward(&mut self, now: Instant) {
-        if let Some(t) = self.expires_at.filter(|&t| t <= now) {
+        while let Some(t) = self.expires_at.filter(|&t| t <= now) {
             self.expire(t);
         }
         self.now = now;
@@ -486,6 +533,7 @@ impl Wade {
         if self.expression != Expression::Happy {
             self.change(now, Expression::Happy);
         }
+        self.beat = &[];
         self.expires_at = Some(now + HAPPY_DURATION);
         true
     }
@@ -562,6 +610,7 @@ impl Wade {
         if self.asleep || expression != self.expression {
             self.change(now, expression);
         }
+        self.beat = &[];
         self.expires_at = Some(now + lasts);
         self.groggy = if groggy && behavior.range_inclusive(1, 2) == 1 {
             Groggy::DozingOff
@@ -580,7 +629,18 @@ impl Wade {
             self.change(now, expression);
         }
         self.expires_at = None;
+        self.beat = &[];
         self.stay_awake();
+        true
+    }
+
+    /// Play `beat` from its first step, waking him if asleep. Something else
+    /// that changes his expression cuts it short.
+    /// Returns true if the view may have changed.
+    #[must_use = "a true result means the view must be redrawn"]
+    pub fn play(&mut self, beat: Beat, now: Instant) -> bool {
+        self.now = now;
+        self.step(now, beat.steps());
         true
     }
 
@@ -644,10 +704,25 @@ impl Wade {
         self.next_squint = now + random(rng, SQUINT_INTERVAL_MIN, SQUINT_INTERVAL_MAX);
     }
 
-    /// A timed expression ends at `at`: back to Neutral, or back to sleep.
+    /// Move to the first of `steps` for its time, leaving the rest to follow.
+    fn step(&mut self, now: Instant, steps: &'static [(Expression, Duration)]) {
+        let Some((&(expression, lasts), rest)) = steps.split_first() else {
+            return;
+        };
+        if self.asleep || expression != self.expression {
+            self.change(now, expression);
+        }
+        self.beat = rest;
+        self.expires_at = Some(now + lasts);
+    }
+
+    /// A timed expression ends at `at`: on to the beat's next step, back to
+    /// Neutral, or back to sleep.
     fn expire(&mut self, at: Instant) {
         self.expires_at = None;
-        if self.groggy == Groggy::DozingOff {
+        if !self.beat.is_empty() {
+            self.step(at, self.beat);
+        } else if self.groggy == Groggy::DozingOff {
             self.fall_asleep(at);
         } else {
             self.change(at, self.resting);
@@ -667,6 +742,7 @@ impl Wade {
         self.from = self.base(now);
         self.changed_at = now;
         self.stay_awake();
+        self.beat = &[];
         self.tear_at = None;
         self.next_tear = None;
         self.twitch_at = None;
@@ -1094,6 +1170,49 @@ mod tests {
         assert_eq!(wade.pose(later).accent, Accent::None, "the \"!\" came back");
         assert!(!wade.animating(later), "moving right after a fast-forward");
         assert!(wade.next_transition(true).is_some_and(|t| t > later));
+    }
+
+    #[test]
+    fn a_beat_plays_each_step_then_rests() {
+        let mut wade = Wade::new(ms(0), 3);
+        let _ = wade.play(Beat::Eureka, ms(1_000));
+        let mut seen = [(ms(1_000), wade.expression()); 3];
+        let mut count = 1;
+        run(&mut wade, ms(10_000), |wade, t| {
+            if seen[count - 1].1 != wade.expression() {
+                seen[count] = (t, wade.expression());
+                count += 1;
+            }
+        });
+        assert_eq!(count, 3);
+        assert_eq!(
+            seen,
+            [
+                (ms(1_000), Expression::Thinking),
+                (ms(2_450), Expression::Proud),
+                (ms(3_950), Expression::Neutral),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_tap_cuts_a_beat_short() {
+        let mut wade = Wade::new(ms(0), 3);
+        let _ = wade.play(Beat::Eureka, ms(1_000));
+        let _ = wade.on_tap(ms(1_200));
+        run(&mut wade, ms(10_000), |wade, t| {
+            assert_ne!(wade.expression(), Expression::Proud, "at {t:?}");
+        });
+        assert_eq!(wade.expression(), Expression::Neutral);
+    }
+
+    #[test]
+    fn fast_forward_finishes_a_beat() {
+        let mut wade = Wade::new(ms(0), 3);
+        let _ = wade.play(Beat::Huff, ms(1_000));
+        wade.fast_forward(ms(60_000));
+        assert_eq!(wade.expression(), Expression::Neutral);
+        assert_eq!(wade.expires_at, None);
     }
 
     #[test]

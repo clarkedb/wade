@@ -492,6 +492,29 @@ fn wade_is_intent_on_the_last_seconds() {
 }
 
 #[test]
+fn a_beat_in_the_last_seconds_ends_back_on_the_countdown() {
+    let mut h = one_minute_timer_with_wade();
+    let countdown = before(ENDS_AT, 10_000);
+    h.run_until(after(countdown, 500));
+    h.key(after(countdown, 1_000), Key::B);
+    assert_eq!(h.buddy().expression, Expression::Thinking);
+    h.run_until(after(countdown, 6_000));
+    assert_eq!(h.buddy().expression, Expression::Focused);
+}
+
+#[test]
+fn the_timer_finishing_cuts_a_beat_short() {
+    let mut h = one_minute_timer_with_wade();
+    h.run_until(before(ENDS_AT, 500));
+    h.key(before(ENDS_AT, 500), Key::B);
+    assert_eq!(h.buddy().expression, Expression::Thinking);
+    h.run_until(ENDS_AT);
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+    h.run_until(after(ENDS_AT, 10_000));
+    assert_eq!(h.buddy().expression, Expression::Proud);
+}
+
+#[test]
 fn pausing_ends_his_watch() {
     let mut h = one_minute_timer_with_wade();
     let countdown = before(ENDS_AT, 10_000);

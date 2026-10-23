@@ -117,7 +117,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     eprintln!("seed {seed}");
     if recording.is_none() {
         eprintln!(
-            "keys: 0–9 show an expression, z sleeps, p toggles pupils, space presses the power button; click Wade to tap him or the bottom-right corner to open the Launcher"
+            "keys: 0–9 show an expression, z sleeps, p toggles pupils, b plays a beat, space presses the power button; click Wade to tap him or the bottom-right corner to open the Launcher"
         );
     }
 
@@ -435,6 +435,7 @@ fn key(keycode: Keycode) -> Option<Key> {
     let n = match keycode {
         Keycode::Z => return Some(Key::Z),
         Keycode::P => return Some(Key::P),
+        Keycode::B => return Some(Key::B),
         Keycode::NUM_0 => 0,
         Keycode::NUM_1 => 1,
         Keycode::NUM_2 => 2,
@@ -539,6 +540,7 @@ mod tests {
             (Keycode::NUM_9, Key::Digit(Digit::new(9).unwrap())),
             (Keycode::Z, Key::Z),
             (Keycode::P, Key::P),
+            (Keycode::B, Key::B),
         ] {
             assert_eq!(
                 input_event(press(keycode, false), at, &mut mouse_down),

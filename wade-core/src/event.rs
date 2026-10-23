@@ -33,6 +33,8 @@ pub enum Key {
     Z,
     /// P switches between eyes with pupils and plain eyes.
     P,
+    /// B plays the next of Wade's beats, in turn.
+    B,
 }
 
 /// A number key, 0–9.

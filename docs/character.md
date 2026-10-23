@@ -102,6 +102,15 @@ An expression is a named target pose, numbered for the desktop keys (see [platfo
 
 His pupils widen visibly when he is tapped. An expression that sets gaze holds it: glances pause until the expression ends. An expression's accent starts when the transition into it finishes, so it never appears on a half-formed face.
 
+A beat is a short scripted reaction: expressions played in order, each held for its time, then back to what he rests in. Anything else that changes his expression, such as a tap, cuts it short. None has a trigger yet; the desktop's B key plays each in turn.
+
+| Beat | Steps | Meant for |
+|---|---|---|
+| Eureka | Thinking 1.45 s, Proud 1.5 s | Working something out |
+| Hubris | Flustered 1.5 s | Pride backfiring: a tap while Proud (M4) |
+| Huff | Surprised 0.5 s, Angry 1.2 s | Being poked once too often |
+| Mope | Sad 4 s | Being let down, such as the timer he keeps being reset |
+
 Asleep is a state, not an expression; the expression is Sleepy. He does not blink, glance, or squint while asleep.
 
 ## Animation
@@ -150,6 +159,7 @@ Idle activities (M4):
 | Desktop number key 0–9 | That expression, held until a tap or another key changes it |
 | Desktop Z | Asleep, until a tap or a number key |
 | Desktop P | Switch the eye style setting between pupils and plain |
+| Desktop B | Play the next beat, in turn |
 
 ### M2 adds
 
