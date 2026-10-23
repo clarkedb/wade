@@ -108,7 +108,7 @@ A beat is a short scripted reaction: expressions played in order, each held for 
 |---|---|---|
 | Eureka | Thinking 1.45 s, Proud 1.5 s | Working something out |
 | Hubris | Flustered 1.5 s | Pride backfiring: a tap while Proud (M4) |
-| Huff | Surprised 0.5 s, Angry 1.2 s | Being poked once too often |
+| Huff | Surprised 0.5 s, Angry 1.2 s | A burst of taps: being poked rather than admired (M4) |
 | Mope | Sad 4 s | Being let down, such as the timer he keeps being reset |
 
 Asleep is a state, not an expression; the expression is Sleepy. He does not blink, glance, or squint while asleep.
@@ -213,12 +213,15 @@ The CoreS3's power button and the CYD's BOOT button put Wade to bed or get him u
 
 ### M4 (proposed; finalized at the start of M4)
 
+Taps on Wade form a ladder, counted over the last 2 s: Happy, Proud from the third, and a huff from the sixth. A fourth or fifth tap in a burst keeps the burst going and restarts Proud; only a tap while Proud that starts a new burst can roll the hubris beat.
+
 | Trigger | Result |
 |---|---|
 | 20 to 60 s without a touch on any screen, at random, while the Buddy screen is visible | Start a random idle activity |
 | Tap during an activity | The activity stops; Happy |
-| Three or more taps on Wade within 2 s | Proud for 3 s |
-| Tap on Wade while Proud | One time in four, the hubris beat: Flustered for 1.5 s, then Neutral. Otherwise Proud restarts. |
+| Three to five taps on Wade within 2 s | Proud for 3 s |
+| Tap on Wade while Proud, not part of a burst | One time in four, the hubris beat: Flustered for 1.5 s, then Neutral. Otherwise Proud restarts. |
+| Six or more taps on Wade within 2 s | Huff: attention has turned to poking. His mood drops to Plain, so he never comes out of a huff content. Taps during it are ignored, so he cannot be kept angry. |
 | Touch anywhere on the Buddy screen | Gaze moves toward the touch point for 1 s |
 
 ### M6 adds
