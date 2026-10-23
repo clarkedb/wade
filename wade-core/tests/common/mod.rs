@@ -7,8 +7,9 @@ pub mod framebuffer;
 use std::time::Duration;
 
 use embedded_graphics::geometry::Point;
+use wade_core::app::POKE_GAP;
 use wade_core::harness::Harness;
-use wade_core::layout::{self, SettingsTile, Tile};
+use wade_core::layout::{self, SettingsTile, Tile, WADE_CENTER};
 use wade_core::settings::{Brightness, SettingsButton, Volume};
 use wade_core::timer::TimerButton;
 use wade_core::view::{ColorMode, EyeStyle};
@@ -19,6 +20,23 @@ pub const SEED: u64 = 0x5EED_F00D;
 
 pub fn ms(ms: u64) -> Instant {
     Instant::from_millis(ms)
+}
+
+/// A gap between taps on Wade that makes them deliberate, and one that makes
+/// them pokes (docs/character.md#taps-on-wade).
+pub const STEADY: Duration = Duration::from_millis(300);
+pub const RAPID: Duration = Duration::from_millis(100);
+const _: () =
+    assert!(RAPID.as_millis() < POKE_GAP.as_millis() && POKE_GAP.as_millis() <= STEADY.as_millis());
+
+/// Tap Wade `n` times, `gap` apart, from `from`. Returns the last tap's time.
+pub fn tap_wade(h: &mut Harness, from: Instant, n: u32, gap: Duration) -> Instant {
+    let mut at = from;
+    for i in 0..n {
+        at = from + gap * i;
+        h.tap(at, WADE_CENTER);
+    }
+    at
 }
 
 /// A point on the Buddy screen well away from Wade and the apps button.

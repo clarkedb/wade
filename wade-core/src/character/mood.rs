@@ -21,19 +21,6 @@ pub enum Feeling {
     Huff,
 }
 
-impl Feeling {
-    /// The points this feeling adds to his mood.
-    const fn points(self) -> i32 {
-        match self {
-            Feeling::Tap => 8,
-            Feeling::Success => 30,
-            Feeling::Caught => -40,
-            // More than any mood holds, so it always ends at zero.
-            Feeling::Huff => i32::MIN,
-        }
-    }
-}
-
 /// His mood in bands, from what its points are.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum MoodLevel {
@@ -113,7 +100,16 @@ impl Mood {
 
     /// Move the mood at `now` by how `feeling` moves it.
     pub fn feel(&mut self, now: Instant, feeling: Feeling) {
-        self.add(now, feeling.points());
+        let points = match feeling {
+            Feeling::Tap => 8,
+            Feeling::Success => 30,
+            Feeling::Caught => -40,
+            Feeling::Huff => {
+                *self = Mood::new(now);
+                return;
+            }
+        };
+        self.add(now, points);
     }
 
     /// When the mood next falls to a lower level, if it can.
@@ -162,10 +158,10 @@ mod tests {
     #[test]
     fn points_stay_in_range() {
         let mut mood = Mood::new(ms(0));
-        mood.add(ms(0), Feeling::Caught.points());
+        mood.feel(ms(0), Feeling::Caught);
         assert_eq!(mood.points(ms(0)), 0);
         for _ in 0..10 {
-            mood.add(ms(0), Feeling::Success.points());
+            mood.feel(ms(0), Feeling::Success);
         }
         assert_eq!(mood.points(ms(0)), MOOD_MAX);
     }

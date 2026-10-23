@@ -4,7 +4,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{SEED, back, button, home, ms, open};
+use common::{RAPID, SEED, STEADY, back, button, home, ms, open, tap_wade};
 use embedded_graphics::geometry::Point;
 use wade_core::app::{
     COUNTDOWN, GROGGY_DURATION, HAPPY_DURATION, Screen, TIMER_REACTION, TOUCH_GUARD,
@@ -503,6 +503,29 @@ fn a_beat_in_the_last_seconds_ends_back_on_the_countdown() {
 }
 
 #[test]
+fn proud_from_taps_in_the_last_seconds_ends_back_on_the_countdown() {
+    let mut h = one_minute_timer_with_wade();
+    let countdown = before(ENDS_AT, 10_000);
+    h.run_until(after(countdown, 500));
+    let last = tap_wade(&mut h, after(countdown, 1_000), 5, STEADY);
+    assert_eq!(h.buddy().expression, Expression::Proud);
+    h.run_until(last + Duration::from_secs(3));
+    assert_eq!(h.buddy().expression, Expression::Focused);
+}
+
+#[test]
+fn the_timer_finishing_cuts_a_huff_short() {
+    let mut h = one_minute_timer_with_wade();
+    h.run_until(before(ENDS_AT, 1_000));
+    tap_wade(&mut h, before(ENDS_AT, 1_000), 7, RAPID);
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+    h.run_until(ENDS_AT);
+    assert_eq!(h.buddy().expression, Expression::Surprised);
+    h.run_until(ENDS_AT + WAKE_DURATION);
+    assert_eq!(h.buddy().expression, Expression::Proud);
+}
+
+#[test]
 fn the_timer_finishing_cuts_a_beat_short() {
     let mut h = one_minute_timer_with_wade();
     h.run_until(before(ENDS_AT, 500));
@@ -605,13 +628,11 @@ fn wade_sometimes_dozes_off_on_the_job_and_is_flustered_when_caught() {
 }
 
 /// How many of 60 seeds doze off keeping a 5:00 timer, after `taps` on Wade.
-fn dozes_after(taps: u64) -> usize {
+fn dozes_after(taps: u32) -> usize {
     (0..60)
         .filter(|&seed| {
             let mut h = Harness::new(seed);
-            for i in 0..taps {
-                h.tap(ms(100 + i * 250), WADE_CENTER);
-            }
+            tap_wade(&mut h, ms(50), taps, STEADY);
             open(&mut h, ms(1_000), Tile::Timer);
             h.tap(ms(2_000), button(TimerButton::Start));
             h.tap(ms(3_000), button(TimerButton::Watch));

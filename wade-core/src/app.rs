@@ -55,10 +55,12 @@ const DOZE_PERCENT: (u64, u64) = (30, 70);
 pub const POKE_GAP: Duration = Duration::from_millis(200);
 /// This many pokes in a row make him huff.
 pub const HUFF_POKES: u8 = 6;
-/// Deliberate taps within this long of each other form a burst.
+/// A deliberate tap's burst counts the deliberate taps in this long up to it,
+/// itself included.
 pub const BURST_WINDOW: Duration = Duration::from_secs(2);
-/// From this deliberate tap in a burst he is Proud, for `PROUD_DURATION`.
+/// From this deliberate tap in a burst he is Proud.
 pub const PROUD_TAPS: usize = 5;
+/// How long Wade stays Proud after a tap makes him so.
 pub const PROUD_DURATION: Duration = Duration::from_secs(3);
 /// A tap while Proud that starts a new burst backfires one time in this many.
 pub const HUBRIS_ONE_IN: u64 = 4;
@@ -160,16 +162,11 @@ enum Tap {
 }
 
 impl Taps {
+    /// Record a tap that climbs the ladder at `now`.
     fn record(&mut self, now: Instant) -> Tap {
-        let poke = self
-            .last
-            .is_some_and(|t| now.saturating_since(t) < POKE_GAP);
-        self.last = Some(now);
-        if poke {
-            self.pokes = self.pokes.saturating_add(1);
-            return Tap::Poke { run: self.pokes };
+        if let Some(run) = self.note(now) {
+            return Tap::Poke { run };
         }
-        self.pokes = 0;
         self.deliberate[self.next] = Some(now);
         self.next = (self.next + 1) % PROUD_TAPS;
         let burst = self
@@ -179,6 +176,22 @@ impl Taps {
             .filter(|&&t| now.saturating_since(t) < BURST_WINDOW)
             .count();
         Tap::Deliberate { burst }
+    }
+
+    /// Note a tap at `now` for its speed alone, so it keeps a run of pokes
+    /// going or ends one but joins no burst. Returns the run if it is a poke.
+    fn note(&mut self, now: Instant) -> Option<u8> {
+        let poke = self
+            .last
+            .is_some_and(|t| now.saturating_since(t) < POKE_GAP);
+        self.last = Some(now);
+        if poke {
+            self.pokes = self.pokes.saturating_add(1);
+            Some(self.pokes)
+        } else {
+            self.pokes = 0;
+            None
+        }
     }
 }
 
@@ -297,7 +310,12 @@ impl App {
         match tap {
             // A finished timer on Buddy is dismissed by a tap on Wade or on
             // the countdown.
-            Some(Target::Wade | Target::Clock) if self.timer.phase() == TimerPhase::Done => {
+            Some(target @ (Target::Wade | Target::Clock))
+                if self.timer.phase() == TimerPhase::Done =>
+            {
+                if target == Target::Wade {
+                    self.taps.note(self.now);
+                }
                 self.dismiss(out);
             }
             Some(Target::Wade) => self.tap_wade(out),
@@ -365,46 +383,47 @@ impl App {
     }
 
     /// A tap on Wade. It wakes him if he is asleep. Awake, deliberate taps
-    /// climb a ladder: Happy, then Proud from `PROUD_TAPS` in a burst, and a
-    /// tap while Proud that starts a new burst may backfire. Pokes get no
-    /// reaction until `HUFF_POKES` in a row make him huff. Taps during a huff
-    /// get no reaction either, but pokes still count, so poking that keeps
-    /// going huffs again as soon as the huff ends.
+    /// climb a ladder: Happy, then Proud from `PROUD_TAPS` in a burst. A
+    /// deliberate tap while Proud keeps him Proud, unless it starts a new
+    /// burst, when it may backfire. Pokes get no reaction until `HUFF_POKES`
+    /// in a row make him huff. Taps during a huff, and taps that wake him,
+    /// only keep or end a run of pokes, so poking that keeps going huffs
+    /// again as soon as a huff ends.
     fn tap_wade(&mut self, out: &mut Output) {
         let now = self.now;
         if self.wade.asleep() {
+            self.taps.note(now);
             out.redraw |= self.wade.wake(now);
             return;
         }
-        let tap = self.taps.record(now);
         if self.wade.playing() == Some(Beat::Huff) {
+            self.taps.note(now);
             return;
         }
         let visible = self.wade_visible();
         let proud = self.wade.expression() == Expression::Proud;
-        out.redraw |= match tap {
+        let (expression, lasts) = match self.taps.record(now) {
             Tap::Poke { run } if run >= HUFF_POKES => {
-                self.wade.feel(now, Feeling::Huff, visible) | self.wade.play(Beat::Huff, now)
+                let felt = self.wade.feel(now, Feeling::Huff, visible);
+                let played = self.wade.play(Beat::Huff, now);
+                out.redraw |= felt || played;
+                return;
             }
-            Tap::Poke { .. } => false,
-            Tap::Deliberate { burst } => {
-                let felt = self.wade.feel(now, Feeling::Tap, visible);
-                felt | if burst >= PROUD_TAPS {
-                    self.wade
-                        .react(Expression::Proud, PROUD_DURATION, After::Rest, now)
-                } else if proud && burst == 1 {
-                    if self.rng.range_inclusive(1, HUBRIS_ONE_IN) == 1 {
-                        self.wade.play(Beat::Hubris, now)
-                    } else {
-                        self.wade
-                            .react(Expression::Proud, PROUD_DURATION, After::Rest, now)
-                    }
-                } else {
-                    self.wade
-                        .react(Expression::Happy, HAPPY_DURATION, After::Rest, now)
-                }
+            Tap::Poke { .. } => return,
+            Tap::Deliberate { burst: 1 }
+                if proud && self.rng.range_inclusive(1, HUBRIS_ONE_IN) == 1 =>
+            {
+                out.redraw |= self.wade.play(Beat::Hubris, now);
+                return;
             }
+            Tap::Deliberate { burst } if proud || burst >= PROUD_TAPS => {
+                (Expression::Proud, PROUD_DURATION)
+            }
+            Tap::Deliberate { .. } => (Expression::Happy, HAPPY_DURATION),
         };
+        let reacted = self.wade.react(expression, lasts, After::Rest, now);
+        let felt = self.wade.feel(now, Feeling::Tap, visible);
+        out.redraw |= reacted || felt;
     }
 
     /// Dismiss a finished timer and return to Buddy, so Wade can react. If
@@ -532,6 +551,9 @@ impl App {
             Screen::Buddy => self.launcher_page = 0,
             Screen::Settings if self.screen != Screen::About => self.settings_page = 0,
             _ => {}
+        }
+        if self.screen == Screen::Buddy && screen != Screen::Buddy {
+            self.taps = Taps::default();
         }
         self.screen = screen;
         self.touch.cancel();

@@ -119,7 +119,7 @@ His mood is how pleased with himself he has been lately: points from 0 to 100 th
 
 | Event | Points |
 |---|---|
-| A deliberate [tap](#taps-on-wade) on him while awake, except during a huff | +8 |
+| A deliberate [tap](#taps-on-wade) on him while awake, unless it backfires or comes during a huff | +8 |
 | Dismissing a finished timer he takes credit for (Proud) | +30 |
 | The timer catching him napping while he keeps time | −40, and dismissing it earns nothing |
 | A [huff](#taps-on-wade) | Drops to 0 |
@@ -171,7 +171,7 @@ Idle activities (M4):
 |---|---|
 | Start | Eyes open from closed over 300 ms, then Neutral |
 | Every 2 to 6 s, at random | Blink |
-| Tap on Wade | Happy for 2 s, then Neutral. Another tap restarts the 2 s. |
+| Tap on Wade | Happy for 2 s, then Neutral. Another deliberate tap restarts the 2 s; see [Taps on Wade](#taps-on-wade). |
 | Tap on Wade while asleep | Surprised for 1 s, then Neutral |
 | Tap elsewhere on the Buddy screen | Nothing |
 | Desktop number key 0–9 | That expression, held until a tap or another key changes it |
@@ -194,7 +194,7 @@ When the timer runs while the Buddy screen is visible, its countdown shows below
 | Trigger | Result |
 |---|---|
 | A glance while keeping time | About a third of glances look down at the countdown |
-| The last 10 s | Focused on the countdown until it ends; a tap makes him Happy for 2 s, then he goes back to watching |
+| The last 10 s | Focused on the countdown until it ends; a [tap](#taps-on-wade) gets its usual reaction, then he goes back to watching |
 | Keeping time with 2 min or more left, once per run | One time in three (two when [Pleased](#mood)), he dozes off somewhere 30 to 70% of the way through what is left |
 | The timer finishing while he keeps time | Surprised for 1 s, then Proud until it is dismissed |
 | The timer finishing while he keeps time asleep | Caught napping: it wakes him Surprised for 1 s, then Flustered until it is dismissed |
@@ -214,16 +214,16 @@ The CoreS3's power button and the CYD's BOOT button put Wade to bed or get him u
 
 ### Taps on Wade
 
-He tells attention from poking by how fast it comes. A tap on him 200 ms or more after the one before is deliberate; a quicker one is a poke. Deliberate taps please him, and a few in a row make him proud. Poking annoys him. A tap that wakes him only wakes him.
+He tells attention from poking by how fast it comes. A tap on him 200 ms or more after the one before is deliberate; a quicker one is a poke. Deliberate taps please him, and a few in a row make him proud. Poking annoys him. A tap that wakes him, or that dismisses a finished timer, only wakes him or dismisses it. Leaving the Buddy screen forgets a burst.
 
 | Trigger | Result |
 |---|---|
 | A deliberate tap, the first to fourth within 2 s | Happy for 2 s (M1) |
-| A fifth or later deliberate tap within 2 s | Proud for 3 s |
-| A deliberate tap while Proud that starts a new burst | One time in four, the hubris beat: Flustered for 1.5 s, then Neutral. Otherwise Proud restarts. |
+| A fifth or later deliberate tap within 2 s, or a deliberate tap while Proud that continues a burst | Proud for 3 s |
+| A deliberate tap while Proud that starts a new burst | One time in four, the hubris beat: Flustered for 1.5 s, then back to what he rests in, and no credit for the tap. Otherwise Proud restarts. |
 | A first to fifth poke in a row | No reaction; his face holds |
 | A sixth poke in a row | Huff. His mood drops to Plain, so he never comes out of a huff content. |
-| Any tap during a huff | No reaction, but pokes keep counting, so poking that keeps going huffs again as soon as the huff ends. Once it stops, he settles. |
+| Any tap during a huff | No reaction and no burst, but pokes keep counting, so poking that keeps going huffs again as soon as the huff ends. Once it stops, he settles. |
 
 Rapid tapping goes from Happy straight to a huff in about 600 ms, without passing through Proud. The thresholds are tuned on the device in M4; light, fast taps may not all register on the CYD's resistive screen.
 
