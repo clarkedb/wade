@@ -243,31 +243,43 @@ pub enum Beat {
 impl Beat {
     pub const ALL: [Beat; 4] = [Beat::Eureka, Beat::Hubris, Beat::Huff, Beat::Mope];
 
-    /// Each expression in order and how long it holds.
+    /// Step `index` of this beat, or `None` past its last.
     #[must_use]
-    pub const fn steps(self) -> &'static [(Expression, Duration)] {
-        const fn ms(ms: u64) -> Duration {
-            Duration::from_millis(ms)
-        }
-        // Ends as the dots reach three, before they start over.
-        const EUREKA: &[(Expression, Duration)] = &[
-            (Expression::Thinking, ms(1_450)),
-            (Expression::Proud, ms(1_500)),
-        ];
-        const HUBRIS: &[(Expression, Duration)] = &[(Expression::Flustered, ms(1_500))];
-        const HUFF: &[(Expression, Duration)] = &[
-            (Expression::Surprised, ms(500)),
-            (Expression::Angry, ms(1_200)),
-        ];
-        // Long enough for his first tear to finish falling.
-        const MOPE: &[(Expression, Duration)] = &[(Expression::Sad, ms(4_000))];
+    pub(crate) const fn step(self, index: u8) -> Option<Step> {
+        let (expression, ms) = match (self, index) {
+            // Ends as the dots reach three, before they start over.
+            (Beat::Eureka, 0) => (Expression::Thinking, 1_450),
+            (Beat::Eureka, 1) => (Expression::Proud, 1_500),
+            (Beat::Hubris, 0) => (Expression::Flustered, 1_500),
+            (Beat::Huff, 0) => (Expression::Surprised, 500),
+            (Beat::Huff, 1) => (Expression::Angry, 1_200),
+            // Long enough for his first tear to finish falling.
+            (Beat::Mope, 0) => (Expression::Sad, 4_000),
+            _ => return None,
+        };
+        Some(Step {
+            expression,
+            lasts: Duration::from_millis(ms),
+        })
+    }
+
+    /// The beat after this one in `ALL`, wrapping around.
+    #[must_use]
+    pub const fn next(self) -> Beat {
         match self {
-            Beat::Eureka => EUREKA,
-            Beat::Hubris => HUBRIS,
-            Beat::Huff => HUFF,
-            Beat::Mope => MOPE,
+            Beat::Eureka => Beat::Hubris,
+            Beat::Hubris => Beat::Huff,
+            Beat::Huff => Beat::Mope,
+            Beat::Mope => Beat::Eureka,
         }
     }
+}
+
+/// One step of a beat.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Step {
+    pub expression: Expression,
+    pub lasts: Duration,
 }
 
 /// Asleep: the eyes shut to thin lines.
@@ -355,8 +367,8 @@ enum Then {
     Rest,
     /// Back to sleep.
     Sleep,
-    /// The next of a beat's remaining steps.
-    Steps(&'static [(Expression, Duration)]),
+    /// Step `next` of `beat`, or rest if it has no more.
+    Beat { beat: Beat, next: u8 },
 }
 
 impl Wade {
@@ -678,7 +690,7 @@ impl Wade {
     #[must_use = "a true result means the view must be redrawn"]
     pub fn play(&mut self, beat: Beat, now: Instant) -> bool {
         self.now = now;
-        self.step(now, beat.steps());
+        self.step(now, beat, 0);
         true
     }
 
@@ -761,17 +773,18 @@ impl Wade {
         });
     }
 
-    /// Move to the first of `steps` for its time, leaving the rest to follow.
-    fn step(&mut self, now: Instant, steps: &'static [(Expression, Duration)]) {
-        let Some((&(expression, lasts), rest)) = steps.split_first() else {
-            return;
+    /// Move to step `index` of `beat` for its time, with the next to follow.
+    /// Returns false if the beat has no such step.
+    fn step(&mut self, now: Instant, beat: Beat, index: u8) -> bool {
+        let Some(step) = beat.step(index) else {
+            return false;
         };
-        let then = if rest.is_empty() {
-            Then::Rest
-        } else {
-            Then::Steps(rest)
+        let then = Then::Beat {
+            beat,
+            next: index + 1,
         };
-        self.set(now, expression, Some((lasts, then)));
+        self.set(now, step.expression, Some((step.lasts, then)));
+        true
     }
 
     /// A timed expression ends at `at`, and what was to follow does.
@@ -782,7 +795,11 @@ impl Wade {
         match hold.then {
             Then::Rest => self.change(at, self.resting),
             Then::Sleep => self.fall_asleep(at),
-            Then::Steps(steps) => self.step(at, steps),
+            Then::Beat { beat, next } => {
+                if !self.step(at, beat, next) {
+                    self.change(at, self.resting);
+                }
+            }
         }
     }
 
@@ -1273,6 +1290,36 @@ mod tests {
                 (ms(3_950), Expression::Neutral),
             ]
         );
+    }
+
+    #[test]
+    fn every_beat_is_listed_and_has_a_step() {
+        for (i, beat) in Beat::ALL.into_iter().enumerate() {
+            let listed = match beat {
+                Beat::Eureka => 0,
+                Beat::Hubris => 1,
+                Beat::Huff => 2,
+                Beat::Mope => 3,
+            };
+            assert_eq!(i, listed, "{beat:?}");
+            assert!(beat.step(0).is_some(), "{beat:?} has no steps");
+            assert_eq!(beat.next(), Beat::ALL[(i + 1) % Beat::ALL.len()]);
+        }
+    }
+
+    #[test]
+    fn the_state_records_which_beat_is_playing() {
+        let playing = |wade: &Wade| match wade.hold?.then {
+            Then::Beat { beat, .. } => Some(beat),
+            Then::Rest | Then::Sleep => None,
+        };
+        let mut wade = Wade::new(ms(0), 3);
+        let _ = wade.play(Beat::Eureka, ms(1_000));
+        run(&mut wade, ms(3_000), |wade, t| {
+            assert_eq!(playing(wade), Some(Beat::Eureka), "at {t:?}");
+        });
+        run(&mut wade, ms(10_000), |_, _| {});
+        assert_eq!(playing(&wade), None);
     }
 
     #[test]
