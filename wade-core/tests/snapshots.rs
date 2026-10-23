@@ -38,7 +38,7 @@ fn at_rest(expression: Expression) -> Pose {
     Pose {
         accent,
         accent_phase: still_phase(accent),
-        ..expression.pose(MoodLevel::Plain)
+        ..expression.pose()
     }
 }
 
@@ -128,7 +128,7 @@ fn neutral_when_pleased() {
     for (eye_style, prefix) in STYLES {
         face(
             &format!("{prefix}_neutral_pleased"),
-            &Expression::Neutral.pose(MoodLevel::Pleased),
+            &MoodLevel::Pleased.tint(Expression::Neutral, Expression::Neutral.pose()),
             eye_style,
         );
     }
@@ -174,7 +174,7 @@ fn each_colored_accent_in_mono() {
 fn glancing() {
     let pose = Pose {
         gaze: (-0.8, 0.5),
-        ..Expression::Neutral.pose(MoodLevel::Plain)
+        ..Expression::Neutral.pose()
     };
     for (eye_style, prefix) in STYLES {
         face(&format!("{prefix}_glancing"), &pose, eye_style);
@@ -195,7 +195,7 @@ fn asleep() {
 fn mid_blink() {
     let pose = Pose {
         eye_open: 0.3,
-        ..Expression::Neutral.pose(MoodLevel::Plain)
+        ..Expression::Neutral.pose()
     };
     face("mid_blink", &pose, EyeStyle::Pupils);
 }

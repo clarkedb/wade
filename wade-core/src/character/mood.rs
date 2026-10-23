@@ -1,5 +1,6 @@
 //! How pleased with himself Wade has been lately (docs/character.md#mood).
 
+use super::{Expression, Pose};
 use crate::time::{Duration, Instant, millis};
 
 /// The most points his mood holds.
@@ -27,6 +28,20 @@ impl MoodLevel {
         match self {
             MoodLevel::Plain => 0,
             MoodLevel::Pleased => 30,
+        }
+    }
+
+    /// `pose`, the target of `expression`, as this mood colors it. Only
+    /// Neutral shows his mood.
+    #[must_use]
+    pub const fn tint(self, expression: Expression, pose: Pose) -> Pose {
+        match (expression, self) {
+            (Expression::Neutral, MoodLevel::Pleased) => Pose {
+                lower_lid: 0.1,
+                pupil: 33.0,
+                ..pose
+            },
+            _ => pose,
         }
     }
 

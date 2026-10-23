@@ -127,19 +127,11 @@ impl Expression {
         Expression::Flustered,
     ];
 
-    /// The target pose for this expression in `mood`, without its accent.
-    /// Only Neutral shows his mood.
+    /// The target pose for this expression, without its accent.
     #[must_use]
-    pub const fn pose(self, mood: MoodLevel) -> Pose {
+    pub const fn pose(self) -> Pose {
         match self {
-            Expression::Neutral => match mood {
-                MoodLevel::Plain => Pose::REST,
-                MoodLevel::Pleased => Pose {
-                    lower_lid: 0.1,
-                    pupil: 33.0,
-                    ..Pose::REST
-                },
-            },
+            Expression::Neutral => Pose::REST,
             Expression::Happy => Pose {
                 eye_size: (90.0, 90.0),
                 lower_lid: 0.44,
@@ -865,13 +857,14 @@ impl Wade {
         if self.asleep {
             return ASLEEP;
         }
-        let to = self.expression.pose(self.shown_mood);
+        let pose = self.expression.pose();
+        let to = self.shown_mood.tint(self.expression, pose);
         if !self.easing_mood() {
             return to;
         }
         let t = fraction(now.saturating_since(self.mood_at), MOOD_TRANSITION);
-        self.expression
-            .pose(self.mood_from)
+        self.mood_from
+            .tint(self.expression, pose)
             .lerp(&to, smoothstep(t))
     }
 
@@ -1139,7 +1132,7 @@ mod tests {
     fn glances_pause_while_an_expression_holds_its_gaze() {
         let mut wade = Wade::new(ms(0), 3);
         hold(&mut wade, Expression::Thinking, ms(1_000));
-        let held = Expression::Thinking.pose(MoodLevel::Plain).gaze;
+        let held = Expression::Thinking.pose().gaze;
         run(&mut wade, ms(60_000), |wade, t| {
             if t >= ms(1_200) {
                 assert_eq!(wade.pose(t).gaze, held, "gaze moved at {t:?}");
@@ -1301,16 +1294,13 @@ mod tests {
         assert_eq!(wade.mood(ms(2_000)), MoodLevel::Pleased);
         run(&mut wade, ms(5_000), |_, _| {});
         assert_eq!(wade.expression(), Expression::Neutral);
-        let pleased = Expression::Neutral.pose(MoodLevel::Pleased);
+        let pleased = MoodLevel::Pleased.tint(Expression::Neutral, Pose::REST);
         let base = wade.base(ms(5_000));
         assert!((base.lower_lid - pleased.lower_lid).abs() < 1e-6);
         assert!((base.pupil - pleased.pupil).abs() < 1e-6);
         run(&mut wade, ms(10 * 60_000), |_, _| {});
         assert_eq!(wade.mood(ms(10 * 60_000)), MoodLevel::Plain);
-        assert_eq!(
-            wade.base(ms(10 * 60_000)),
-            Expression::Neutral.pose(MoodLevel::Plain)
-        );
+        assert_eq!(wade.base(ms(10 * 60_000)), Expression::Neutral.pose());
     }
 
     #[test]
