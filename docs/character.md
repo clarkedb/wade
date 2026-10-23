@@ -102,13 +102,13 @@ An expression is a named target pose, numbered for the desktop keys (see [platfo
 
 His pupils widen visibly when he is tapped. An expression that sets gaze holds it: glances pause until the expression ends. An expression's accent starts when the transition into it finishes, so it never appears on a half-formed face.
 
-A beat is a short scripted reaction: expressions played in order, each held for its time, then back to what he rests in. Anything else that changes his expression, such as a tap, cuts it short. None has a trigger yet; the desktop's B key plays each in turn.
+A beat is a short scripted reaction: expressions played in order, each held for its time, then back to what he rests in. Anything else that changes his expression cuts it short, such as a tap, except during a huff. Taps trigger Hubris and Huff; the desktop's B key plays each beat in turn.
 
 | Beat | Steps | Meant for |
 |---|---|---|
 | Eureka | Thinking 1.45 s, Proud 1.5 s | Working something out |
-| Hubris | Flustered 1.5 s | Pride backfiring: a tap while Proud (M4) |
-| Huff | Surprised 0.5 s, Angry 1.2 s | A burst of taps: being poked rather than admired (M4) |
+| Hubris | Flustered 1.5 s | Pride backfiring: a [tap](#taps-on-wade) while Proud |
+| Huff | Surprised 0.5 s, Angry 1.2 s | [Poking](#taps-on-wade): six pokes in a row |
 | Mope | Sad 4 s | Being let down, such as the timer he keeps being reset |
 
 Asleep is a state, not an expression; the expression is Sleepy. He does not blink, glance, or squint while asleep.
@@ -119,9 +119,10 @@ His mood is how pleased with himself he has been lately: points from 0 to 100 th
 
 | Event | Points |
 |---|---|
-| A tap on him while awake | +8 |
+| A deliberate [tap](#taps-on-wade) on him while awake, unless it backfires or comes during a huff | +8 |
 | Dismissing a finished timer he takes credit for (Proud) | +30 |
 | The timer catching him napping while he keeps time | −40, and dismissing it earns nothing |
+| A [huff](#taps-on-wade) | Drops to 0 |
 
 | Level | Points | Shows as |
 |---|---|---|
@@ -170,7 +171,7 @@ Idle activities (M4):
 |---|---|
 | Start | Eyes open from closed over 300 ms, then Neutral |
 | Every 2 to 6 s, at random | Blink |
-| Tap on Wade | Happy for 2 s, then Neutral. Another tap restarts the 2 s. |
+| Tap on Wade | Happy for 2 s, then Neutral. Another deliberate tap restarts the 2 s; see [Taps on Wade](#taps-on-wade). |
 | Tap on Wade while asleep | Surprised for 1 s, then Neutral |
 | Tap elsewhere on the Buddy screen | Nothing |
 | Desktop number key 0–9 | That expression, held until a tap or another key changes it |
@@ -193,7 +194,7 @@ When the timer runs while the Buddy screen is visible, its countdown shows below
 | Trigger | Result |
 |---|---|
 | A glance while keeping time | About a third of glances look down at the countdown |
-| The last 10 s | Focused on the countdown until it ends; a tap makes him Happy for 2 s, then he goes back to watching |
+| The last 10 s | Focused on the countdown until it ends; a [tap](#taps-on-wade) gets its usual reaction, then he goes back to watching |
 | Keeping time with 2 min or more left, once per run | One time in three (two when [Pleased](#mood)), he dozes off somewhere 30 to 70% of the way through what is left |
 | The timer finishing while he keeps time | Surprised for 1 s, then Proud until it is dismissed |
 | The timer finishing while he keeps time asleep | Caught napping: it wakes him Surprised for 1 s, then Flustered until it is dismissed |
@@ -211,17 +212,27 @@ The CoreS3's power button and the CYD's BOOT button put Wade to bed or get him u
 | Power button on another screen | The Buddy screen, and asleep |
 | Power button while the timer shows Done | Dismisses it, as Dismiss does |
 
-### M4 (proposed; finalized at the start of M4)
+### Taps on Wade
 
-Taps on Wade form a ladder, counted over the last 2 s: Happy, Proud from the third, and a huff from the sixth. A fourth or fifth tap in a burst keeps the burst going and restarts Proud; only a tap while Proud that starts a new burst can roll the hubris beat.
+He tells attention from poking by how fast it comes. A tap on him 200 ms or more after the one before is deliberate; a quicker one is a poke. Deliberate taps please him, and a few in a row make him proud. Poking annoys him. A tap that wakes him, or that dismisses a finished timer, only wakes him or dismisses it. Leaving the Buddy screen forgets a burst.
+
+| Trigger | Result |
+|---|---|
+| A deliberate tap, the first to fourth within 2 s | Happy for 2 s (M1) |
+| A fifth or later deliberate tap within 2 s, or a deliberate tap while Proud that continues a burst | Proud for 3 s |
+| A deliberate tap while Proud that starts a new burst | One time in four, the hubris beat: Flustered for 1.5 s, then back to what he rests in, and no credit for the tap. Otherwise Proud restarts. |
+| A first to fifth poke in a row | No reaction; his face holds |
+| A sixth poke in a row | Huff. His mood drops to Plain, so he never comes out of a huff content. |
+| Any tap during a huff | No reaction and no burst, but pokes keep counting, so poking that keeps going huffs again as soon as the huff ends. Once it stops, he settles. |
+
+Rapid tapping goes from Happy straight to a huff in about 600 ms, without passing through Proud. The thresholds are tuned on the device in M4; light, fast taps may not all register on the CYD's resistive screen.
+
+### M4 (proposed; finalized at the start of M4)
 
 | Trigger | Result |
 |---|---|
 | 20 to 60 s without a touch on any screen, at random, while the Buddy screen is visible | Start a random idle activity |
 | Tap during an activity | The activity stops; Happy |
-| Three to five taps on Wade within 2 s | Proud for 3 s |
-| Tap on Wade while Proud, not part of a burst | One time in four, the hubris beat: Flustered for 1.5 s, then Neutral. Otherwise Proud restarts. |
-| Six or more taps on Wade within 2 s | Huff: attention has turned to poking. His mood drops to Plain, so he never comes out of a huff content. Taps during it are ignored, so he cannot be kept angry. |
 | Touch anywhere on the Buddy screen | Gaze moves toward the touch point for 1 s |
 
 ### M6 adds

@@ -10,7 +10,7 @@ use std::vec::Vec;
 use embedded_graphics::geometry::Point;
 
 use crate::app::{App, Effect, Output, Screen};
-use crate::character::Expression;
+use crate::character::{Expression, MoodLevel};
 use crate::event::{Event, Key, TouchPhase};
 use crate::settings::{Settings, Volume};
 use crate::time::Instant;
@@ -166,6 +166,12 @@ impl Harness {
             View::Settings(settings) => settings,
             view => panic!("expected the Settings screen, got {view:?}"),
         }
+    }
+
+    /// Wade's mood, on any screen.
+    #[must_use]
+    pub fn mood(&self) -> MoodLevel {
+        self.app.wade().mood(self.app.now())
     }
 
     /// True while Wade is asleep, on any screen.

@@ -637,6 +637,15 @@ impl Wade {
         true
     }
 
+    /// The beat he is playing, if any.
+    #[must_use]
+    pub fn playing(&self) -> Option<Beat> {
+        match self.hold?.then {
+            Then::Beat { beat, .. } => Some(beat),
+            Then::Rest | Then::Sleep => None,
+        }
+    }
+
     /// Fall asleep until a tap, [`Wade::wake`], or [`Wade::show`] wakes him.
     /// Returns true if the view may have changed.
     #[must_use = "a true result means the view must be redrawn"]
@@ -1261,10 +1270,7 @@ mod tests {
 
     #[test]
     fn the_state_records_which_beat_is_playing() {
-        let playing = |wade: &Wade| match wade.hold?.then {
-            Then::Beat { beat, .. } => Some(beat),
-            Then::Rest | Then::Sleep => None,
-        };
+        let playing = Wade::playing;
         let mut wade = Wade::new(ms(0), 3);
         let _ = wade.play(Beat::Eureka, ms(1_000));
         run(&mut wade, ms(3_000), |wade, t| {
