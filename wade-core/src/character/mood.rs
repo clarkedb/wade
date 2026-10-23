@@ -7,12 +7,28 @@ use crate::time::{Duration, Instant, millis};
 pub const MOOD_MAX: u32 = 100;
 /// His mood loses a point every `MOOD_DECAY`, so a full one fades in 10 min.
 pub const MOOD_DECAY: Duration = Duration::from_secs(6);
-/// Points from a tap on him while awake.
-pub const MOOD_TAP: i32 = 8;
-/// Points from dismissing a finished timer he takes credit for.
-pub const MOOD_SUCCESS: i32 = 30;
-/// Points lost when the timer catches him napping on the job.
-pub const MOOD_CAUGHT: i32 = -40;
+
+/// Something that moves his mood.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Feeling {
+    /// A tap on him while awake.
+    Tap,
+    /// A finished timer dismissed that he takes credit for.
+    Success,
+    /// The timer he keeps catching him napping on the job.
+    Caught,
+}
+
+impl Feeling {
+    /// The points this feeling adds to his mood.
+    const fn points(self) -> i32 {
+        match self {
+            Feeling::Tap => 8,
+            Feeling::Success => 30,
+            Feeling::Caught => -40,
+        }
+    }
+}
 
 /// His mood in bands, from what its points are.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -91,6 +107,11 @@ impl Mood {
         self.at = Instant::from_millis(now.as_millis() - into_step);
     }
 
+    /// Move the mood at `now` by how `feeling` moves it.
+    pub fn feel(&mut self, now: Instant, feeling: Feeling) {
+        self.add(now, feeling.points());
+    }
+
     /// When the mood next falls to a lower level, if it can.
     pub fn next_drop(&self, now: Instant) -> Option<Instant> {
         let level = self.level(now);
@@ -137,10 +158,10 @@ mod tests {
     #[test]
     fn points_stay_in_range() {
         let mut mood = Mood::new(ms(0));
-        mood.add(ms(0), MOOD_CAUGHT);
+        mood.add(ms(0), Feeling::Caught.points());
         assert_eq!(mood.points(ms(0)), 0);
         for _ in 0..10 {
-            mood.add(ms(0), MOOD_SUCCESS);
+            mood.add(ms(0), Feeling::Success.points());
         }
         assert_eq!(mood.points(ms(0)), MOOD_MAX);
     }

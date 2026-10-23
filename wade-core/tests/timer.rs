@@ -6,10 +6,10 @@ use std::time::Duration;
 
 use common::{SEED, back, button, home, ms, open};
 use embedded_graphics::geometry::Point;
-use wade_core::app::{COUNTDOWN, Screen, TOUCH_GUARD};
-use wade_core::character::{
-    Expression, GROGGY_DURATION, HAPPY_DURATION, TIMER_REACTION, WAKE_DURATION,
+use wade_core::app::{
+    COUNTDOWN, GROGGY_DURATION, HAPPY_DURATION, Screen, TIMER_REACTION, TOUCH_GUARD,
 };
+use wade_core::character::{Expression, WAKE_DURATION};
 use wade_core::harness::Harness;
 use wade_core::layout::{self, Target, Tile, WADE_CENTER};
 use wade_core::settings::Volume;

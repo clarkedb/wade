@@ -224,6 +224,8 @@ enum Screen {
 
 Each feature module follows one pattern: a state type with `next_transition()` to report its next scheduled change, a method to apply the transitions due at a given instant, and, for features with a screen, a tap handler and a `view()` method. `App` composes them with the loop in [Events](#events); its `next_deadline` is the earliest of theirs.
 
+Behavior is decided in `App` and carried out by `Wade`. `App` reads Wade's state, draws from the behavior stream, and chooses the reaction: whether he dozes off, how his mood moves, and in M4 which activity starts or whether a tap backfires. `Wade` shows what he is told, schedules his own motion, and changes mood only when told how he feels. Each new trigger is then one decision in `App` and one call into `Wade`.
+
 Touches are global input. Any tap, on any screen, counts as activity for features that care about inactivity (Wade's idle activities in M4, display sleep in M6).
 
 ### Hidden features

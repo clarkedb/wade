@@ -1,6 +1,6 @@
 //! `App`: the core's entry point. Owns all state and routes events to features.
 
-use crate::character::{Beat, Expression, MoodLevel, Wade};
+use crate::character::{After, Beat, Expression, Feeling, MoodLevel, WAKE_DURATION, Wade};
 use crate::event::{Event, EventKind, Key, Touch, TouchPhase};
 use crate::info::BuildInfo;
 use crate::input::TouchTracker;
@@ -29,6 +29,14 @@ pub const SAVE_DELAY: Duration = Duration::from_secs(2);
 /// presses are ignored: they were aimed at what the screen showed before, and
 /// could otherwise dismiss a timer its user never saw finish.
 pub const TOUCH_GUARD: Duration = Duration::from_millis(500);
+
+/// How long Wade stays Happy after a tap on him.
+pub const HAPPY_DURATION: Duration = Duration::from_millis(2_000);
+/// How long Wade stays Proud after a finished timer is dismissed.
+pub const TIMER_REACTION: Duration = Duration::from_millis(2_000);
+/// How long Wade stays Sleepy after dismissing a timer that woke him.
+/// Then a coin flip decides whether he wakes up or dozes off again.
+pub const GROGGY_DURATION: Duration = Duration::from_millis(3_000);
 
 /// While he keeps time, Wade watches the countdown intently for this long
 /// before it ends.
@@ -107,8 +115,21 @@ pub struct App {
     doze_at: Option<Instant>,
     /// Whether this run of the timer has decided if he dozes off.
     doze_decided: bool,
+    /// How the finished timer found Wade, which decides how he takes its
+    /// dismissal.
+    found: Found,
     /// The beat the desktop's B key plays next.
     next_beat: Beat,
+}
+
+/// How the finished timer found Wade.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Found {
+    Awake,
+    /// Asleep while he kept time on Buddy: caught napping on the job.
+    Napping,
+    /// Asleep on another screen: the chime woke him.
+    Woken,
 }
 
 impl App {
@@ -134,6 +155,7 @@ impl App {
             save_at: None,
             doze_at: None,
             doze_decided: false,
+            found: Found::Awake,
             next_beat: Beat::Eureka,
         }
     }
@@ -217,7 +239,7 @@ impl App {
             Some(Target::Wade | Target::Clock) if self.timer.phase() == TimerPhase::Done => {
                 self.dismiss(out);
             }
-            Some(Target::Wade) => out.redraw |= self.wade.on_tap(self.now),
+            Some(Target::Wade) => self.tap_wade(out),
             Some(Target::Apps) => self.switch_to(Screen::Launcher, out),
             Some(Target::Clock | Target::Tile(Tile::Timer)) => self.switch_to(Screen::Timer, out),
             Some(Target::Tile(Tile::Settings)) => self.switch_to(Screen::Settings, out),
@@ -281,10 +303,46 @@ impl App {
         }
     }
 
-    /// Dismiss a finished timer and return to Buddy, so Wade can react.
+    /// A tap on Wade: it wakes him if he is asleep, and pleases him if not.
+    fn tap_wade(&mut self, out: &mut Output) {
+        if self.wade.asleep() {
+            out.redraw |= self.wade.wake(self.now);
+            return;
+        }
+        let reacted = self
+            .wade
+            .react(Expression::Happy, HAPPY_DURATION, After::Rest, self.now);
+        let felt = self.wade.feel(self.now, Feeling::Tap, self.wade_visible());
+        out.redraw |= reacted || felt;
+    }
+
+    /// Dismiss a finished timer and return to Buddy, so Wade can react. If
+    /// the timer woke him, he is Sleepy and a coin flip decides whether he
+    /// dozes off again. Otherwise he is Proud and takes the credit, unless it
+    /// caught him napping.
     fn dismiss(&mut self, out: &mut Output) {
         if self.timer.press(TimerButton::Dismiss, self.now) {
-            out.redraw |= self.wade.timer_dismissed(self.now, &mut self.rng);
+            let now = self.now;
+            let found = core::mem::replace(&mut self.found, Found::Awake);
+            if found == Found::Woken {
+                let after = if self.rng.range_inclusive(1, 2) == 1 {
+                    After::Sleep
+                } else {
+                    After::Rest
+                };
+                let _ = self
+                    .wade
+                    .react(Expression::Sleepy, GROGGY_DURATION, after, now);
+            } else {
+                let _ = self
+                    .wade
+                    .react(Expression::Proud, TIMER_REACTION, After::Rest, now);
+                if found == Found::Awake {
+                    let _ = self.wade.feel(now, Feeling::Success, self.wade_visible());
+                }
+            }
+            let _ = self.wade.set_resting(now, Expression::Neutral);
+            out.redraw = true;
         }
         self.switch_to(Screen::Buddy, out);
     }
@@ -329,8 +387,30 @@ impl App {
     /// from any other screen, it brings up the Timer screen.
     fn on_chime(&mut self, chime: Chime, out: &mut Output) {
         if chime == Chime::First {
+            let now = self.now;
             let watching = self.screen == Screen::Buddy;
-            self.wade.timer_finished(self.now, watching);
+            self.found = match (self.wade.asleep(), watching) {
+                (false, _) => Found::Awake,
+                (true, true) => Found::Napping,
+                (true, false) => Found::Woken,
+            };
+            if watching {
+                // He startles, then is Proud until it is dismissed, or
+                // Flustered if it caught him napping.
+                let _ = self
+                    .wade
+                    .react(Expression::Surprised, WAKE_DURATION, After::Rest, now);
+                let resting = if self.found == Found::Napping {
+                    let _ = self.wade.feel(now, Feeling::Caught, self.wade_visible());
+                    Expression::Flustered
+                } else {
+                    Expression::Proud
+                };
+                let _ = self.wade.set_resting(now, resting);
+            } else if self.found == Found::Woken {
+                // Woken out of sight, he stays groggy until it is dismissed.
+                let _ = self.wade.show(Expression::Sleepy, now);
+            }
             if watching {
                 // The finish changes what a touch on Buddy means.
                 self.touch.cancel();
@@ -662,6 +742,56 @@ mod tests {
 
     fn ms(ms: u64) -> Instant {
         Instant::from_millis(ms)
+    }
+
+    /// A timer he keeps on Buddy finishes at `at`, catching him napping if `asleep`.
+    fn finish_kept_timer(app: &mut App, at: Instant, asleep: bool) {
+        app.now = at;
+        if asleep {
+            let _ = app.wade.sleep(at);
+        }
+        app.timer = TimerState::Done {
+            set: Duration::from_mins(1),
+            since: at,
+            chimes: 1,
+        };
+        app.on_chime(Chime::First, &mut Output::default());
+    }
+
+    fn dismiss_at(app: &mut App, at: Instant) {
+        app.now = at;
+        app.dismiss(&mut Output::default());
+    }
+
+    #[test]
+    fn being_caught_costs_him_and_earns_no_credit() {
+        let mut app = App::new(ms(0), SEED, Settings::DEFAULT);
+        finish_kept_timer(&mut app, ms(1_000), false);
+        dismiss_at(&mut app, ms(2_000));
+        assert_eq!(app.wade.mood(app.now), MoodLevel::Pleased);
+        finish_kept_timer(&mut app, ms(3_000), true);
+        assert_eq!(app.wade.mood(app.now), MoodLevel::Plain);
+        dismiss_at(&mut app, ms(4_000));
+        assert_eq!(app.wade.expression(), Expression::Proud);
+        assert_eq!(app.wade.mood(app.now), MoodLevel::Plain);
+        // The next timer he keeps earns full credit again.
+        finish_kept_timer(&mut app, ms(5_000), false);
+        dismiss_at(&mut app, ms(6_000));
+        assert_eq!(app.wade.mood(app.now), MoodLevel::Pleased);
+    }
+
+    #[test]
+    fn a_tap_that_wakes_him_does_not_please_him() {
+        let mut app = App::new(ms(0), SEED, Settings::DEFAULT);
+        let _ = app.wade.sleep(ms(0));
+        for i in 0..4 {
+            app.now = ms(1_000 + i * 100);
+            app.tap_wade(&mut Output::default());
+        }
+        // Three taps once awake: 24 points, short of Pleased.
+        assert_eq!(app.wade.mood(app.now), MoodLevel::Plain);
+        app.tap_wade(&mut Output::default());
+        assert_eq!(app.wade.mood(app.now), MoodLevel::Pleased);
     }
 
     #[test]
