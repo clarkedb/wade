@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/clarkedb/wade/compare/v0.3.0...v0.4.0) (2026-10-23)
+
+
+### Features
+
+* add beats, scripted sequences of expressions ([#123](https://github.com/clarkedb/wade/issues/123)) ([cd726c2](https://github.com/clarkedb/wade/commit/cd726c2b450220f9b8bcd9a4189cf463e1857186))
+* give wade a slow mood that colors his behavior ([#124](https://github.com/clarkedb/wade/issues/124)) ([e9d00b5](https://github.com/clarkedb/wade/commit/e9d00b5383b163d4b24176f712bc40bc37983b05))
+* let deliberate taps make wade proud and pokes make him huff ([#135](https://github.com/clarkedb/wade/issues/135)) ([784aaee](https://github.com/clarkedb/wade/commit/784aaee7ba0b16e9598f657c09269753bf9ef733))
+
 ## [0.3.0](https://github.com/clarkedb/wade/compare/v0.2.0...v0.3.0) (2026-10-22)
 
 
